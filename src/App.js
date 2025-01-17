@@ -194,15 +194,14 @@ function App() {
   if (showThankYou) {
     return <ThankYouScreen />;
   }
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header avec dégradé */}
-      <header className="bg-gradient-to-r from-tetris-blue to-blue-700 shadow-lg">
+    <div className="min-h-screen bg-tetris-blue">
+      {/* Header avec fond blanc */}
+      <header className="bg-white shadow-lg">
         <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center">
             <img src={logo} alt="Tetris Assurance" className="h-12 w-auto" />
-            <div className="text-white font-medium">
+            <div className="text-tetris-blue font-medium">
               Question {currentStep + 1} sur {questions.length}
             </div>
           </div>
@@ -212,18 +211,18 @@ function App() {
       {/* Contenu principal */}
       <main className="max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-10">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+          <h1 className="text-4xl font-bold text-white mb-4">
             Votre avis compte
           </h1>
-          <p className="text-lg text-gray-600">
+          <p className="text-lg text-white/80">
             Aidez-nous à améliorer nos services en répondant à quelques questions
           </p>
         </div>
 
         {/* Barre de progression */}
-        <div className="w-full bg-gray-200 rounded-full h-2.5 mb-10">
+        <div className="w-full bg-white/20 rounded-full h-2.5 mb-10">
           <div 
-            className="bg-tetris-blue h-2.5 rounded-full transition-all duration-500 ease-in-out"
+            className="bg-white h-2.5 rounded-full transition-all duration-500 ease-in-out"
             style={{ width: `${((currentStep + 1) / questions.length) * 100}%` }}
           ></div>
         </div>
