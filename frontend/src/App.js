@@ -34,83 +34,46 @@ function App() {
   const [responses, setResponses] = useState({});
   const [showThankYou, setShowThankYou] = useState(false);
 
-
   const questions = [
-    {
-      id: 1,
-      text: "Recommanderiez-vous notre service à d'autres courtiers ?",
-      type: "rating",
-      max: 10
-    },
-    {
-      id: 2,
-      text: "Quel est votre niveau de satisfaction globale concernant nos services ?",
-      type: "stars",
-      max: 5
-    },
-    {
-      id: 3,
-      text: "Comment évaluez-vous la rapidité de nos réponses à vos demandes ?",
-      type: "choice",
-      options: ["Excellent", "Bon", "Moyen", "Insuffisant"]
-    },
-    {
-      id: 4,
-      text: "Les solutions d'assurance proposées correspondent-elles à vos besoins ?",
-      type: "choice",
-      options: ["Toujours", "Souvent", "Parfois", "Rarement"]
-    },
-    {
-      id: 5,
-      text: "Comment jugez-vous la clarté des informations fournies ?",
-      type: "choice",
-      options: ["Très clair", "Clair", "Peu clair", "Pas clair du tout"]
-    },
-    {
-      id: 6,
-      text: "Le processus de soumission des dossiers est-il simple à utiliser ?",
-      type: "choice",
-      options: ["Oui, très simple", "Plutôt simple", "Plutôt compliqué", "Très compliqué"]
-    },
-    {
-      id: 7,
-      text: "Les délais de traitement des dossiers sont-ils respectés ?",
-      type: "choice",
-      options: ["Toujours", "Souvent", "Parfois", "Rarement"]
-    },
-    {
-      id: 8,
-      text: "Comment évaluez-vous le support technique fourni ?",
-      type: "choice",
-      options: ["Excellent", "Bon", "Moyen", "Insuffisant"]
-    },
-    {
-      id: 9,
-      text: "La tarification proposée est-elle compétitive ?",
-      type: "choice",
-      options: ["Très compétitive", "Assez compétitive", "Peu compétitive", "Pas du tout compétitive"]
-    },
-    {
-      id: 10,
-      text: "Avez-vous des suggestions d'amélioration ou des commentaires ?",
-      type: "text"
-    }
+    { id: 1, text: "Recommanderiez-vous notre service à d'autres courtiers ?", type: "rating", max: 10 },
+    { id: 2, text: "Quel est votre niveau de satisfaction globale concernant nos services ?", type: "stars", max: 5 },
+    { id: 3, text: "Comment évaluez-vous la rapidité de nos réponses à vos demandes ?", type: "choice", options: ["Excellent", "Bon", "Moyen", "Insuffisant"] },
+    { id: 4, text: "Les solutions d'assurance proposées correspondent-elles à vos besoins ?", type: "choice", options: ["Toujours", "Souvent", "Parfois", "Rarement"] },
+    { id: 5, text: "Comment jugez-vous la clarté des informations fournies ?", type: "choice", options: ["Très clair", "Clair", "Peu clair", "Pas clair du tout"] },
+    { id: 6, text: "Le processus de soumission des dossiers est-il simple à utiliser ?", type: "choice", options: ["Oui, très simple", "Plutôt simple", "Plutôt compliqué", "Très compliqué"] },
+    { id: 7, text: "Les délais de traitement des dossiers sont-ils respectés ?", type: "choice", options: ["Toujours", "Souvent", "Parfois", "Rarement"] },
+    { id: 8, text: "Comment évaluez-vous le support technique fourni ?", type: "choice", options: ["Excellent", "Bon", "Moyen", "Insuffisant"] },
+    { id: 9, text: "La tarification proposée est-elle compétitive ?", type: "choice", options: ["Très compétitive", "Assez compétitive", "Peu compétitive", "Pas du tout compétitive"] },
+    { id: 10, text: "Avez-vous des suggestions d'amélioration ou des commentaires ?", type: "text" },
   ];
 
   const handleResponse = (questionId, value) => {
-    setResponses(prev => ({
-      ...prev,
-      [questionId]: value
-    }));
-    
-    // Passer automatiquement à la question suivante après une réponse
+    setResponses(prev => ({ ...prev, [questionId]: value }));
     if (currentStep < questions.length - 1) {
       setTimeout(() => setCurrentStep(currentStep + 1), 300);
     }
   };
 
+  const submitResponsesToBackend = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/responses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(responses),
+      });
+      if (response.ok) {
+        console.log('Réponses enregistrées avec succès.');
+      } else {
+        console.error('Erreur lors de l\'enregistrement des réponses.');
+      }
+    } catch (error) {
+      console.error('Erreur réseau :', error);
+    }
+  };
+
   const handleSubmit = () => {
     console.log('Réponses soumises:', responses);
+    submitResponsesToBackend();
     setShowThankYou(true);
   };
 
@@ -136,7 +99,6 @@ function App() {
             ))}
           </div>
         );
-
       case 'stars':
         return (
           <div className="flex justify-center gap-2">
@@ -154,11 +116,10 @@ function App() {
             ))}
           </div>
         );
-
       case 'choice':
         return (
           <div className="grid grid-cols-1 gap-3">
-            {question.options.map((option) => (
+            {question.options.map(option => (
               <button
                 key={option}
                 onClick={() => handleResponse(question.id, option)}
@@ -173,7 +134,6 @@ function App() {
             ))}
           </div>
         );
-
       case 'text':
         return (
           <textarea
@@ -185,7 +145,6 @@ function App() {
             placeholder="Écrivez votre réponse ici..."
           />
         );
-
       default:
         return null;
     }
@@ -194,9 +153,9 @@ function App() {
   if (showThankYou) {
     return <ThankYouScreen />;
   }
+
   return (
     <div className="min-h-screen bg-tetris-blue">
-      {/* Header avec fond blanc */}
       <header className="bg-white shadow-lg">
         <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center">
@@ -208,38 +167,24 @@ function App() {
         </div>
       </header>
 
-      {/* Contenu principal */}
       <main className="max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-10">
-          <h1 className="text-4xl font-bold text-white mb-4">
-            Votre avis compte
-          </h1>
+          <h1 className="text-4xl font-bold text-white mb-4">Votre avis compte</h1>
           <p className="text-lg text-white/80">
             Aidez-nous à améliorer nos services en répondant à quelques questions
           </p>
         </div>
 
-        {/* Barre de progression */}
-        <div className="w-full bg-white/20 rounded-full h-2.5 mb-10">
-          <div 
-            className="bg-white h-2.5 rounded-full transition-all duration-500 ease-in-out"
-            style={{ width: `${((currentStep + 1) / questions.length) * 100}%` }}
-          ></div>
-        </div>
-
-        {/* Carte de question */}
         <div className="bg-white rounded-xl shadow-xl overflow-hidden">
           <div className="p-8">
             <div className="mb-6 text-xl font-medium text-gray-900">
               {questions[currentStep].text}
             </div>
-
             <div className="space-y-4">
               {renderQuestionInput(questions[currentStep])}
             </div>
           </div>
 
-          {/* Footer de la carte */}
           <div className="px-8 py-4 bg-gray-50 border-t border-gray-200 flex justify-between">
             <button
               onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}
