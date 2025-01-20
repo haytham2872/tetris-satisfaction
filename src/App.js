@@ -8,8 +8,8 @@ import FloatingButton from './components/FloatingButton';
 import { seedDatabase } from './seedDatabase';
 import SatisfactionAnalytics from './components/SatisfactionAnalytics';
 import AdditionalAnalytics from './components/AdditionalAnalytics';
-
-
+import FeedbackAnalyticsPage from './components/FeedbackAnalysis';
+import { analyzeFeedback } from './services/nlpService';
 const ThankYouScreen = () => {
   return (
     <div className="fixed inset-0 bg-tetris-blue bg-opacity-95 flex items-center justify-center z-50 animate-fadeIn">
@@ -122,27 +122,59 @@ function App() {
 
   const handleSubmit = async () => {
     try {
-      // Prépare les données à envoyer
+      // Original survey data structure (keep it unchanged)
       const surveyData = {
         timestamp: new Date(),
         answers: {
-          recommendation: responses[1],
-          satisfaction: responses[2],
-          responseSpeed: responses[3],
-          solutions: responses[4],
-          clarity: responses[5],
-          submissionProcess: responses[6],
-          deadlines: responses[7],
-          support: responses[8],
-          pricing: responses[9],
-          suggestions: responses[10]
+          recommendation: responses[1] || null,
+          satisfaction: responses[2] || null,
+          responseSpeed: responses[3] || '',
+          solutions: responses[4] || '',
+          clarity: responses[5] || '',
+          submissionProcess: responses[6] || '',
+          deadlines: responses[7] || '',
+          support: responses[8] || '',
+          pricing: responses[9] || '',
+          suggestions: responses[10] || ''
         }
       };
   
-      // Envoie les données à Firebase
-      await addDoc(collection(db, 'surveys'), surveyData);
+      // First save the survey
+      const surveyRef = await addDoc(collection(db, 'surveys'), surveyData);
+  
+      // If there's a suggestion, analyze it and save to a separate collection
+      if (responses[10] && responses[10].trim()) {
+        try {
+          const analysis = await analyzeFeedback(responses[10]);
+          
+          // Create a clean object for Firestore
+          const analysisData = {
+            surveyId: surveyRef.id,
+            timestamp: new Date(),
+            originalText: responses[10],
+            analysis: {
+              sentiment: {
+                score: analysis.sentiment.score,
+                magnitude: analysis.sentiment.magnitude,
+                category: analysis.sentiment.category
+              },
+              topics: analysis.topics.map(topic => ({
+                name: topic.name,
+                type: topic.type,
+                salience: topic.salience,
+                sentiment: topic.sentiment
+              })),
+              mainTopics: analysis.mainTopics
+            }
+          };
+  
+          await addDoc(collection(db, 'feedbackAnalysis'), analysisData);
+        } catch (analysisError) {
+          console.error('Error in feedback analysis:', analysisError);
+          // Continue with thank you screen even if analysis fails
+        }
+      }
       
-      // Affiche l'écran de remerciement
       setShowThankYou(true);
     } catch (error) {
       console.error('Erreur:', error);
@@ -231,10 +263,23 @@ function App() {
     return <ThankYouScreen />;
   }
   if (showAnalytics) {
+    if (analyticsView === 'feedback') {
+      return (
+        <FeedbackAnalyticsPage 
+          onBack={() => setAnalyticsView('additional')} 
+        />
+      );
+    }
     if (analyticsView === 'additional') {
       return (
         <AdditionalAnalytics 
-          onBack={() => setAnalyticsView('main')} 
+          onBack={(view) => {
+            if (view === 'feedback') {
+              setAnalyticsView('feedback');
+            } else {
+              setAnalyticsView('main');
+            }
+          }} 
         />
       );
     }

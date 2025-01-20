@@ -86,7 +86,7 @@ const AdditionalAnalytics = ({ onBack }) => {
     };
 
     fetchData();
-  }, []);
+  },);
 
   const calculatePositivePercentage = (data, positiveResponses) => {
     const total = data.reduce((acc, curr) => acc + curr.value, 0);
@@ -127,15 +127,23 @@ const AdditionalAnalytics = ({ onBack }) => {
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 text-tetris-blue hover:text-tetris-light transition-colors"
-          >
-            <ArrowLeft size={20} />
-            Retour aux statistiques principales
-          </button>
-        </div>
+      <div className="flex justify-between items-center mb-8">
+  <button
+    onClick={onBack}
+    className="flex items-center gap-2 text-tetris-blue hover:text-tetris-light transition-colors"
+  >
+    <ArrowLeft size={20} />
+    Retour aux statistiques principales
+  </button>
+
+  <button
+    onClick={() => onBack('feedback')}
+    className="bg-tetris-blue text-white px-4 py-2 rounded-lg hover:bg-tetris-light transition-colors flex items-center gap-2"
+  >
+    <MessageSquare size={20} />
+    Analyse des commentaires
+  </button>
+</div>
 
         <div className="mb-12">
           <h1 className="text-3xl font-bold text-gray-900">Statistiques complémentaires</h1>
