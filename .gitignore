@@ -1,5 +1,6 @@
 # dependencies
 /node_modules
+/server/node_modules
 /.pnp
 .pnp.js
 
@@ -27,8 +28,6 @@ yarn-error.log*
 *.swp
 *.swo
 
-# local env files
-.env
 
 # Build artifacts
 *.map

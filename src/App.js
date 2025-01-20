@@ -2,6 +2,13 @@ import React, { useState } from 'react';
 import './index.css';
 import logo from './assets/logo.png';
 import { ThumbsUp, Heart, Star, CheckCircle2 } from 'lucide-react';
+import { db } from './config/firebase';
+import { collection, addDoc } from 'firebase/firestore';
+import FloatingButton from './components/FloatingButton';
+import { seedDatabase } from './seedDatabase';
+import SatisfactionAnalytics from './components/SatisfactionAnalytics';
+import AdditionalAnalytics from './components/AdditionalAnalytics';
+
 
 const ThankYouScreen = () => {
   return (
@@ -30,10 +37,14 @@ const ThankYouScreen = () => {
 };
 
 function App() {
+  
   const [currentStep, setCurrentStep] = useState(0);
   const [responses, setResponses] = useState({});
   const [showThankYou, setShowThankYou] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [analyticsView, setAnalyticsView] = useState('main'); 
 
+  
 
   const questions = [
     {
@@ -109,9 +120,34 @@ function App() {
     }
   };
 
-  const handleSubmit = () => {
-    console.log('Réponses soumises:', responses);
-    setShowThankYou(true);
+  const handleSubmit = async () => {
+    try {
+      // Prépare les données à envoyer
+      const surveyData = {
+        timestamp: new Date(),
+        answers: {
+          recommendation: responses[1],
+          satisfaction: responses[2],
+          responseSpeed: responses[3],
+          solutions: responses[4],
+          clarity: responses[5],
+          submissionProcess: responses[6],
+          deadlines: responses[7],
+          support: responses[8],
+          pricing: responses[9],
+          suggestions: responses[10]
+        }
+      };
+  
+      // Envoie les données à Firebase
+      await addDoc(collection(db, 'surveys'), surveyData);
+      
+      // Affiche l'écran de remerciement
+      setShowThankYou(true);
+    } catch (error) {
+      console.error('Erreur:', error);
+      alert('Une erreur est survenue lors de la soumission du formulaire.');
+    }
   };
 
   const renderQuestionInput = (question) => {
@@ -194,6 +230,28 @@ function App() {
   if (showThankYou) {
     return <ThankYouScreen />;
   }
+  if (showAnalytics) {
+    if (analyticsView === 'additional') {
+      return (
+        <AdditionalAnalytics 
+          onBack={() => setAnalyticsView('main')} 
+        />
+      );
+    }
+    return (
+      <SatisfactionAnalytics 
+        onBack={(view) => {
+          if (view === 'additional') {
+            setAnalyticsView('additional');
+          } else {
+            setShowAnalytics(false);
+            setAnalyticsView('main');
+          }
+        }} 
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-tetris-blue">
       {/* Header avec fond blanc */}
@@ -272,6 +330,15 @@ function App() {
           </div>
         </div>
       </main>
+      {process.env.NODE_ENV === 'development' && (
+    <button
+      onClick={() => seedDatabase()}
+      className="fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded"
+    >
+      Remplir DB (DEV)
+    </button>
+  )}
+      <FloatingButton onClick={() => setShowAnalytics(true)} />
     </div>
   );
 }
