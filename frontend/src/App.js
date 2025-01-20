@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './index.css';
 import logo from './assets/logo.png';
 import { ThumbsUp, Heart, Star, CheckCircle2 } from 'lucide-react';
+import { startSurvey, submitResponses } from './API';
 
 const ThankYouScreen = () => {
   return (
@@ -15,7 +16,7 @@ const ThankYouScreen = () => {
             <Star className="w-12 h-12 text-white animate-bounce delay-100" />
             <CheckCircle2 className="w-12 h-12 text-white animate-pulse delay-100" />
           </div>
-          
+
           {/* Message de remerciement animé */}
           <h2 className="text-4xl font-bold text-white mb-4 animate-slideUp">
             Merci pour vos réponses !
@@ -30,9 +31,47 @@ const ThankYouScreen = () => {
 };
 
 function App() {
+  const [surveyId, setSurveyId] = useState(null); // ID du survey en cours
   const [currentStep, setCurrentStep] = useState(0);
   const [responses, setResponses] = useState({});
   const [showThankYou, setShowThankYou] = useState(false);
+
+  // Initialisation du survey
+  useEffect(() => {
+    const initializeSurvey = async () => {
+      try {
+        const response = await startSurvey(); // Démarre un nouveau survey
+        if (response && response.id) {
+          setSurveyId(response.id);
+        } else {
+          console.error('Impossible de démarrer un nouveau survey.');
+        }
+      } catch (error) {
+        console.error('Erreur lors de l\'initialisation du survey:', error);
+      }
+    };
+
+    initializeSurvey();
+  }, []);
+
+  // Soumission des réponses
+  const handleSubmit = async () => {
+    if (!surveyId) {
+      console.error('Survey ID manquant !');
+      return;
+    }
+
+    try {
+      const success = await submitResponses(surveyId, responses);
+      if (success) {
+        setShowThankYou(true);
+      } else {
+        console.error('Échec de l\'enregistrement des réponses.');
+      }
+    } catch (error) {
+      console.error('Erreur lors de la soumission des réponses:', error);
+    }
+  };
 
   const questions = [
     { id: 1, text: "Recommanderiez-vous notre service à d'autres courtiers ?", type: "rating", max: 10 },
@@ -52,29 +91,6 @@ function App() {
     if (currentStep < questions.length - 1) {
       setTimeout(() => setCurrentStep(currentStep + 1), 300);
     }
-  };
-
-  const submitResponsesToBackend = async () => {
-    try {
-      const response = await fetch('http://localhost:5000/api/responses', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(responses),
-      });
-      if (response.ok) {
-        console.log('Réponses enregistrées avec succès.');
-      } else {
-        console.error('Erreur lors de l\'enregistrement des réponses.');
-      }
-    } catch (error) {
-      console.error('Erreur réseau :', error);
-    }
-  };
-
-  const handleSubmit = () => {
-    console.log('Réponses soumises:', responses);
-    submitResponsesToBackend();
-    setShowThankYou(true);
   };
 
   const renderQuestionInput = (question) => {
