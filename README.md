@@ -1,74 +1,132 @@
-<<<<<<< HEAD
-# Getting Started with Create React App
+# Tetris Satisfaction Survey Platform
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Une plateforme complète pour collecter et visualiser les retours clients de Tetris Assurance. Cette application React moderne permet de gérer les enquêtes de satisfaction et de visualiser les données à travers des tableaux de bord interactifs.
 
-## Available Scripts
+## 🚀 Fonctionnalités
 
-In the project directory, you can run:
+### Enquête de Satisfaction
+- Questionnaire progressif en 10 étapes
+- Différents types de questions (notation, étoiles, choix multiples, texte)
+- Interface utilisateur intuitive et responsive
+- Animations fluides et retours visuels
+- Sauvegarde automatique dans Firebase
 
-### `npm start`
+### Visualisation des Données
+- **Statistiques Principales**
+  - Score de recommandation (NPS)
+  - Niveau de satisfaction globale
+  - Rapidité des réponses
+  - Adéquation des solutions
+  - Compteur total des réponses
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- **Statistiques Complémentaires**
+  - Clarté des informations
+  - Simplicité du processus
+  - Respect des délais
+  - Support technique
+  - Tarification
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### Caractéristiques Techniques
+- Visualisations interactives avec Recharts
+- Stockage des données dans Firebase
+- Interface responsive avec Tailwind CSS
+- Animations personnalisées
+- Mode développement avec données de test
 
-### `npm test`
+## 🛠 Technologies Utilisées
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+- React 19
+- Firebase Firestore
+- Tailwind CSS
+- Recharts
+- Lucide React Icons
+- Shadcn/UI Components
 
-### `npm run build`
+## ⚙️ Installation
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+1. Clonez le repository :
+```bash
+git clone https://github.com/your-username/tetris-satisfaction-survey.git
+cd tetris-satisfaction-survey
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+2. Installez les dépendances :
+```bash
+npm install
+```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+3. Créez un fichier `.env` à la racine du projet et ajoutez vos configurations Firebase :
+```env
+REACT_APP_FIREBASE_API_KEY=your_api_key
+REACT_APP_FIREBASE_AUTH_DOMAIN=your_auth_domain
+REACT_APP_FIREBASE_PROJECT_ID=your_project_id
+REACT_APP_FIREBASE_STORAGE_BUCKET=your_storage_bucket
+REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
+REACT_APP_FIREBASE_APP_ID=your_app_id
+```
 
-### `npm run eject`
+4. Lancez l'application en mode développement :
+```bash
+npm start
+```
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## 📊 Données de Test
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+En mode développement, vous pouvez utiliser la fonction de seed pour générer des données de test :
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+1. Un bouton "Remplir DB (DEV)" est disponible en haut à droite
+2. Les données générées sont pondérées pour refléter une satisfaction client réaliste :
+   - ~80% de retours positifs
+   - ~15% de retours neutres
+   - ~5% de retours négatifs
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+## 📱 Structure des Composants
 
-## Learn More
+```
+src/
+├── components/
+│   ├── SatisfactionAnalytics.js    # Tableaux de bord principaux
+│   ├── AdditionalAnalytics.js      # Statistiques complémentaires
+│   └── FloatingButton.js           # Bouton de navigation
+├── config/
+│   └── firebase.js                 # Configuration Firebase
+├── assets/
+│   └── logo.png                    # Assets graphiques
+└── App.js                          # Composant principal
+```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## 🔄 Flux de Navigation
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+1. Page d'enquête principale
+2. Écran de remerciement après soumission
+3. Tableaux de bord statistiques
+   - Vue principale des statistiques
+   - Vue détaillée des statistiques complémentaires
 
-### Code Splitting
+## 🛡 Sécurité
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+- Les données sont stockées de manière sécurisée dans Firebase Firestore
+- Pas de données personnelles collectées
+- Mode développement clairement séparé du mode production
 
-### Analyzing the Bundle Size
+## 📈 Évolutions Futures Possibles
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+- Export des données au format CSV/Excel
+- Filtres par période
+- Analyses comparatives
+- Mode sombre
+- Internationalisation
+- Tableau de bord administrateur
 
-### Making a Progressive Web App
+## 📝 License
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+Ce projet est la propriété de Tetris Assurance. Tous droits réservés.
 
-### Advanced Configuration
+## 👥 Contribution
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
-=======
-# TETRIS
->>>>>>> 006b2cbb4bd28afb603a34e659d174b9dc98e623
+Pour contribuer au projet :
+1. Fork le projet
+2. Créez votre branche (`git checkout -b feature/AmazingFeature`)
+3. Committez vos changements (`git commit -m 'Add some AmazingFeature'`)
+4. Push sur la branche (`git push origin feature/AmazingFeature`)
+5. Ouvrez une Pull Request
