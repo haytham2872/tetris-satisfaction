@@ -55,7 +55,7 @@ cd tetris-satisfaction-survey
 npm install
 ```
 
-3. Créez un fichier `.env` à la racine du projet et ajoutez vos configurations Firebase :
+3. Créez un fichier `firebase.js` au dosssier /src/config  et ajoutez vos configurations Firebase :
 ```env
 REACT_APP_FIREBASE_API_KEY=your_api_key
 REACT_APP_FIREBASE_AUTH_DOMAIN=your_auth_domain
