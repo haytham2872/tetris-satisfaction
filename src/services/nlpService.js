@@ -1,117 +1,104 @@
 // src/services/nlpService.js
 
 const API_KEY = process.env.REACT_APP_GOOGLE_CLOUD_API_KEY;
-const API_ENDPOINT = 'https://language.googleapis.com/v1/documents:analyzeSentiment';
+const SENTIMENT_ENDPOINT = 'https://language.googleapis.com/v1/documents:analyzeSentiment';
 const ENTITY_ENDPOINT = 'https://language.googleapis.com/v1/documents:analyzeEntities';
-
-const categorizeSentiment = (score) => {
-  if (score >= 0.25) return 'POSITIVE';
-  if (score <= -0.25) return 'NEGATIVE';
-  return 'NEUTRAL';
-};
-
-const processEntities = (entities = []) => {
-  return entities.map(entity => ({
-    name: entity.name || '',
-    type: entity.type || 'UNKNOWN',
-    salience: entity.salience || 0,
-    sentiment: entity.sentiment || { score: 0, magnitude: 0 }
-  }));
-};
-
-const extractMainTopics = (entities = []) => {
-  return entities
-    .filter(entity => (entity.salience || 0) > 0.1)
-    .sort((a, b) => (b.salience || 0) - (a.salience || 0))
-    .slice(0, 3)
-    .map(entity => entity.name || '');
-};
 
 export const analyzeFeedback = async (text) => {
   try {
-    // Sentiment Analysis
-    const sentimentResponse = await fetch(`${API_ENDPOINT}?key=${API_KEY}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        document: {
-          content: text,
-          type: 'PLAIN_TEXT',
-          language: 'fr'
-        },
-        encodingType: 'UTF8'
+    const [sentimentResponse, entityResponse] = await Promise.all([
+      fetch(`${SENTIMENT_ENDPOINT}?key=${API_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          document: { content: text, type: 'PLAIN_TEXT', language: 'fr' },
+          encodingType: 'UTF8'
+        })
+      }),
+      fetch(`${ENTITY_ENDPOINT}?key=${API_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          document: { content: text, type: 'PLAIN_TEXT', language: 'fr' },
+          encodingType: 'UTF8'
+        })
       })
-    });
+    ]);
 
-    const sentimentData = await sentimentResponse.json();
+    const [sentimentData, entityData] = await Promise.all([
+      sentimentResponse.json(),
+      entityResponse.json()
+    ]);
 
-    // Check if we have an error in the response
-    if (sentimentData.error) {
-      throw new Error(sentimentData.error.message);
-    }
+    if (sentimentData.error) throw new Error(sentimentData.error.message);
+    if (entityData.error) throw new Error(entityData.error.message);
 
-    // Entity Analysis
-    const entityResponse = await fetch(`${ENTITY_ENDPOINT}?key=${API_KEY}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        document: {
-          content: text,
-          type: 'PLAIN_TEXT',
-          language: 'fr'
-        },
-        encodingType: 'UTF8'
-      })
-    });
-
-    const entityData = await entityResponse.json();
-
-    // Check if we have an error in the response
-    if (entityData.error) {
-      throw new Error(entityData.error.message);
-    }
-
-    // Ensure we have the required properties before processing
-    const sentiment = sentimentData.documentSentiment || { score: 0, magnitude: 0 };
-    const entities = entityData.entities || [];
-
-    // Process and categorize the results
-    const analysis = {
+    // Process sentences with detailed sentiment analysis
+    const sentences = sentimentData.sentences?.map(sentence => ({
+      text: sentence.text?.content || '',
+      beginOffset: sentence.text?.beginOffset || 0,
       sentiment: {
-        score: sentiment.score || 0,
-        magnitude: sentiment.magnitude || 0,
-        category: categorizeSentiment(sentiment.score || 0)
-      },
-      topics: processEntities(entities),
-      mainTopics: extractMainTopics(entities),
-    };
+        score: sentence.sentiment?.score || 0,
+        magnitude: sentence.sentiment?.magnitude || 0
+      }
+    })) || [];
 
-    return analysis;
-  } catch (error) {
-    console.error('Error in analyzeFeedback:', error);
-    // Return a default analysis structure instead of throwing
+    // Process entities with contextual sentiment
+    const processedEntities = (entityData.entities || [])
+      .filter(entity => entity.salience > 0.01)
+      .map(entity => {
+        // Find sentiment for this entity based on sentence context
+        const entityMentions = entity.mentions || [];
+        const entitySentiments = entityMentions.map(mention => {
+          const sentencesWithEntity = sentences.filter(sentence => 
+            sentence.beginOffset <= mention.text.beginOffset && 
+            sentence.beginOffset + sentence.text.length >= mention.text.beginOffset + mention.text.content.length
+          );
+          return sentencesWithEntity.length > 0 
+            ? sentencesWithEntity[0].sentiment 
+            : null;
+        }).filter(Boolean);
+
+        const avgSentiment = entitySentiments.length > 0 
+          ? entitySentiments.reduce((acc, s) => ({
+              score: acc.score + s.score,
+              magnitude: acc.magnitude + s.magnitude
+            }), { score: 0, magnitude: 0 }) 
+          : null;
+
+        if (avgSentiment) {
+          avgSentiment.score /= entitySentiments.length;
+          avgSentiment.magnitude /= entitySentiments.length;
+        }
+
+        return {
+          name: entity.name,
+          type: entity.type,
+          salience: entity.salience,
+          mentions: entityMentions.length,
+          sentiment: avgSentiment,
+          metadata: entity.metadata
+        };
+      });
+
     return {
       sentiment: {
-        score: 0,
-        magnitude: 0,
-        category: 'NEUTRAL'
+        score: sentimentData.documentSentiment?.score || 0,
+        magnitude: sentimentData.documentSentiment?.magnitude || 0,
+        sentences
       },
-      topics: [],
-      mainTopics: []
+      entities: processedEntities,
+      metadata: {
+        language: entityData.language,
+        processedAt: new Date().toISOString()
+      }
+    };
+  } catch (error) {
+    console.error('Error in analyzeFeedback:', error);
+    return {
+      sentiment: { score: 0, magnitude: 0, sentences: [] },
+      entities: [],
+      metadata: { error: error.message, processedAt: new Date().toISOString() }
     };
   }
-};
-
-// Categories for feedback classification
-export const FEEDBACK_CATEGORIES = {
-  SUPPORT: 'Support technique',
-  INTERFACE: 'Interface utilisateur',
-  PERFORMANCE: 'Performance',
-  FEATURES: 'Fonctionnalités',
-  PRICING: 'Tarification',
-  OTHER: 'Autre'
 };

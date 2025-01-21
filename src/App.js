@@ -122,7 +122,7 @@ function App() {
 
   const handleSubmit = async () => {
     try {
-      // Original survey data structure (keep it unchanged)
+      // Original survey data structure
       const surveyData = {
         timestamp: new Date(),
         answers: {
@@ -147,24 +147,21 @@ function App() {
         try {
           const analysis = await analyzeFeedback(responses[10]);
           
-          // Create a clean object for Firestore
+          // Create a clean object for Firestore, handling potential undefined values
           const analysisData = {
             surveyId: surveyRef.id,
             timestamp: new Date(),
             originalText: responses[10],
             analysis: {
               sentiment: {
-                score: analysis.sentiment.score,
-                magnitude: analysis.sentiment.magnitude,
-                category: analysis.sentiment.category
+                score: analysis.sentiment?.score || 0,
+                magnitude: analysis.sentiment?.magnitude || 0,
+                category: analysis.sentiment?.category || 'NEUTRAL',
+                sentences: analysis.sentiment?.sentences || []
               },
-              topics: analysis.topics.map(topic => ({
-                name: topic.name,
-                type: topic.type,
-                salience: topic.salience,
-                sentiment: topic.sentiment
-              })),
-              mainTopics: analysis.mainTopics
+              entities: analysis.entities || [],
+              mainTopics: analysis.mainTopics || [],
+              categories: analysis.categories || []
             }
           };
   
@@ -177,7 +174,7 @@ function App() {
       
       setShowThankYou(true);
     } catch (error) {
-      console.error('Erreur:', error);
+      console.error('Error:', error);
       alert('Une erreur est survenue lors de la soumission du formulaire.');
     }
   };
