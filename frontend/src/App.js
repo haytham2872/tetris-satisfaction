@@ -3,6 +3,9 @@ import './index.css';
 import logo from './assets/logo.png';
 import { ThumbsUp, Heart, Star, CheckCircle2 } from 'lucide-react';
 import { startSurvey, submitResponses } from './API';
+import SatisfactionAnalytics from './components/SatisfactionAnalytics';
+import AdditionalAnalytics from './components/AdditionalAnalytics';
+import FloatingButton from './components/FloatingButton'; 
 
 const ThankYouScreen = () => {
   return (
@@ -35,6 +38,8 @@ function App() {
   const [currentStep, setCurrentStep] = useState(0);
   const [responses, setResponses] = useState({});
   const [showThankYou, setShowThankYou] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [analyticsView, setAnalyticsView] = useState('main');
 
   // Initialisation du survey
   useEffect(() => {
@@ -169,6 +174,30 @@ function App() {
   if (showThankYou) {
     return <ThankYouScreen />;
   }
+  if (showAnalytics) {
+    if (analyticsView === 'additional') {
+        return (
+            <AdditionalAnalytics 
+                onBack={(view) => {
+                    if (view === 'feedback') {
+                        setAnalyticsView('feedback');
+                    } else {
+                        setAnalyticsView('main');
+                    }
+                }} 
+            />
+        );
+    }
+    return (
+        <SatisfactionAnalytics 
+            onBack={() => {
+                setShowAnalytics(false);
+                setAnalyticsView('main');
+            }}
+            onShowAdditional={() => setAnalyticsView('additional')}
+        />
+    );
+}
 
   return (
     <div className="min-h-screen bg-tetris-blue">
@@ -233,6 +262,7 @@ function App() {
           </div>
         </div>
       </main>
+      <FloatingButton onClick={() => setShowAnalytics(true)} />
     </div>
   );
 }
