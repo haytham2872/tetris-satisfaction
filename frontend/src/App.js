@@ -5,7 +5,9 @@ import { ThumbsUp, Heart, Star, CheckCircle2 } from 'lucide-react';
 import { startSurvey, submitResponses } from './API';
 import SatisfactionAnalytics from './components/SatisfactionAnalytics';
 import AdditionalAnalytics from './components/AdditionalAnalytics';
-import FloatingButton from './components/FloatingButton'; 
+import FloatingButton from './components/FloatingButton';
+import VercelAnalytics from './components/VercelAnalytics';
+
 
 const ThankYouScreen = () => {
   return (
@@ -200,6 +202,8 @@ function App() {
 }
 
   return (
+    <>
+      <VercelAnalytics />
     <div className="min-h-screen bg-tetris-blue">
       <header className="bg-white shadow-lg">
         <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
@@ -264,6 +268,7 @@ function App() {
       </main>
       <FloatingButton onClick={() => setShowAnalytics(true)} />
     </div>
+    </>
   );
 }
 

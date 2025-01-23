@@ -14,7 +14,7 @@ app.use(bodyParser.json());
 const pool = mariadb.createPool({
     host: 'localhost',
     user: 'root',
-    password: 'root123',
+    password: '123',
     database: 'satisfaction_db',
     connectionLimit: 5,
     bigIntAsNumber: true  // Convert BigInt to Number
