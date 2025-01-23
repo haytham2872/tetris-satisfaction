@@ -183,12 +183,14 @@ app.get('/api/analytics/additional', async (req, res) => {
 // Route to get all feedback responses
 // Add this route to your backend index.js or update if it exists
 // Update your /api/feedback/analysis endpoint in index.js
+// Update the /api/feedback/analysis endpoint in index.js
+
 app.get('/api/feedback/analysis', async (req, res) => {
     try {
-        console.log('Fetching feedback analysis...'); // Debug log
+        console.log('Fetching feedback analysis...'); 
 
         const result = await executeQuery(`
-            SELECT 
+            SELECT DISTINCT  -- Add DISTINCT to prevent duplicates
                 r.id,
                 r.survey_id,
                 r.answer as originalText,
@@ -200,48 +202,46 @@ app.get('/api/feedback/analysis', async (req, res) => {
             ORDER BY r.responded_at DESC
         `);
         
-        console.log('Raw result:', result); // Debug log
+        console.log('Raw result count:', result.length);
         
-        // Format the data to match the expected structure
-        const formattedResult = result.map(row => {
-            // Parse the nlp_analysis if it's a string
-            let analysis = row.analysis;
-            if (typeof analysis === 'string') {
-                try {
-                    analysis = JSON.parse(analysis);
-                } catch (e) {
-                    console.error('Error parsing analysis JSON:', e);
-                    analysis = null;
-                }
+        // Add deduplication logic
+        const uniqueResponses = result.reduce((acc, current) => {
+            // Use survey_id as the key for uniqueness
+            if (!acc.some(item => item.survey_id === current.survey_id)) {
+                acc.push(current);
             }
-            
-            // If analysis is still a string (double encoded), parse it again
-            if (typeof analysis === 'string') {
-                try {
+            return acc;
+        }, []);
+
+        console.log('Unique responses count:', uniqueResponses.length);
+        
+        // Format the data
+        const formattedResult = uniqueResponses.map(row => {
+            let analysis = row.analysis;
+            try {
+                if (typeof analysis === 'string') {
                     analysis = JSON.parse(analysis);
-                } catch (e) {
-                    console.error('Error parsing nested analysis JSON:', e);
-                    analysis = null;
                 }
+            } catch (e) {
+                console.error('Error parsing analysis JSON:', e);
+                analysis = null;
             }
 
             return {
                 id: Number(row.id),
+                survey_id: Number(row.survey_id),
                 originalText: row.originalText || '',
                 analysis: analysis,
                 timestamp: row.timestamp
             };
         });
 
-        console.log('Formatted result:', formattedResult); // Debug log
-        
         res.json(formattedResult);
     } catch (err) {
         console.error('Error in /api/feedback/analysis:', err);
         res.status(500).json({ 
             error: 'Failed to fetch feedback analysis',
-            details: err.message,
-            stack: err.stack
+            details: err.message
         });
     }
 });

@@ -1,348 +1,300 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Settings,
-  HeartHandshake,
-  Star,
-  Users,
-  ArrowLeft, 
-  MessageSquare, 
-  ThumbsUp, 
-  ThumbsDown, 
-  Minus,
-  Tag,
-  BarChart,
-  Clock
+    MessageSquare, 
+    ArrowLeft,
+    ThumbsUp,
+    Users,
+    AlertCircle,
+    Filter,
+    Clock,
+    Headphones,
+    Flag,
+    BarChart2,
+    ThumbsDown,
+    Minus,
+    Heart,
+    AlertTriangle
 } from 'lucide-react';
 
-const SentimentBadge = ({ feedback }) => {
-  let category = 'NEUTRAL';
-  
-  if (feedback?.analysis?.sentiment?.score > 0.1) {
-    category = 'POSITIVE';
-  } else if (feedback?.analysis?.sentiment?.score < -0.1) {
-    category = 'NEGATIVE';
-  }
+const EmotionBadge = ({ emotion, score }) => {
+    const configs = {
+        SATISFACTION: { icon: ThumbsUp, color: 'bg-green-100 text-green-800' },
+        FRUSTRATION: { icon: AlertCircle, color: 'bg-red-100 text-red-800' },
+        ENTHUSIASM: { icon: Heart, color: 'bg-purple-100 text-purple-800' },
+        CONCERN: { icon: AlertTriangle, color: 'bg-yellow-100 text-yellow-800' }
+    };
 
-  const config = {
-    POSITIVE: {
-      icon: ThumbsUp,
-      color: 'bg-green-100 text-green-800',
-      text: 'Positif'
-    },
-    NEGATIVE: {
-      icon: ThumbsDown,
-      color: 'bg-red-100 text-red-800',
-      text: 'Négatif'
-    },
-    NEUTRAL: {
-      icon: Minus,
-      color: 'bg-gray-100 text-gray-800',
-      text: 'Neutre'
-    }
-  }[category];
+    const config = configs[emotion] || configs.SATISFACTION;
+    const Icon = config.icon;
 
-  const Icon = config.icon;
-
-  return (
-    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-medium text-sm ${config.color}`}>
-      <Icon size={14} />
-      {config.text}
-    </span>
-  );
+    return (
+        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm ${config.color}`}>
+            <Icon size={14} />
+            {emotion.charAt(0) + emotion.slice(1).toLowerCase()}
+        </span>
+    );
 };
 
-const FeedbackCard = ({ feedback }) => {
-  if (!feedback?.analysis) return null;
+const UrgencyBadge = ({ level }) => {
+    const configs = {
+        HIGH: { color: 'bg-red-100 text-red-800' },
+        MEDIUM: { color: 'bg-yellow-100 text-yellow-800' },
+        LOW: { color: 'bg-blue-100 text-blue-800' },
+        NORMAL: { color: 'bg-gray-100 text-gray-800' }
+    };
 
-  return (
-    <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-      <div className="p-6">
-        {/* Header with sentiment and date */}
-        <div className="flex justify-between items-start mb-6">
-          <div className="flex items-center gap-2">
-            <SentimentBadge feedback={feedback} />
-            {feedback.analysis.sentiment.magnitude > 0.8 && (
-              <span className="text-sm bg-tetris-blue/10 text-tetris-blue px-2 py-1 rounded-full">
-                Opinion marquée
-              </span>
-            )}
-          </div>
-          <time className="flex items-center gap-2 text-sm text-gray-500">
-            <Clock className="w-4 h-4" />
-            {new Date(feedback.timestamp).toLocaleDateString('fr-FR', {
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit'
-            })}
-          </time>
-        </div>
+    return (
+        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm ${configs[level].color}`}>
+            <Flag size={14} />
+            Urgence {level.toLowerCase()}
+        </span>
+    );
+};
 
-        {/* Original comment */}
-        <div className="mb-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center gap-2">
-            <MessageSquare className="w-5 h-5 text-tetris-blue" />
-            Commentaire
-          </h3>
-          <blockquote className="text-gray-700 bg-gray-50 p-4 rounded-lg border-l-4 border-tetris-blue">
-            {feedback.originalText || "Aucun commentaire"}
-          </blockquote>
-        </div>
+// Topic Analysis Component - Place this before FeedbackCard
+const TopicAnalysis = ({ topic, data }) => {
+    if (!data?.subtopics) return null;
 
-        {/* Sentiment Analysis */}
-        <div className="mb-8">
-          <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-            <BarChart className="w-4 h-4 text-tetris-blue" />
-            Analyse globale
-          </h4>
-          <div className="bg-gray-50 p-4 rounded-lg space-y-4">
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm text-gray-600">Sentiment</span>
-                <div className="flex items-center gap-2">
-                  {feedback.analysis.sentiment.score < -0.1 && (
-                    <span className="text-red-600 text-sm">Négatif</span>
-                  )}
-                  {feedback.analysis.sentiment.score > 0.1 && (
-                    <span className="text-green-600 text-sm">Positif</span>
-                  )}
-                  <span className="font-medium">
-                    {Math.abs(feedback.analysis.sentiment.score * 100).toFixed(0)}%
-                  </span>
-                </div>
-              </div>
-              <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all ${
-                    feedback.analysis.sentiment.score > 0 ? 'bg-green-500' : 'bg-red-500'
-                  }`}
-                  style={{
-                    width: `${Math.abs(feedback.analysis.sentiment.score * 100)}%`,
-                    marginLeft: feedback.analysis.sentiment.score < 0 ? 'auto' : '0'
-                  }}
-                />
-              </div>
-            </div>
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm text-gray-600">Force de l'opinion</span>
-                <span className="font-medium">
-                  {(feedback.analysis.sentiment.magnitude * 50).toFixed(0)}%
-                </span>
-              </div>
-              <div className="w-full h-2 bg-gray-200 rounded-full">
-                <div
-                  className="h-full bg-tetris-blue rounded-full"
-                  style={{
-                    width: `${Math.min(feedback.analysis.sentiment.magnitude * 50, 100)}%`
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+    const translations = {
+        topics: {
+            'SUPPORT': 'Support',
+            'PLATFORM': 'Plateforme',
+            'PROCESS': 'Processus'
+        },
+        subtopics: {
+            'TECHNICAL': 'Technique',
+            'CUSTOMER_SERVICE': 'Service client',
+            'RESPONSE_TIME': 'Temps de réponse',
+            'USABILITY': 'Utilisabilité',
+            'FEATURES': 'Fonctionnalités',
+            'PERFORMANCE': 'Performance'
+        }
+    };
 
-        {/* Detected Entities */}
-        {feedback.analysis.entities?.length > 0 && (
-          <div className="mb-8">
-            <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-              <Tag className="w-4 h-4 text-tetris-blue" />
-              Éléments détectés
-            </h4>
-            <div className="flex flex-wrap gap-2">
-              {feedback.analysis.entities
-                .sort((a, b) => b.salience - a.salience)
-                .map((entity, index) => (
-                  <div 
-                    key={index}
-                    className="group relative"
-                  >
-                    <div className="px-3 py-1.5 rounded-lg border bg-white hover:bg-gray-50 
-                                 transition-colors flex items-center gap-2">
-                      <span className="font-medium">{entity.name}</span>
-                      {entity.mentions > 1 && (
-                        <span className="text-xs px-2 py-0.5 bg-gray-100 rounded-full">
-                          {entity.mentions}×
-                        </span>
-                      )}
-                      {entity.sentiment && (
-                        <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${
-                              entity.sentiment.score > 0 ? 'bg-green-500' : 'bg-red-500'
-                            }`}
-                            style={{
-                              width: `${Math.abs(entity.sentiment.score * 100)}%`,
-                              marginLeft: entity.sentiment.score < 0 ? 'auto' : '0'
-                            }}
-                          />
-                        </div>
-                      )}
-                    </div>
-                    <div className="absolute -top-8 left-0 hidden group-hover:block 
-                                  px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap">
-                      Pertinence: {(entity.salience * 100).toFixed(1)}%
-                    </div>
-                  </div>
-                ))}
-            </div>
-          </div>
-        )}
+    const getSentimentIcon = (sentiment) => {
+        if (sentiment > 0.2) return <ThumbsUp className="w-4 h-4 text-green-600" />;
+        if (sentiment < -0.2) return <ThumbsDown className="w-4 h-4 text-red-600" />;
+        return <Minus className="w-4 h-4 text-gray-600" />;
+    };
 
-        {/* Sentence Analysis */}
-        {feedback.analysis.sentiment.sentences?.length > 0 && (
-          <div>
+    return (
+        <div className="p-4 bg-gray-50 rounded-lg">
             <h4 className="text-sm font-medium text-gray-700 mb-3">
-              Analyse par phrase
+                {translations.topics[topic] || topic}
             </h4>
-            <div className="space-y-3">
-              {feedback.analysis.sentiment.sentences.map((sentence, index) => (
-                <div
-                  key={index}
-                  className={`p-4 rounded-lg border ${
-                    sentence.sentiment.score > 0.1 ? 'border-green-200 bg-green-50' :
-                    sentence.sentiment.score < -0.1 ? 'border-red-200 bg-red-50' :
-                    'border-gray-200 bg-gray-50'
-                  }`}
-                >
-                  <p className="text-gray-700 mb-3">{sentence.text}</p>
-                  <div className="flex items-center gap-4">
-                    <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full ${
-                          sentence.sentiment.score > 0 ? 'bg-green-500' : 'bg-red-500'
-                        }`}
-                        style={{
-                          width: `${Math.abs(sentence.sentiment.score * 100)}%`,
-                          marginLeft: sentence.sentiment.score < 0 ? 'auto' : '0'
-                        }}
-                      />
-                    </div>
-                    <span className="text-sm font-medium whitespace-nowrap">
-                      {Math.abs(sentence.sentiment.score * 100).toFixed(0)}%
-                      {sentence.sentiment.score < 0 ? ' négatif' : ' positif'}
-                    </span>
-                    {sentence.sentiment.magnitude > 0.8 && (
-                      <span className="text-xs px-2 py-1 bg-gray-100 rounded-full whitespace-nowrap">
-                        Opinion marquée
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
+            <div className="space-y-2">
+                {Object.entries(data.subtopics).map(([subtopic, details]) => {
+                    if (!details || !details.mentions) return null;
+                    
+                    const translatedSubtopic = translations.subtopics[subtopic] || subtopic;
+                    
+                    return (
+                        <div key={subtopic} className="flex items-center justify-between bg-white p-2 rounded-md">
+                            <div className="flex items-center gap-2">
+                                {getSentimentIcon(details.sentiment)}
+                                <span className="text-sm">
+                                    {translatedSubtopic}
+                                </span>
+                            </div>
+                            <span className="text-sm text-gray-500">
+                                {details.mentions} mention{details.mentions > 1 ? 's' : ''}
+                            </span>
+                        </div>
+                    );
+                })}
             </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+        </div>
+    );
+};
+
+// Main FeedbackCard Component
+const FeedbackCard = ({ feedback }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+    
+    const { 
+        overall = {},
+        topics = {},
+        keyPhrases = [],
+        metadata = {}
+    } = feedback?.analysis || {};
+
+    const sentimentScore = overall?.sentiment?.score || 0;
+    const displayPercentage = Math.abs(overall?.sentiment?.displayPercentage || 50);
+    const urgencyLevel = overall?.urgency?.level || 'NORMAL';
+    const dominantEmotion = overall?.emotions?.dominant;
+    const emotions = overall?.emotions?.emotions || {};
+    const wordCount = metadata?.wordCount || 0;
+
+    return (
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div className="p-6">
+                {/* Header badges */}
+                <div className="flex flex-wrap items-center gap-2 mb-6">
+                    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm ${
+                        sentimentScore > 0.1 ? 'bg-green-100 text-green-800' : 
+                        sentimentScore < -0.1 ? 'bg-red-100 text-red-800' : 
+                        'bg-gray-100 text-gray-800'
+                    }`}>
+                        {sentimentScore > 0 ? <ThumbsUp size={14} /> : 
+                         sentimentScore < 0 ? <ThumbsDown size={14} /> : 
+                         <Minus size={14} />}
+                        {displayPercentage}% {sentimentScore > 0 ? 'Positif' : 'Négatif'}
+                    </span>
+
+                    {dominantEmotion && (
+                        <EmotionBadge 
+                            emotion={dominantEmotion} 
+                            score={emotions[dominantEmotion]?.score || 0}
+                        />
+                    )}
+
+                    <UrgencyBadge level={urgencyLevel} />
+
+                    <div className="ml-auto flex items-center gap-2 text-sm text-gray-500">
+                        <MessageSquare size={14} />
+                        {wordCount} mots
+                        <Clock size={14} className="ml-2" />
+                        {new Date(feedback.timestamp).toLocaleDateString('fr-FR')}
+                    </div>
+                </div>
+
+                {/* Commentaire */}
+                <div className="mb-6">
+                    <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center gap-2">
+                        <MessageSquare className="w-5 h-5 text-tetris-blue" />
+                        Commentaire
+                    </h3>
+                    <blockquote className="text-gray-700 bg-gray-50 p-4 rounded-lg border-l-4 border-tetris-blue">
+                        {feedback.originalText}
+                    </blockquote>
+                </div>
+
+                {/* Sentiment général */}
+                <div className="mb-6">
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">Sentiment général</h4>
+                    <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm text-gray-600">Score</span>
+                        <span className="font-medium text-sm">
+                            {displayPercentage}% {sentimentScore >= 0 ? 'positif' : 'négatif'}
+                        </span>
+                    </div>
+                    <div className="w-full h-2 bg-gray-200 rounded-full">
+                        <div
+                            className="h-full rounded-full"
+                            style={{
+                                width: `${displayPercentage}%`,
+                                backgroundColor: sentimentScore < 0 ? '#ef4444' : '#22c55e'
+                            }}
+                        />
+                    </div>
+                </div>
+
+                {/* Sujets détectés */}
+                {Object.keys(topics).length > 0 && (
+                    <div className="mb-6">
+                        <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                            <Filter className="w-4 h-4 text-tetris-blue" />
+                            Sujets détectés
+                        </h4>
+                        <div className="space-y-3">
+                            {Object.entries(topics).map(([topic, data]) => (
+                                <TopicAnalysis key={topic} topic={topic} data={data} />
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
 };
 
 const FeedbackAnalysisPage = ({ onBack }) => {
-  const [feedbackData, setFeedbackData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all');
+    const [feedbackData, setFeedbackData] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [filter, setFilter] = useState('all');
 
-  useEffect(() => {
-    const fetchFeedback = async () => {
-      try {
-        const response = await fetch('http://localhost:5000/api/feedback/analysis');
-        if (!response.ok) throw new Error('Failed to fetch feedback');
-        const data = await response.json();
-        setFeedbackData(data);
-        setLoading(false);
-      } catch (error) {
-        console.error('Error fetching feedback:', error);
-        setLoading(false);
-      }
-    };
+    useEffect(() => {
+        const fetchFeedback = async () => {
+            try {
+                const response = await fetch('http://localhost:5000/api/feedback/analysis');
+                if (!response.ok) throw new Error('Failed to fetch feedback');
+                const data = await response.json();
+                setFeedbackData(data);
+                setLoading(false);
+            } catch (error) {
+                console.error('Error fetching feedback:', error);
+                setLoading(false);
+            }
+        };
 
-    fetchFeedback();
-  }, []);
+        fetchFeedback();
+    }, []);
 
-  const filteredFeedback = feedbackData.filter(feedback => {
-    if (filter === 'all') return true;
-    const score = feedback.analysis?.sentiment?.score;
-    if (filter === 'POSITIVE') return score > 0.1;
-    if (filter === 'NEGATIVE') return score < -0.1;
-    return Math.abs(score) <= 0.1;
-  });
+    const filteredFeedback = feedbackData.filter(feedback => {
+        if (filter === 'all') return true;
+        const score = feedback.analysis?.overall?.sentiment?.score || 0;
+        if (filter === 'positive') return score > 0.1;
+        if (filter === 'negative') return score < -0.1;
+        if (filter === 'urgent') return feedback.analysis?.overall?.urgency?.level === 'HIGH';
+        return Math.abs(score) <= 0.1;
+    });
 
-  if (loading) {
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-tetris-blue"></div>
+            </div>
+        );
+    }
+
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-tetris-blue"></div>
-      </div>
-    );
-  }
+        <div className="min-h-screen bg-gray-50 p-8">
+            <div className="max-w-4xl mx-auto">
+                {/* Header */}
+                <div className="mb-8">
+                    <button
+                        onClick={onBack}
+                        className="flex items-center gap-2 text-tetris-blue hover:text-tetris-light transition-colors mb-6"
+                    >
+                        <ArrowLeft size={20} />
+                        Retour aux statistiques
+                    </button>
 
-  return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-5xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 text-tetris-blue hover:text-tetris-light transition-colors mb-6"
-          >
-            <ArrowLeft size={20} />
-            Retour aux statistiques
-          </button>
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                                Analyse des Commentaires
+                            </h1>
+                            <p className="text-gray-600">
+                                {filteredFeedback.length} commentaires analysés
+                            </p>
+                        </div>
 
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <MessageSquare className="w-8 h-8 text-tetris-blue" />
-                <h1 className="text-3xl font-bold text-gray-900">
-                  Analyse des Commentaires
-                </h1>
-              </div>
-              <p className="text-gray-600 ml-11">
-                Analyse détaillée des retours et suggestions des utilisateurs
-              </p>
-            </div>
+                        {/* Filters */}
+                        <div className="flex items-center gap-2">
+                            <Filter className="w-5 h-5 text-gray-500" />
+                            <select
+                                value={filter}
+                                onChange={(e) => setFilter(e.target.value)}
+                                className="border border-gray-300 rounded-lg px-3 py-2 bg-white text-sm"
+                            >
+                                <option value="all">Tous</option>
+                                <option value="positive">Positifs</option>
+                                <option value="negative">Négatifs</option>
+                                <option value="urgent">Urgents</option>
+                                <option value="neutral">Neutres</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
 
-            {/* Filter */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => setFilter('all')}
-                className={`px-4 py-2 rounded-lg transition-colors ${
-                  filter === 'all' 
-                    ? 'bg-tetris-blue text-white' 
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                Tous
-              </button>
-              <button
-                onClick={() => setFilter('POSITIVE')}
-                className={`px-4 py-2 rounded-lg transition-colors ${
-                  filter === 'POSITIVE'
-                    ? 'bg-green-600 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                Positifs
-              </button>
-              <button
-                onClick={() => setFilter('NEGATIVE')}
-                className={`px-4 py-2 rounded-lg transition-colors ${
-                  filter === 'NEGATIVE'
-                    ? 'bg-red-600 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                Négatifs
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Feedback Cards */}
-        <div className="space-y-6">
+                {/* Feedback Cards */}
+                <div className="space-y-6">
                     {filteredFeedback.map((feedback) => (
-                        <FeedbackCard key={feedback.id} feedback={feedback} />
+                        <FeedbackCard 
+                            key={feedback.id} 
+                            feedback={feedback} 
+                        />
                     ))}
 
                     {filteredFeedback.length === 0 && (
