@@ -42,7 +42,7 @@ const StatCard = ({ icon: Icon, title, value, description }) => (
     </div>
 );
 
-const AdditionalAnalytics = ({ onBack }) => {
+const AdditionalAnalytics = ({ onBack, onShowFeedback }) => {
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -137,6 +137,13 @@ const AdditionalAnalytics = ({ onBack }) => {
                     >
                         <ArrowLeft size={20} />
                         Retour aux statistiques principales
+                    </button>
+                    <button
+                        onClick={onShowFeedback}
+                        className="bg-tetris-blue text-white px-4 py-2 rounded-lg hover:bg-tetris-light transition-colors flex items-center gap-2"
+                    >
+                        <MessageSquare size={20} />
+                        Analyse des commentaires
                     </button>
                 </div>
 

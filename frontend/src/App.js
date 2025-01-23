@@ -7,6 +7,9 @@ import SatisfactionAnalytics from './components/SatisfactionAnalytics';
 import AdditionalAnalytics from './components/AdditionalAnalytics';
 import FloatingButton from './components/FloatingButton';
 import VercelAnalytics from './components/VercelAnalytics';
+import FeedbackAnalysisPage from './components/FeedbackAnalysisPage';
+import { analyzeFeedback } from './services/nlpService';  // Add this import at the top
+
 
 
 const ThankYouScreen = () => {
@@ -42,6 +45,8 @@ function App() {
   const [showThankYou, setShowThankYou] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [analyticsView, setAnalyticsView] = useState('main');
+  const [showFeedbackAnalysis, setShowFeedbackAnalysis] = useState(false);
+
 
   // Initialisation du survey
   useEffect(() => {
@@ -67,10 +72,45 @@ function App() {
       console.error('Survey ID manquant !');
       return;
     }
-
+  
     try {
+      console.log('Submitting responses...', responses); // Debug log
+  
+      // First submit all responses
       const success = await submitResponses(surveyId, responses);
+      
       if (success) {
+        // If there's a text feedback (question 10), analyze it
+        if (responses[10]) {
+          try {
+            console.log('Analyzing feedback text:', responses[10]); // Debug log
+            const analysis = await analyzeFeedback(responses[10]);
+            
+            console.log('Analysis completed, storing results...', analysis); // Debug log
+  
+            // Store the analysis
+            const analysisResponse = await fetch('http://localhost:5000/api/feedback/analyze', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                survey_id: surveyId,
+                analysis: analysis
+              })
+            });
+  
+            if (!analysisResponse.ok) {
+              console.error('Failed to store analysis:', await analysisResponse.text());
+            } else {
+              console.log('Analysis stored successfully');
+            }
+          } catch (error) {
+            console.error('Error in feedback analysis:', error);
+            // Continue with thank you screen even if analysis fails
+          }
+        }
+        
         setShowThankYou(true);
       } else {
         console.error('Échec de l\'enregistrement des réponses.');
@@ -177,6 +217,13 @@ function App() {
     return <ThankYouScreen />;
   }
   if (showAnalytics) {
+    if (showFeedbackAnalysis) {
+        return (
+            <FeedbackAnalysisPage 
+                onBack={() => setShowFeedbackAnalysis(false)} 
+            />
+        );
+    }
     if (analyticsView === 'additional') {
         return (
             <AdditionalAnalytics 
@@ -186,7 +233,8 @@ function App() {
                     } else {
                         setAnalyticsView('main');
                     }
-                }} 
+                }}
+                onShowFeedback={() => setShowFeedbackAnalysis(true)}
             />
         );
     }
@@ -197,6 +245,7 @@ function App() {
                 setAnalyticsView('main');
             }}
             onShowAdditional={() => setAnalyticsView('additional')}
+            onShowFeedback={() => setShowFeedbackAnalysis(true)}
         />
     );
 }

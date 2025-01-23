@@ -141,8 +141,6 @@ app.get('/api/analytics/responses', async (req, res) => {
       res.status(500).send('Server error');
   }
 });
-// Add this endpoint to handle additional analytics data
-// Add this to your backend index.js file
 app.get('/api/analytics/additional', async (req, res) => {
   try {
       const result = await executeQuery(`
@@ -180,4 +178,124 @@ app.get('/api/analytics/additional', async (req, res) => {
       console.error('Error fetching additional analytics data:', err);
       res.status(500).send('Server error');
   }
+});
+
+// Route to get all feedback responses
+// Add this route to your backend index.js or update if it exists
+// Update your /api/feedback/analysis endpoint in index.js
+app.get('/api/feedback/analysis', async (req, res) => {
+    try {
+        console.log('Fetching feedback analysis...'); // Debug log
+
+        const result = await executeQuery(`
+            SELECT 
+                r.id,
+                r.survey_id,
+                r.answer as originalText,
+                r.nlp_analysis as analysis,
+                r.responded_at as timestamp
+            FROM responses r
+            WHERE r.question_id = 10  -- Feedback question
+            AND r.nlp_analysis IS NOT NULL
+            ORDER BY r.responded_at DESC
+        `);
+        
+        console.log('Raw result:', result); // Debug log
+        
+        // Format the data to match the expected structure
+        const formattedResult = result.map(row => {
+            // Parse the nlp_analysis if it's a string
+            let analysis = row.analysis;
+            if (typeof analysis === 'string') {
+                try {
+                    analysis = JSON.parse(analysis);
+                } catch (e) {
+                    console.error('Error parsing analysis JSON:', e);
+                    analysis = null;
+                }
+            }
+            
+            // If analysis is still a string (double encoded), parse it again
+            if (typeof analysis === 'string') {
+                try {
+                    analysis = JSON.parse(analysis);
+                } catch (e) {
+                    console.error('Error parsing nested analysis JSON:', e);
+                    analysis = null;
+                }
+            }
+
+            return {
+                id: Number(row.id),
+                originalText: row.originalText || '',
+                analysis: analysis,
+                timestamp: row.timestamp
+            };
+        });
+
+        console.log('Formatted result:', formattedResult); // Debug log
+        
+        res.json(formattedResult);
+    } catch (err) {
+        console.error('Error in /api/feedback/analysis:', err);
+        res.status(500).json({ 
+            error: 'Failed to fetch feedback analysis',
+            details: err.message,
+            stack: err.stack
+        });
+    }
+});
+
+// Route to update NLP analysis for a response
+app.post('/api/feedback/analyze', async (req, res) => {
+    try {
+        const { survey_id, analysis } = req.body;
+        
+        if (!survey_id || !analysis) {
+            return res.status(400).send('Missing required data');
+        }
+
+        await executeQuery(
+            `UPDATE responses 
+             SET nlp_analysis = ? 
+             WHERE survey_id = ? AND question_id = 10`,
+            [JSON.stringify(analysis), survey_id]
+        );
+
+        res.status(200).send('Analysis updated successfully');
+    } catch (err) {
+        console.error('Error updating analysis:', err);
+        res.status(500).send('Server error');
+    }
+});
+
+// Route to get aggregated sentiment analysis
+app.get('/api/feedback/sentiment-summary', async (req, res) => {
+    try {
+        const result = await executeQuery(`
+            SELECT 
+                COUNT(*) as total_feedback,
+                SUM(CASE 
+                    WHEN JSON_EXTRACT(nlp_analysis, '$.sentiment.score') > 0.2 THEN 1 
+                    ELSE 0 
+                END) as positive_count,
+                SUM(CASE 
+                    WHEN JSON_EXTRACT(nlp_analysis, '$.sentiment.score') BETWEEN -0.2 AND 0.2 THEN 1 
+                    ELSE 0 
+                END) as neutral_count,
+                SUM(CASE 
+                    WHEN JSON_EXTRACT(nlp_analysis, '$.sentiment.score') < -0.2 THEN 1 
+                    ELSE 0 
+                END) as negative_count,
+                AVG(JSON_EXTRACT(nlp_analysis, '$.sentiment.score')) as avg_sentiment
+            FROM responses
+            WHERE question_id = 10 
+            AND nlp_analysis IS NOT NULL
+        `);
+        
+        res.json(result[0]);
+    } catch (err) {
+        console.error('Error fetching sentiment summary:', err);
+        res.status(500).send('Server error');
+    }
 });
