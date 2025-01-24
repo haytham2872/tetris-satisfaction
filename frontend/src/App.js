@@ -9,8 +9,18 @@ import FloatingButton from './components/FloatingButton';
 import VercelAnalytics from './components/VercelAnalytics';
 import FeedbackAnalysisPage from './components/FeedbackAnalysisPage';
 import { analyzeFeedback } from './services/nlpService';  // Add this import at the top
+import { ProgressBar, MilestoneIndicator } from './components/ProgressComponents';
+import QuestionDisplay from './components/QuestionDisplay';
+import { ChatConversation, getEngagementMessage } from './components/MessageBubble';
 
 
+
+const QuestionContainer = ({ children, isVisible }) => (
+  <div className={`transition-all duration-500 ease-in-out transform 
+    ${isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-full'}`}>
+    {children}
+  </div>
+);
 
 const ThankYouScreen = () => {
   return (
@@ -46,7 +56,35 @@ function App() {
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [analyticsView, setAnalyticsView] = useState('main');
   const [showFeedbackAnalysis, setShowFeedbackAnalysis] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [showMessage, setShowMessage] = useState(false);
+  const [messageHistory, setMessageHistory] = useState([]);
+  const [lastResponse, setLastResponse] = useState(null);
 
+
+
+  useEffect(() => {
+    const messageData = getEngagementMessage(
+      currentStep, 
+      questions.length, 
+      responses,
+      lastResponse
+    );
+    
+    if (messageData) {
+      // Ajouter le nouveau message à l'historique
+      setMessageHistory(prev => [...prev, messageData]);
+      
+      // Faire défiler automatiquement vers le bas
+      setTimeout(() => {
+        const chatContainer = document.querySelector('.chat-container');
+        if (chatContainer) {
+          chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+      }, 100);
+    }
+  }, [currentStep, responses, lastResponse]);
+  
 
   // Initialisation du survey
   useEffect(() => {
@@ -119,7 +157,6 @@ function App() {
       console.error('Erreur lors de la soumission des réponses:', error);
     }
   };
-
   const questions = [
     { id: 1, text: "Recommanderiez-vous notre service à d'autres courtiers ?", type: "rating", max: 10 },
     { id: 2, text: "Quel est votre niveau de satisfaction globale concernant nos services ?", type: "stars", max: 5 },
@@ -135,8 +172,12 @@ function App() {
 
   const handleResponse = (questionId, value) => {
     setResponses(prev => ({ ...prev, [questionId]: value }));
+    setLastResponse({ questionId, answer: value });
+    
     if (currentStep < questions.length - 1) {
-      setTimeout(() => setCurrentStep(currentStep + 1), 300);
+      setTimeout(() => {
+        setCurrentStep(currentStep + 1);
+      }, 300);
     }
   };
 
@@ -248,75 +289,101 @@ function App() {
             onShowFeedback={() => setShowFeedbackAnalysis(true)}
         />
     );
-}
+};
 
-  return (
-    <>
-      <VercelAnalytics />
+const handleNextStep = () => {
+  setIsAnimating(true);
+  setTimeout(() => {
+    setCurrentStep(currentStep + 1);
+    setIsAnimating(false);
+  }, 300);
+};
+
+const handlePrevStep = () => {
+  setIsAnimating(true);
+  setTimeout(() => {
+    setCurrentStep(Math.max(0, currentStep - 1));
+    setIsAnimating(false);
+  }, 300);
+};
+
+return (
+  <>
+    <VercelAnalytics />
     <div className="min-h-screen bg-tetris-blue">
-      <header className="bg-white shadow-lg">
-        <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
+      {messageHistory.length > 0 && (
+        <ChatConversation messages={messageHistory} />
+      )}
+      <header className="sticky top-0 z-50 bg-white shadow-lg">
+        <div className="max-w-7xl mx-auto py-3 px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center">
             <img src={logo} alt="Tetris Assurance" className="h-12 w-auto" />
-            <div className="text-tetris-blue font-medium">
+            <div className="text-tetris-blue font-medium text-lg">
               Question {currentStep + 1} sur {questions.length}
             </div>
+          </div>
+          
+          <div className="mt-2">
+            <ProgressBar 
+              currentStep={currentStep} 
+              totalSteps={questions.length} 
+            />
+            <MilestoneIndicator 
+              currentStep={currentStep} 
+              totalSteps={questions.length} 
+            />
           </div>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-10">
-          <h1 className="text-4xl font-bold text-white mb-4">Votre avis compte</h1>
-          <p className="text-lg text-white/80">
-            Aidez-nous à améliorer nos services en répondant à quelques questions
-          </p>
-        </div>
+      <main className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
 
-        <div className="bg-white rounded-xl shadow-xl overflow-hidden">
-          <div className="p-8">
-            <div className="mb-6 text-xl font-medium text-gray-900">
-              {questions[currentStep].text}
-            </div>
-            <div className="space-y-4">
-              {renderQuestionInput(questions[currentStep])}
+          <div className="bg-white rounded-xl shadow-xl overflow-hidden">
+            <QuestionContainer isVisible={!isAnimating}>
+              <div className="p-8">
+                <QuestionDisplay question={questions[currentStep]} />
+                <div className="space-y-6">
+                  {renderQuestionInput(questions[currentStep])}
+                </div>
+              </div>
+            </QuestionContainer>
+
+            <div className="px-8 py-4 bg-gray-50 border-t border-gray-200 flex justify-between">
+              <button
+                onClick={handlePrevStep}
+                disabled={currentStep === 0}
+                className={`px-6 py-3 rounded-lg text-lg transition-all duration-300
+                  ${currentStep === 0
+                    ? 'bg-gray-300 cursor-not-allowed opacity-50'
+                    : 'bg-white border border-gray-300 hover:bg-gray-50 hover:shadow-md'
+                  }`}
+              >
+                Précédent
+              </button>
+              {currentStep === questions.length - 1 ? (
+                <button
+                  onClick={handleSubmit}
+                  className="px-6 py-3 bg-tetris-blue text-white rounded-lg
+                           hover:bg-blue-700 transition-all duration-300 hover:shadow-lg
+                           transform hover:-translate-y-1"
+                >
+                  Terminer
+                </button>
+              ) : (
+                <button
+                  onClick={handleNextStep}
+                  className="px-6 py-3 bg-tetris-blue text-white rounded-lg
+                           hover:bg-blue-700 transition-all duration-300 hover:shadow-lg
+                           transform hover:-translate-y-1"
+                >
+                  Suivant
+                </button>
+              )}
             </div>
           </div>
-
-          <div className="px-8 py-4 bg-gray-50 border-t border-gray-200 flex justify-between">
-            <button
-              onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}
-              disabled={currentStep === 0}
-              className={`px-4 py-2 rounded-md ${
-                currentStep === 0
-                  ? 'bg-gray-300 cursor-not-allowed'
-                  : 'bg-white border border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              Précédent
-            </button>
-            {currentStep === questions.length - 1 ? (
-              <button
-                onClick={handleSubmit}
-                className="px-4 py-2 bg-tetris-blue text-white rounded-md
-                         hover:bg-blue-700 transition duration-150 ease-in-out"
-              >
-                Terminer
-              </button>
-            ) : (
-              <button
-                onClick={() => setCurrentStep(currentStep + 1)}
-                className="px-4 py-2 bg-tetris-blue text-white rounded-md
-                         hover:bg-blue-700 transition duration-150 ease-in-out"
-              >
-                Suivant
-              </button>
-            )}
-          </div>
-        </div>
-      </main>
-      <FloatingButton onClick={() => setShowAnalytics(true)} />
-    </div>
+        </main>
+        <FloatingButton onClick={() => setShowAnalytics(true)} />
+      </div>
     </>
   );
 }
