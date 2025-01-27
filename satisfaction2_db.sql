@@ -44,3 +44,6 @@ INSERT INTO questions (id, question_text, question_type, max_value) VALUES
 (8, "Comment évaluez-vous le support technique fourni ?", 'choice', NULL),
 (9, "La tarification proposée est-elle compétitive ?", 'choice', NULL),
 (10, "Avez-vous des suggestions d'amélioration ou des commentaires ?", 'text', NULL);
+
+ALTER TABLE responses
+ADD COLUMN optional_answer TEXT DEFAULT NULL;
