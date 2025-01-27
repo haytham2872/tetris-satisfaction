@@ -13,11 +13,13 @@ app.use(bodyParser.json());
 // Database configuration
 const pool = mariadb.createPool({
     host: 'localhost',
+    port:3307,
     user: 'root',
     password: '123',
     database: 'satisfaction_db',
     connectionLimit: 5,
     bigIntAsNumber: true  // Convert BigInt to Number
+
 });
 
 // Database connection handling
@@ -54,29 +56,37 @@ app.post('/api/start-survey', async (req, res) => {
     }
 });
 
-// Route to store responses
+// ...
 app.post('/api/responses', async (req, res) => {
     try {
         const { survey_id, responses } = req.body;
 
-        if (!survey_id || !responses || Object.keys(responses).length === 0) {
-            return res.status(400).send('Invalid data. Make sure to include survey_id and responses.');
+        // Vérifie qu'on a bien un survey_id et un tableau "responses"
+        if (!survey_id || !responses || !Array.isArray(responses) || responses.length === 0) {
+            return res.status(400).send('Invalid data. Make sure to include survey_id and an array of responses.');
         }
 
-        const currentDateTime = new Date();
-        const values = Object.entries(responses).map(([questionId, answer]) => [
-            Number(survey_id),  // Convert to number
-            Number(questionId), // Convert to number
-            answer,
-            currentDateTime
-        ]);
+        // Prépare la requête SQL
+        const query = `
+          INSERT INTO responses 
+            (survey_id, question_id, answer, optional_answer, responded_at) 
+          VALUES (?, ?, ?, ?, ?)
+        `;
 
-        // Modified query to handle multiple value sets
-        const query = 'INSERT INTO responses (survey_id, question_id, answer, responded_at) VALUES (?, ?, ?, ?)';
-        
-        // Execute queries for each response
-        for (const value of values) {
-            await executeQuery(query, value);
+        // Pour chaque item dans le tableau responses
+        // item = { question_id, answer, optional_answer }
+        const currentDateTime = new Date();
+        for (const item of responses) {
+            const { question_id, answer, optional_answer } = item;
+            
+            // Exécute l'insertion
+            await executeQuery(query, [
+                Number(survey_id),
+                Number(question_id),
+                answer,
+                optional_answer,     // <-- On stocke ici la valeur optionnelle
+                currentDateTime,
+            ]);
         }
 
         res.status(200).send('Responses successfully recorded.');
@@ -85,6 +95,8 @@ app.post('/api/responses', async (req, res) => {
         res.status(500).send('Server error');
     }
 });
+
+
 
 // Error handling middleware
 app.use((err, req, res, next) => {
