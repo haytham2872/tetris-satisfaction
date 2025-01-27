@@ -12,7 +12,7 @@ import { analyzeFeedback } from './services/nlpService';
 import { ProgressBar, MilestoneIndicator } from './components/ProgressComponents';
 import QuestionDisplay from './components/QuestionDisplay';
 import { ChatConversation, getEngagementMessage } from './components/MessageBubble';
-
+import CommentsAnalysis from './components/CommentsAnalysis';
 // Container permettant la transition
 const QuestionContainer = ({ children, isVisible }) => (
   <div
@@ -59,9 +59,9 @@ function App() {
   const [analyticsView, setAnalyticsView] = useState('main');
   const [showFeedbackAnalysis, setShowFeedbackAnalysis] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
-  const [showMessage, setShowMessage] = useState(false);
   const [messageHistory, setMessageHistory] = useState([]);
   const [lastResponse, setLastResponse] = useState(null);
+  const [showComments, setShowComments] = useState(false);
 
   // Tableau des questions
   const questions = [
@@ -287,16 +287,21 @@ function App() {
         />
       );
     }
+    if (showComments) {
+      return (
+        <CommentsAnalysis
+          onBack={() => setShowComments(false)}
+          onShowAdditional={() => {
+            setShowComments(false);
+            setAnalyticsView('additional');
+          }}
+        />
+      );
+    }
     if (analyticsView === 'additional') {
       return (
         <AdditionalAnalytics
-          onBack={(view) => {
-            if (view === 'feedback') {
-              setAnalyticsView('feedback');
-            } else {
-              setAnalyticsView('main');
-            }
-          }}
+          onBack={() => setAnalyticsView('main')}
           onShowFeedback={() => setShowFeedbackAnalysis(true)}
         />
       );
@@ -308,10 +313,11 @@ function App() {
           setAnalyticsView('main');
         }}
         onShowAdditional={() => setAnalyticsView('additional')}
+        onShowComments={() => setShowComments(true)}
         onShowFeedback={() => setShowFeedbackAnalysis(true)}
       />
     );
-  }
+}
 
   // Gestion des boutons "Suivant" / "Précédent"
   const handleNextStep = () => {

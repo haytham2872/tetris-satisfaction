@@ -16,7 +16,7 @@ export const startSurvey = async () => {
       
       const data = await response.json();
       return {
-        id: Number(data.id) // On s’assure que l’ID est un nombre
+        id: Number(data.id) 
       };
     } catch (error) {
       console.error('Error starting survey:', error);
@@ -24,23 +24,9 @@ export const startSurvey = async () => {
     }
   };
   
-// API.js
 
 export const submitResponses = async (surveyId, responses) => {
-  /**
-   * 'responses' = {
-   *   1: { answer: 8, optionalAnswer: 'test 2025' },
-   *   2: { answer: 5, optionalAnswer: 'TEST' },
-   *   ...
-   * }
-   */
   try {
-    // On construit un **tableau** de réponses :
-    // [
-    //   { question_id: 1, answer: 8, optional_answer: 'test 2025' },
-    //   { question_id: 2, answer: 5, optional_answer: 'TEST' },
-    //   ...
-    // ]
     const formattedResponses = Object.entries(responses).map(([questionId, data]) => {
       const { answer, optionalAnswer } = data;
       return {

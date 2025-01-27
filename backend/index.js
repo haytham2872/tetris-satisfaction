@@ -13,7 +13,7 @@ app.use(bodyParser.json());
 // Database configuration
 const pool = mariadb.createPool({
     host: 'localhost',
-    port:3307,
+    port:3306,
     user: 'root',
     password: '123',
     database: 'satisfaction_db',
@@ -308,6 +308,29 @@ app.get('/api/feedback/sentiment-summary', async (req, res) => {
         res.json(result[0]);
     } catch (err) {
         console.error('Error fetching sentiment summary:', err);
+        res.status(500).send('Server error');
+    }
+});
+
+// Add this new endpoint to your index.js
+app.get('/api/comments', async (req, res) => {
+    try {
+        const result = await executeQuery(`
+            SELECT 
+                r.survey_id,
+                r.question_id,
+                r.answer,
+                r.optional_answer
+            FROM responses r
+            WHERE r.optional_answer IS NOT NULL 
+            AND r.optional_answer != ''
+            AND r.question_id != 10
+            ORDER BY r.survey_id, r.question_id
+        `);
+        
+        res.json(result);
+    } catch (err) {
+        console.error('Error fetching comments:', err);
         res.status(500).send('Server error');
     }
 });
