@@ -235,13 +235,13 @@ code {
   }
 }
 
-.animated-gradient-colorful {
+.animated-gradient {
   background: linear-gradient(
     -45deg,
-    rgba(11, 61, 145, 0.4),     /* tetris-blue */
-    rgba(59, 130, 246, 0.3),    /* blue-500 */
-    rgba(147, 197, 253, 0.3),   /* blue-300 */
-    rgba(37, 99, 235, 0.4)      /* blue-600 */
+    rgba(11, 61, 145, 0.15),  /* tetris-blue with opacity */
+    rgba(59, 130, 246, 0.15),  /* blue-500 with opacity */
+    rgba(11, 61, 145, 0.2),   /* tetris-blue with slightly more opacity */
+    rgba(37, 99, 235, 0.15)    /* blue-600 with opacity */
   );
   background-size: 400% 400%;
   animation: gradientAnimation 15s ease infinite;
