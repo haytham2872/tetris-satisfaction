@@ -21,7 +21,28 @@ const pool = mariadb.createPool({
     bigIntAsNumber: true  // Convert BigInt to Number
 
 });
+const createLowSatisfactionTable = async () => {
+    const query = `
+      CREATE TABLE IF NOT EXISTS low_satisfaction_responses (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        survey_id INT NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        phone VARCHAR(20) NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (survey_id) REFERENCES surveys(id)
+      )
+    `;
+    
+    try {
+      await executeQuery(query);
+      console.log('Low satisfaction responses table created or already exists');
+    } catch (err) {
+      console.error('Error creating low satisfaction table:', err);
+    }
+  };
 
+  createLowSatisfactionTable();
 // Database connection handling
 async function executeQuery(query, params = []) {
     let conn;
@@ -334,3 +355,52 @@ app.get('/api/comments', async (req, res) => {
         res.status(500).send('Server error');
     }
 });
+// Endpoint to store low satisfaction contact details
+app.post('/api/low-satisfaction', async (req, res) => {
+    try {
+      const { id, name, phone, email } = req.body;
+  
+      if (!id || !name || !phone || !email) {
+        return res.status(400).json({ 
+          error: 'Missing required fields' 
+        });
+      }
+  
+      const query = `
+        INSERT INTO low_satisfaction_responses 
+        (survey_id, name, phone, email)
+        VALUES (?, ?, ?, ?)
+      `;
+  
+      await executeQuery(query, [id, name, phone, email]);
+  
+      res.status(201).json({ 
+        message: 'Low satisfaction response recorded successfully' 
+      });
+    } catch (err) {
+      console.error('Error storing low satisfaction response:', err);
+      res.status(500).json({ 
+        error: 'Failed to store low satisfaction response' 
+      });
+    }
+  });
+  
+  // Endpoint to get all low satisfaction responses
+  app.get('/api/low-satisfaction', async (req, res) => {
+    try {
+      const query = `
+        SELECT ls.*, s.id 
+        FROM low_satisfaction_responses ls
+        JOIN surveys s ON ls.survey_id = s.id
+        ORDER BY ls.created_at DESC
+      `;
+  
+      const results = await executeQuery(query);
+      res.json(results);
+    } catch (err) {
+      console.error('Error fetching low satisfaction responses:', err);
+      res.status(500).json({ 
+        error: 'Failed to fetch low satisfaction responses' 
+      });
+    }
+  });

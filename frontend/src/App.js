@@ -13,6 +13,8 @@ import { ProgressBar, MilestoneIndicator } from './components/ProgressComponents
 import QuestionDisplay from './components/QuestionDisplay';
 import { ChatConversation, getEngagementMessage } from './components/MessageBubble';
 import CommentsAnalysis from './components/CommentsAnalysis';
+import ContactDetails from './components/ContactDetails';
+
 // Container permettant la transition
 const QuestionContainer = ({ children, isVisible }) => (
   <div
@@ -62,6 +64,8 @@ function App() {
   const [messageHistory, setMessageHistory] = useState([]);
   const [lastResponse, setLastResponse] = useState(null);
   const [showComments, setShowComments] = useState(false);
+  const [showContactForm, setShowContactForm] = useState(false);
+
 
   // Tableau des questions
   const questions = [
@@ -116,18 +120,53 @@ function App() {
     };
     initializeSurvey();
   }, []);
-
-  // Gestion de la réponse principale (bouton, étoile, etc.)
+  
+  const handleContactSubmit = async (contactData) => {
+    try {
+      const response = await fetch('http://localhost:5000/api/low-satisfaction', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          id: surveyId,
+          ...contactData
+        })
+      });
+  
+      if (!response.ok) {
+        throw new Error('Failed to submit contact details');
+      }
+  
+      // Submit the survey responses first
+      const success = await submitResponses(surveyId, responses);
+      
+      if (success) {
+        // After successful submission, show thank you screen
+        setShowThankYou(true);
+      } else {
+        console.error('Failed to submit survey responses');
+      }
+    } catch (error) {
+      console.error('Error submitting contact details:', error);
+    }
+  };
   const handleResponse = (questionId, value) => {
+    // First update the responses state
     setResponses(prev => ({
       ...prev,
       [questionId]: {
-        // On conserve l'existant pour l'optionalAnswer
         optionalAnswer: prev[questionId]?.optionalAnswer || '',
         answer: value
       }
     }));
     setLastResponse({ questionId, answer: value });
+
+    // Check if it's the first question and score is less than 4
+    if (questionId === 1 && parseInt(value) < 4) {
+      setShowContactForm(true);
+      return; // Stop here to prevent further execution
+    }
   };
 
   // Gestion du commentaire optionnel
@@ -277,6 +316,20 @@ function App() {
   if (showThankYou) {
     return <ThankYouScreen />;
   }
+  if (showContactForm) {
+    return (
+      <div className="min-h-screen animated-gradient py-12 animate-fadeIn">
+        <ContactDetails
+          responses={responses}
+          onSubmit={handleContactSubmit}
+          onSkip={() => {
+            setShowContactForm(false);
+            setCurrentStep(1);
+          }}
+        />
+      </div>
+    );
+  }
 
   // Si on affiche les analytics
   if (showAnalytics) {
@@ -306,6 +359,7 @@ function App() {
         />
       );
     }
+    
     return (
       <SatisfactionAnalytics
         onBack={() => {
