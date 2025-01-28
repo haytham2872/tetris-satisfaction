@@ -8,12 +8,6 @@ const ContactDetails = ({ responses, onSubmit, onSkip }) => {
         email: ''
     });
     const [errors, setErrors] = useState({});
-    
-    // Function to check if we should show form
-    const shouldShowForm = () => {
-        const firstResponse = responses[1]?.answer;
-        return firstResponse !== undefined && parseInt(firstResponse) < 4;
-    };
 
     const validateForm = () => {
         const newErrors = {};
@@ -45,13 +39,9 @@ const ContactDetails = ({ responses, onSubmit, onSkip }) => {
         }
     };
 
-    if (!shouldShowForm()) {
-        onSkip();
-        return null;
-    }
-
     return (
         <div className="animate-slideIn">
+
             <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
                 {/* Header Section */}
                 <div className="bg-gradient-to-r from-tetris-blue to-blue-600 p-6 text-white">

@@ -14,6 +14,8 @@ import QuestionDisplay from './components/QuestionDisplay';
 import { ChatConversation, getEngagementMessage } from './components/MessageBubble';
 import CommentsAnalysis from './components/CommentsAnalysis';
 import ContactDetails from './components/ContactDetails';
+import ContactButton from './components/ContactButton';
+
 
 // Container permettant la transition
 const QuestionContainer = ({ children, isVisible }) => (
@@ -65,6 +67,8 @@ function App() {
   const [lastResponse, setLastResponse] = useState(null);
   const [showComments, setShowComments] = useState(false);
   const [showContactForm, setShowContactForm] = useState(false);
+  const [showContactButton, setShowContactButton] = useState(false);
+
 
 
   // Tableau des questions
@@ -161,12 +165,58 @@ function App() {
       }
     }));
     setLastResponse({ questionId, answer: value });
-
-    // Check if it's the first question and score is less than 4
-    if (questionId === 1 && parseInt(value) < 4) {
-      setShowContactForm(true);
-      return; // Stop here to prevent further execution
-    }
+  
+    // Check conditions for showing contact button
+    const shouldShowContact = () => {
+      // First question must be less than 4
+      if (questionId === 1) {
+        return parseInt(value) < 4;
+      }
+  
+      // Define most negative responses
+      const mostNegativeResponses = {
+        2: 1,
+        3: "Insuffisant",
+        4: "Rarement",
+        5: "Pas clair du tout",
+        6: "Très compliqué",
+        7: "Rarement",
+        8: "Insuffisant",
+        9: "Pas du tout compétitive"
+      };
+  
+      const updatedResponses = {
+        ...responses,
+        [questionId]: { answer: value }
+      };
+  
+      const firstResponse = updatedResponses[1]?.answer;
+      if (firstResponse === undefined || parseInt(firstResponse) >= 4) {
+        return false;
+      }
+  
+      let answeredQuestions = 0;
+      let negativeResponses = 0;
+  
+      for (let qId = 2; qId <= questionId; qId++) {
+        const response = updatedResponses[qId]?.answer;
+        if (response !== undefined) {
+          answeredQuestions++;
+          if (qId === 2) {
+            if (parseInt(response) <= mostNegativeResponses[2]) {
+              negativeResponses++;
+            }
+          } else if (response === mostNegativeResponses[qId]) {
+            negativeResponses++;
+          }
+        }
+      }
+  
+      return answeredQuestions > 0 && negativeResponses === answeredQuestions;
+    };
+  
+    // Update showContactButton state based on conditions
+    setShowContactButton(shouldShowContact());
   };
 
   // Gestion du commentaire optionnel
@@ -316,6 +366,8 @@ function App() {
   if (showThankYou) {
     return <ThankYouScreen />;
   }
+  
+  // 2. Second check - Contact Form
   if (showContactForm) {
     return (
       <div className="min-h-screen animated-gradient py-12 animate-fadeIn">
@@ -330,8 +382,8 @@ function App() {
       </div>
     );
   }
-
-  // Si on affiche les analytics
+  
+  // 3. Third check - Analytics views
   if (showAnalytics) {
     if (showFeedbackAnalysis) {
       return (
@@ -397,6 +449,12 @@ function App() {
       <div className="min-h-screen bg-tetris-blue">
         {messageHistory.length > 0 && (
           <ChatConversation messages={messageHistory} />
+        )}
+        {/* Add the contact button here */}
+        {showContactButton && !showContactForm && (
+          <ContactButton 
+            onClick={() => setShowContactForm(true)}
+          />
         )}
         <header className="sticky top-0 z-50 bg-white shadow-lg">
           <div className="max-w-7xl mx-auto py-3 px-4 sm:px-6 lg:px-8">
