@@ -7,7 +7,7 @@ const ProgressBar = ({ currentStep, totalSteps }) => {
   const getEstimatedTime = (remaining) => {
     if (remaining <= 2) return "environ 1 minute";
     if (remaining <= 5) return "2-3 minutes";
-    return "4-3 minutes";
+    return "3-4 minutes";
   };
 
   return (
