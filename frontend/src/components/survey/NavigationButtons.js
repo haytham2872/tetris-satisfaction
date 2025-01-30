@@ -1,3 +1,4 @@
+// In NavigationButtons.js
 import React from 'react';
 
 const NavigationButtons = ({ 
@@ -7,6 +8,9 @@ const NavigationButtons = ({
   onNext, 
   onSubmit 
 }) => {
+  // Check if we're on the last question by comparing with totalSteps
+  const isLastQuestion = currentStep === totalSteps - 1;
+
   return (
     <div className="px-8 py-4 bg-gray-50 border-t border-gray-200 flex justify-between">
       <button
@@ -21,7 +25,7 @@ const NavigationButtons = ({
         Précédent
       </button>
 
-      {currentStep === totalSteps - 1 ? (
+      {isLastQuestion ? (
         <button
           onClick={onSubmit}
           className="px-6 py-3 bg-tetris-blue text-white rounded-lg

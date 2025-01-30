@@ -1,11 +1,11 @@
 // App.js
 import React from 'react';
 import './index.css';
-import { questions } from './components/constants/questions';
 import { useSurvey } from './components/hooks/useSurvey';
 import { useAnalytics } from './components/hooks/useAnalytics';
 import { useChat } from './components/hooks/usechat';
 import { useFormValidation } from './components/hooks/useFormValidation';
+import EditFormPage from './components/EditFormPage';
 
 // Components
 import Header from './components/Header';
@@ -31,6 +31,8 @@ function App() {
     showContactButton,
     isAnimating,
     lastResponse,
+    questionsLoading,  
+    questions,
     handleResponse,
     handleOptionalAnswer,
     handleSubmit,
@@ -45,10 +47,12 @@ function App() {
     analyticsView,
     showFeedbackAnalysis,
     showComments,
+    showEditForm,
     setShowAnalytics,
     setAnalyticsView,
     setShowFeedbackAnalysis,
     setShowComments,
+    setShowEditForm,
     handleBackToSurvey,
     handleViewAdditional,
     handleShowFeedback,
@@ -117,6 +121,14 @@ function App() {
         />
       );
     }
+    if (showEditForm) {
+  return (
+    <EditFormPage
+      onBack={() => setShowEditForm(false)}
+    />
+  );
+}
+
     
     return (
       <SatisfactionAnalytics
@@ -124,6 +136,7 @@ function App() {
         onShowAdditional={handleViewAdditional}
         onShowComments={handleShowComments}
         onShowFeedback={handleShowFeedback}
+        onShowEditForm={() => setShowEditForm(true)}
       />
     );
   }
@@ -153,7 +166,7 @@ function App() {
             <SurveyContainer
               currentStep={currentStep}
               responses={responses}
-              isAnimating={isAnimating}
+              isAnimating={isAnimating || questionsLoading}
               onResponse={handleResponse}
               onOptionalAnswer={handleOptionalAnswer}
               validateResponse={validateSurveyResponse}

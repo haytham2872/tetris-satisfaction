@@ -14,12 +14,20 @@ const feedbackSuggestions = [
     "Service très efficace. Suggestion : intégrer un système de notifications personnalisables."
 ];
 
-// Helper function to get random integer between min and max (inclusive)
+// Optional comments for other questions
+const optionalComments = [
+    "Très satisfait du service",
+    "Il y a encore des améliorations possibles",
+    "Le service répond à mes attentes",
+    "Certains aspects pourraient être optimisés",
+    "Globalement une bonne expérience",
+    null,  // Include null to sometimes not add optional comments
+];
+
 const getRandomInt = (min, max) => {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 };
 
-// Helper function to get weighted random value
 const getWeightedRandom = (options, weights) => {
     const totalWeight = weights.reduce((acc, weight) => acc + weight, 0);
     let random = Math.random() * totalWeight;
@@ -33,64 +41,59 @@ const getWeightedRandom = (options, weights) => {
     return options[options.length - 1];
 };
 
-// Function to generate a single survey response
+const getRandomOptionalComment = () => {
+    return optionalComments[Math.floor(Math.random() * optionalComments.length)];
+};
+
 const generateSurveyResponse = () => {
-    // Recommendation score (question 1) - heavily weighted towards 8-10
     const recommendationScores = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     const recommendationWeights = [1, 1, 1, 1, 2, 2, 3, 4, 5, 6, 7];
     const recommendation = getWeightedRandom(recommendationScores, recommendationWeights);
 
-    // Satisfaction stars (question 2) - heavily weighted towards 4-5 stars
     const satisfactionScores = [1, 2, 3, 4, 5];
     const satisfactionWeights = [1, 1, 2, 5, 6];
     const satisfaction = getWeightedRandom(satisfactionScores, satisfactionWeights);
 
-    // Response speed (question 3)
     const speedOptions = ["Excellent", "Bon", "Moyen", "Insuffisant"];
     const speed = getWeightedRandom(speedOptions, [6, 4, 2, 1]);
 
-    // Solutions match (question 4)
     const matchOptions = ["Toujours", "Souvent", "Parfois", "Rarement"];
     const match = getWeightedRandom(matchOptions, [6, 4, 2, 1]);
 
-    // Information clarity (question 5)
     const clarityOptions = ["Très clair", "Clair", "Peu clair", "Pas clair du tout"];
     const clarity = getWeightedRandom(clarityOptions, [6, 4, 2, 1]);
 
-    // Process simplicity (question 6)
     const simplicityOptions = ["Oui, très simple", "Plutôt simple", "Plutôt compliqué", "Très compliqué"];
     const simplicity = getWeightedRandom(simplicityOptions, [6, 4, 2, 1]);
 
-    // Deadlines respect (question 7)
     const deadlineOptions = ["Toujours", "Souvent", "Parfois", "Rarement"];
     const deadline = getWeightedRandom(deadlineOptions, [6, 4, 2, 1]);
 
-    // Technical support (question 8)
     const supportOptions = ["Excellent", "Bon", "Moyen", "Insuffisant"];
     const support = getWeightedRandom(supportOptions, [6, 4, 2, 1]);
 
-    // Pricing competitiveness (question 9)
     const pricingOptions = ["Très compétitive", "Assez compétitive", "Peu compétitive", "Pas du tout compétitive"];
     const pricing = getWeightedRandom(pricingOptions, [6, 4, 2, 1]);
 
-    // Random feedback (question 10) with more positive tone
     const feedback = feedbackSuggestions[Math.floor(Math.random() * feedbackSuggestions.length)];
 
-    return {
-        1: recommendation,
-        2: satisfaction,
-        3: speed,
-        4: match,
-        5: clarity,
-        6: simplicity,
-        7: deadline,
-        8: support,
-        9: pricing,
-        10: feedback
-    };
+    const responses = [];
+    
+    // Add each response separately with its question_id and optional_answer
+    responses.push({ question_id: 1, answer: recommendation.toString(), optional_answer: getRandomOptionalComment() });
+    responses.push({ question_id: 2, answer: satisfaction.toString(), optional_answer: getRandomOptionalComment() });
+    responses.push({ question_id: 3, answer: speed, optional_answer: getRandomOptionalComment() });
+    responses.push({ question_id: 4, answer: match, optional_answer: getRandomOptionalComment() });
+    responses.push({ question_id: 5, answer: clarity, optional_answer: getRandomOptionalComment() });
+    responses.push({ question_id: 6, answer: simplicity, optional_answer: getRandomOptionalComment() });
+    responses.push({ question_id: 7, answer: deadline, optional_answer: getRandomOptionalComment() });
+    responses.push({ question_id: 8, answer: support, optional_answer: getRandomOptionalComment() });
+    responses.push({ question_id: 9, answer: pricing, optional_answer: getRandomOptionalComment() });
+    responses.push({ question_id: 10, answer: feedback, optional_answer: null });
+
+    return responses;
 };
 
-// Main function to simulate multiple survey responses
 const simulateSurveyResponses = async (count) => {
     console.log(`Starting simulation of ${count} survey responses...`);
     let successCount = 0;
@@ -98,7 +101,6 @@ const simulateSurveyResponses = async (count) => {
 
     for (let i = 0; i < count; i++) {
         try {
-            // Start a new survey
             const surveyResponse = await fetch('http://localhost:5000/api/start-survey', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -114,8 +116,9 @@ const simulateSurveyResponses = async (count) => {
             const surveyData = await surveyResponse.json();
             const surveyId = surveyData.id;
 
-            // Generate and submit responses
             const responses = generateSurveyResponse();
+            
+            // Format the request payload according to the backend's expectation
             const submitResponse = await fetch('http://localhost:5000/api/responses', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -126,13 +129,13 @@ const simulateSurveyResponses = async (count) => {
             });
 
             if (!submitResponse.ok) {
-                throw new Error(`Failed to submit responses: ${submitResponse.status}`);
+                const errorText = await submitResponse.text();
+                throw new Error(`Failed to submit responses: ${submitResponse.status}. ${errorText}`);
             }
 
             successCount++;
             console.log(`Successfully submitted survey ${i + 1}/${count}`);
             
-            // Add a small delay between submissions to avoid overwhelming the server
             await new Promise(resolve => setTimeout(resolve, 200));
 
         } catch (error) {

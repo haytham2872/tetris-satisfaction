@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { startSurvey, submitResponses } from '../../API';
 import { analyzeFeedback } from '../../services/nlpService';
 import { SURVEY_CONFIG } from './../constants/config';
+import { useQuestions } from './useQuestions';
 
 export const useSurvey = () => {
   const [surveyId, setSurveyId] = useState(null);
@@ -13,6 +14,7 @@ export const useSurvey = () => {
   const [showContactButton, setShowContactButton] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [lastResponse, setLastResponse] = useState(null);
+  const { questions, loading: questionsLoading } = useQuestions();
 
   // Initialize survey
   useEffect(() => {
@@ -187,6 +189,8 @@ export const useSurvey = () => {
     showContactButton,
     isAnimating,
     lastResponse,
+    questionsLoading,
+    questions,
     handleResponse,
     handleOptionalAnswer,
     handleSubmit,

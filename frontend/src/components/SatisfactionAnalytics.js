@@ -5,7 +5,7 @@ import {
     Cell,
 } from 'recharts';
 import { 
-    ArrowLeft, ThumbsUp, Star, Zap, Target,ArrowRight,MessageSquare
+    ArrowLeft, ThumbsUp, Star, Zap, Target,ArrowRight,MessageSquare,Edit
 } from 'lucide-react';
 
 const COLORS = ['#0B3D91', '#1E90FF', '#4169E1', '#6495ED', '#87CEEB'];
@@ -44,7 +44,7 @@ const StatCard = ({ icon: Icon, title, value, description }) => (
     </div>
 );
 
-const SatisfactionAnalytics = ({ onBack, onShowAdditional, onShowComments }) => {
+const SatisfactionAnalytics = ({ onBack, onShowAdditional, onShowComments,onShowEditForm }) => {
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -234,7 +234,7 @@ const SatisfactionAnalytics = ({ onBack, onShowAdditional, onShowComments }) => 
                 </div>
 
                 {/* Charts Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-24">
                     {/* Recommendation Chart */}
                     <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
                         <div className="flex items-center gap-3 mb-6">
@@ -330,17 +330,30 @@ const SatisfactionAnalytics = ({ onBack, onShowAdditional, onShowComments }) => 
                             </PieChart>
                         </ResponsiveContainer>
                     </div>
-                    <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2">
-                    <button
-                        onClick={onShowComments}
-                        className="bg-white border-2 border-tetris-blue text-tetris-blue px-6 py-3 rounded-lg hover:bg-tetris-blue hover:text-white transition-colors flex items-center gap-2 text-lg font-medium shadow-md hover:shadow-lg"
-                    >
-                        <MessageSquare size={24} />
-                        Voir tous les commentaires 
-                    </button>
-                </div>
-                </div>
+                    <div className="fixed bottom-0 left-0 right-0 p-6 bg-gray-50 border-t border-gray-200 z-50">
+                        <div className="max-w-7xl mx-auto flex justify-center gap-4">
+                            <button
+                                onClick={onShowComments}
+                                className="bg-white border-2 border-tetris-blue text-tetris-blue px-6 py-3 rounded-lg 
+                                        hover:bg-tetris-blue hover:text-white transition-colors flex items-center gap-2 
+                                        text-lg font-medium shadow-md hover:shadow-lg"
+                            >
+                                <MessageSquare size={24} />
+                                Voir tous les commentaires 
+                            </button>
+                            <button
+                                onClick={onShowEditForm}
+                                className="bg-white border-2 border-tetris-blue text-tetris-blue px-6 py-3 rounded-lg 
+                                        hover:bg-tetris-blue hover:text-white transition-colors flex items-center gap-2 
+                                        text-lg font-medium shadow-md hover:shadow-lg"
+                            >
+                                <Edit size={24} />
+                                Éditer le formulaire
+                            </button>
+                        </div>
+                    </div>
             </div>
+        </div>
         </div>
     );
 };

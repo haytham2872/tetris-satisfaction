@@ -49,6 +49,14 @@ CREATE TABLE low_satisfaction_responses (
     CONSTRAINT low_satisfaction_responses_ibfk_1 FOREIGN KEY (survey_id) REFERENCES surveys (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+CREATE TABLE question_options (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    question_id INT,
+    option_text VARCHAR(255),
+    option_order INT,
+    FOREIGN KEY (question_id) REFERENCES questions(id)
+);
+
 -- Insert questions
 INSERT INTO questions (id, question_text, question_type, max_value, class) VALUES
 (1, "Recommanderiez-vous notre service à d'autres courtiers ?", 'rating', 10, 'satisfaction'),
