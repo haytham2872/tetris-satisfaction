@@ -1,6 +1,6 @@
-import React, { useState, useEffect,useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Save, AlertCircle, Plus, Trash2 } from 'lucide-react';
-// Custom Alert component
+
 const CustomAlert = ({ children, variant = 'default', className = '' }) => {
   const baseStyles = "p-4 rounded-lg mb-4 flex items-center gap-2";
   const variantStyles = {
@@ -15,7 +15,8 @@ const CustomAlert = ({ children, variant = 'default', className = '' }) => {
     </div>
   );
 };
-const OptionsEditor = ({ options, onChange, onAdd, onRemove }) => {
+
+const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
     return (
       <div className="space-y-2">
         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -48,15 +49,13 @@ const OptionsEditor = ({ options, onChange, onAdd, onRemove }) => {
       </div>
     );
   };
-
-const EditFormPage = ({ onBack }) => {
+  
+  const EditFormPage = ({ onBack }) => {
     const [questions, setQuestions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [successMessage, setSuccessMessage] = useState('');
     const bottomRef = useRef(null);
-    const [questionsWithOptions, setQuestionsWithOptions] = useState([]);
-  
   
     const questionTypes = ['rating', 'stars', 'choice', 'text'];
     const classTypes = ['satisfaction', 'performance', 'adequacy', 'clarity', 'usability', 'support', 'pricing', 'feedback'];
@@ -66,61 +65,69 @@ const EditFormPage = ({ onBack }) => {
     }, []);
   
     const fetchQuestions = async () => {
-      try {
-        const response = await fetch('http://localhost:5000/api/questions');
-        if (!response.ok) throw new Error('Failed to fetch questions');
-        const data = await response.json();
-
-        const transformedData = data.map(q => ({
-            ...q,
-            options: q.options || (q.question_type === 'choice' ? [] : undefined)
-          })); 
-
-        setQuestions(data);
-        setLoading(false);
-      } catch (err) {
-        console.error('Error:', err);
-        setError('Error fetching questions');
-        setLoading(false);
-      }
+        try {
+            const response = await fetch('http://localhost:5000/api/questions');
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.details || 'Failed to fetch questions');
+            }
+            
+            const data = await response.json();
+            console.log('Fetched questions:', data); // Debug log
+    
+            // Ensure options are properly formatted
+            const formattedData = data.map(q => ({
+                ...q,
+                options: q.question_type === 'choice' 
+                    ? (Array.isArray(q.options) ? q.options : [])
+                    : []
+            }));
+    
+            setQuestions(formattedData);
+            setLoading(false);
+        } catch (err) {
+            console.error('Error:', err);
+            setError(err.message || 'Error fetching questions');
+            setLoading(false);
+        }
     };
-    
+  
     const handleOptionsChange = (questionIndex, optionIndex, value) => {
-        const updatedQuestions = [...questions];
-        if (!updatedQuestions[questionIndex].options) {
-          updatedQuestions[questionIndex].options = [];
-        }
-        updatedQuestions[questionIndex].options[optionIndex] = value;
-        setQuestions(updatedQuestions);
-      };
+      const updatedQuestions = [...questions];
+      if (!updatedQuestions[questionIndex].options) {
+        updatedQuestions[questionIndex].options = [];
+      }
+      updatedQuestions[questionIndex].options[optionIndex] = value;
+      setQuestions(updatedQuestions);
+    };
+  
     const handleAddOption = (questionIndex) => {
-        const updatedQuestions = [...questions];
-        if (!updatedQuestions[questionIndex].options) {
-          updatedQuestions[questionIndex].options = [];
-        }
-        updatedQuestions[questionIndex].options.push('Nouvelle option');
-        setQuestions(updatedQuestions);
-      };
-    
+      const updatedQuestions = [...questions];
+      if (!updatedQuestions[questionIndex].options) {
+        updatedQuestions[questionIndex].options = [];
+      }
+      updatedQuestions[questionIndex].options.push('Nouvelle option');
+      setQuestions(updatedQuestions);
+    };
+  
     const handleRemoveOption = (questionIndex, optionIndex) => {
-        const updatedQuestions = [...questions];
-        updatedQuestions[questionIndex].options = 
-          updatedQuestions[questionIndex].options.filter((_, idx) => idx !== optionIndex);
-        setQuestions(updatedQuestions);
-      };
-
-
+      const updatedQuestions = [...questions];
+      updatedQuestions[questionIndex].options = 
+        updatedQuestions[questionIndex].options.filter((_, idx) => idx !== optionIndex);
+      setQuestions(updatedQuestions);
+    };
+  
     const handleQuestionTypeChange = (index, value) => {
-        const updatedQuestions = [...questions];
-        updatedQuestions[index] = {
-          ...updatedQuestions[index],
-          question_type: value,
-          options: value === 'choice' ? [] : undefined,
-          max_value: value === 'choice' ? null : updatedQuestions[index].max_value
-        };
-        setQuestions(updatedQuestions);
-      }; 
-
+      const updatedQuestions = [...questions];
+      updatedQuestions[index] = {
+        ...updatedQuestions[index],
+        question_type: value,
+        options: value === 'choice' ? (updatedQuestions[index].options || []) : [],
+        max_value: value === 'rating' ? 10 : value === 'stars' ? 5 : null
+      };
+      setQuestions(updatedQuestions);
+    };
+  
     const handleQuestionChange = (index, field, value) => {
       const updatedQuestions = [...questions];
       updatedQuestions[index] = {
@@ -137,89 +144,106 @@ const EditFormPage = ({ onBack }) => {
         question_text: 'Nouvelle question',
         question_type: 'choice',
         max_value: null,
-        class: 'satisfaction'
+        class: 'satisfaction',
+        options: []
       };
       
       setQuestions([...questions, newQuestion]);
       
-      // Scroll to bottom after state update
       setTimeout(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
       }, 100);
     };
   
-
-
     const deleteQuestion = async (index) => {
         try {
-          if (questions.length <= 1) {
-            setError("Vous ne pouvez pas supprimer toutes les questions");
-            return;
-          }
-      
-          const questionToDelete = questions[index];
-          
-          // First, delete from database
-          const response = await fetch('http://localhost:5000/api/questions/delete', {
-            method: 'DELETE',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ id: questionToDelete.id })
-          });
-      
-          if (!response.ok) {
-            throw new Error('Failed to delete question');
-          }
-      
-          // If database deletion successful, update local state
-          const updatedQuestions = questions.filter((_, i) => i !== index);
-          
-          // Update IDs to be sequential
-          const reorderedQuestions = updatedQuestions.map((q, i) => ({
-            ...q,
-            id: i + 1
-          }));
-          
-          setQuestions(reorderedQuestions);
-          
-          // Show success message
-          setSuccessMessage('Question supprimée avec succès !');
-          setTimeout(() => setSuccessMessage(''), 3000);
-          
-          // Save the reordered questions to the database
-          await handleSubmit();
+            if (questions.length <= 1) {
+                setError("Vous ne pouvez pas supprimer toutes les questions");
+                return;
+            }
+    
+            const questionToDelete = questions[index];
+            
+            // Call the delete endpoint
+            const response = await fetch('http://localhost:5000/api/questions/delete', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ id: questionToDelete.id })
+            });
+    
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to delete question');
+            }
+    
+            // Update local state
+            const updatedQuestions = questions.filter((_, i) => i !== index);
+            
+            // Reorder remaining questions
+            const reorderedQuestions = updatedQuestions.map((q, i) => ({
+                ...q,
+                id: i + 1
+            }));
+            
+            setQuestions(reorderedQuestions);
+            setSuccessMessage('Question supprimée avec succès !');
+            setTimeout(() => setSuccessMessage(''), 3000);
+            
+            // Update the reordered questions in the database
+            const updateResponse = await fetch('http://localhost:5000/api/questions/update', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ questions: reorderedQuestions })
+            });
+    
+            if (!updateResponse.ok) {
+                throw new Error('Failed to update question order');
+            }
         } catch (err) {
-          console.error('Error deleting question:', err);
-          setError('Erreur lors de la suppression de la question');
+            console.error('Error deleting question:', err);
+            setError(err.message || 'Erreur lors de la suppression de la question');
         }
-      };
+    };
   
     const handleSubmit = async () => {
         try {
-          const response = await fetch('http://localhost:5000/api/questions/update', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ 
-              questions: questions.map(q => ({
-                ...q,
-                options: q.question_type === 'choice' ? q.options : undefined
-              }))
-            }),
-          });
+            // Format questions before sending
+            const formattedQuestions = questions.map(q => ({
+                id: q.id,
+                question_text: q.question_text,
+                question_type: q.question_type,
+                max_value: q.max_value,
+                class: q.class,
+                options: q.question_type === 'choice' ? (q.options || []) : null
+            }));
     
-          if (!response.ok) throw new Error('Failed to update questions');
-          
-          setSuccessMessage('Questions mises à jour avec succès !');
-          await fetchQuestions(); // Refresh questions after successful update
-          setTimeout(() => setSuccessMessage(''), 3000);
+            console.log('Submitting questions:', formattedQuestions); // Debug log
+    
+            const response = await fetch('http://localhost:5000/api/questions/update', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ questions: formattedQuestions }),
+            });
+    
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to update questions');
+            }
+            
+            setSuccessMessage('Questions mises à jour avec succès !');
+            await fetchQuestions(); // Refresh questions
+            setTimeout(() => setSuccessMessage(''), 3000);
         } catch (err) {
-          console.error('Error:', err);
-          setError('Error updating questions');
+            console.error('Error:', err);
+            setError(err.message || 'Error updating questions');
         }
-      };
+    };
   
     if (loading) {
       return (

@@ -49,13 +49,10 @@ CREATE TABLE low_satisfaction_responses (
     CONSTRAINT low_satisfaction_responses_ibfk_1 FOREIGN KEY (survey_id) REFERENCES surveys (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-CREATE TABLE question_options (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    question_id INT,
-    option_text VARCHAR(255),
-    option_order INT,
-    FOREIGN KEY (question_id) REFERENCES questions(id)
-);
+
+ALTER TABLE questions ADD COLUMN options JSON NULL;
+
+DROP TABLE IF EXISTS question_options;
 
 -- Insert questions
 INSERT INTO questions (id, question_text, question_type, max_value, class) VALUES
@@ -69,3 +66,38 @@ INSERT INTO questions (id, question_text, question_type, max_value, class) VALUE
 (8, "Comment évaluez-vous le support technique fourni ?", 'choice', NULL, 'support'),
 (9, "La tarification proposée est-elle compétitive ?", 'choice', NULL, 'pricing'),
 (10, "Avez-vous des suggestions d'amélioration ou des commentaires ?", 'text', NULL, 'feedback');
+
+-- Update question 3
+UPDATE questions 
+SET options = JSON_ARRAY("Excellent", "Bon", "Moyen", "Insuffisant")
+WHERE id = 3;
+
+-- Update question 4
+UPDATE questions 
+SET options = JSON_ARRAY("Toujours", "Souvent", "Parfois", "Rarement")
+WHERE id = 4;
+
+-- Update question 5
+UPDATE questions 
+SET options = JSON_ARRAY("Très clair", "Clair", "Peu clair", "Pas clair du tout")
+WHERE id = 5;
+
+-- Update question 6
+UPDATE questions 
+SET options = JSON_ARRAY("Oui, très simple", "Plutôt simple", "Plutôt compliqué", "Très compliqué")
+WHERE id = 6;
+
+-- Update question 7
+UPDATE questions 
+SET options = JSON_ARRAY("Toujours", "Souvent", "Parfois", "Rarement")
+WHERE id = 7;
+
+-- Update question 8
+UPDATE questions 
+SET options = JSON_ARRAY("Excellent", "Bon", "Moyen", "Insuffisant")
+WHERE id = 8;
+
+-- Update question 9
+UPDATE questions 
+SET options = JSON_ARRAY("Très compétitive", "Assez compétitive", "Peu compétitive", "Pas du tout compétitive")
+WHERE id = 9;

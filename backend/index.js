@@ -43,44 +43,6 @@ const createLowSatisfactionTable = async () => {
   };
 
   createLowSatisfactionTable();
-// Database connection handling
-const populateDefaultOptions = async () => {
-    const defaultOptions = {
-      3: ["Excellent", "Bon", "Moyen", "Insuffisant"],
-      4: ["Toujours", "Souvent", "Parfois", "Rarement"],
-      5: ["Très clair", "Clair", "Peu clair", "Pas clair du tout"],
-      6: ["Oui, très simple", "Plutôt simple", "Plutôt compliqué", "Très compliqué"],
-      7: ["Toujours", "Souvent", "Parfois", "Rarement"],
-      8: ["Excellent", "Bon", "Moyen", "Insuffisant"],
-      9: ["Très compétitive", "Assez compétitive", "Peu compétitive", "Pas du tout compétitive"]
-    };
-  
-    try {
-      for (const [questionId, options] of Object.entries(defaultOptions)) {
-        // Check if options already exist for this question
-        const existingOptions = await executeQuery(
-          'SELECT COUNT(*) as count FROM question_options WHERE question_id = ?',
-          [questionId]
-        );
-  
-        if (existingOptions[0].count === 0) {
-          // Insert options if none exist
-          for (let i = 0; i < options.length; i++) {
-            await executeQuery(
-              'INSERT INTO question_options (question_id, option_text, option_order) VALUES (?, ?, ?)',
-              [questionId, options[i], i]
-            );
-          }
-        }
-      }
-      console.log('Default options populated successfully');
-    } catch (err) {
-      console.error('Error populating default options:', err);
-    }
-  };
-
-
-  populateDefaultOptions();
 
 async function executeQuery(query, params = []) {
     let conn;
@@ -445,146 +407,149 @@ app.post('/api/low-satisfaction', async (req, res) => {
 
 // Get all questions
 app.get('/api/questions', async (req, res) => {
-    let conn;
     try {
-      conn = await pool.getConnection();
-      
-      // Get all questions
-      const questions = await conn.query(`
-        SELECT id, question_text, question_type, max_value, class
-        FROM questions
-        ORDER BY id ASC
-      `);
-  
-      // Get options for all questions
-      for (let question of questions) {
-        if (question.question_type === 'choice') {
-          const options = await conn.query(`
-            SELECT option_text
-            FROM question_options
-            WHERE question_id = ?
-            ORDER BY option_order ASC
-          `, [question.id]);
-          
-          // Transform the options array to match the expected format
-          question.options = options.map(opt => opt.option_text);
-        }
-      }
-  
-      res.json(questions);
-    } catch (err) {
-      console.error('Error fetching questions:', err);
-      res.status(500).send('Server error');
-    } finally {
-      if (conn) conn.release();
-    }
-  });
-  
-  // Update or create questions
-  app.post('/api/questions/update', async (req, res) => {
-    let conn;
-    try {
-      conn = await pool.getConnection();
-      await conn.beginTransaction();
-  
-      const { questions } = req.body;
-      
-      for (const question of questions) {
-        const checkResult = await conn.query(
-          'SELECT id FROM questions WHERE id = ?',
-          [question.id]
-        );
-  
-        if (checkResult.length > 0) {
-          // Update existing question
-          await conn.query(`
-            UPDATE questions
-            SET 
-              question_text = ?,
-              question_type = ?,
-              max_value = ?,
-              class = ?
-            WHERE id = ?
-          `, [
-            question.question_text,
-            question.question_type,
-            question.max_value,
-            question.class,
-            question.id
-          ]);
-        } else {
-          // Insert new question
-          await conn.query(`
-            INSERT INTO questions (id, question_text, question_type, max_value, class)
-            VALUES (?, ?, ?, ?, ?)
-          `, [
-            question.id,
-            question.question_text,
-            question.question_type,
-            question.max_value,
-            question.class
-          ]);
-        }
-  
-        // Handle options for choice questions
-        if (question.question_type === 'choice' && Array.isArray(question.options)) {
-          // Delete existing options
-          await conn.query(
-            'DELETE FROM question_options WHERE question_id = ?',
-            [question.id]
-          );
-  
-          // Insert new options
-          for (let i = 0; i < question.options.length; i++) {
-            await conn.query(`
-              INSERT INTO question_options (question_id, option_text, option_order)
-              VALUES (?, ?, ?)
-            `, [question.id, question.options[i], i]);
-          }
-        }
-      }
-  
-      await conn.commit();
-      res.status(200).send('Questions updated successfully');
-    } catch (err) {
-      if (conn) {
-        await conn.rollback();
-      }
-      console.error('Error updating questions:', err);
-      res.status(500).send('Server error');
-    } finally {
-      if (conn) conn.release();
-    }
-  });
+        const questions = await executeQuery(`
+            SELECT 
+                id, 
+                question_text, 
+                question_type, 
+                max_value, 
+                class,
+                options
+            FROM questions
+            ORDER BY id ASC
+        `);
 
-  // Add this endpoint to your Express app
+        // Format the response
+        const formattedQuestions = questions.map(q => {
+            let parsedOptions = null;
+            if (q.options) {
+                try {
+                    // Try to parse if it's a string
+                    parsedOptions = typeof q.options === 'string' 
+                        ? JSON.parse(q.options) 
+                        : q.options;
+                } catch (e) {
+                    console.error('Error parsing options for question', q.id, e);
+                    parsedOptions = [];
+                }
+            }
+
+            return {
+                id: q.id,
+                question_text: q.question_text,
+                question_type: q.question_type,
+                max_value: q.max_value,
+                class: q.class,
+                options: parsedOptions || []
+            };
+        });
+
+        res.json(formattedQuestions);
+    } catch (err) {
+        console.error('Error fetching questions:', err);
+        res.status(500).json({ error: 'Error fetching questions', details: err.message });
+    }
+});
+
+// Update or create questions
+app.post('/api/questions/update', async (req, res) => {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        await conn.beginTransaction();
+
+        const { questions } = req.body;
+
+        for (const question of questions) {
+            const checkResult = await conn.query(
+                'SELECT id FROM questions WHERE id = ?',
+                [question.id]
+            );
+
+            const options = question.options ? JSON.stringify(question.options) : null;
+
+            if (checkResult.length > 0) {
+                // Update existing question
+                await conn.query(`
+                    UPDATE questions
+                    SET 
+                        question_text = ?,
+                        question_type = ?,
+                        max_value = ?,
+                        class = ?,
+                        options = ?
+                    WHERE id = ?
+                `, [
+                    question.question_text,
+                    question.question_type,
+                    question.max_value,
+                    question.class,
+                    options,
+                    question.id
+                ]);
+            } else {
+                // Insert new question
+                await conn.query(`
+                    INSERT INTO questions 
+                    (id, question_text, question_type, max_value, class, options)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                `, [
+                    question.id,
+                    question.question_text,
+                    question.question_type,
+                    question.max_value,
+                    question.class,
+                    options
+                ]);
+            }
+        }
+
+        await conn.commit();
+        res.status(200).send('Questions updated successfully');
+    } catch (err) {
+        if (conn) {
+            await conn.rollback();
+        }
+        console.error('Error updating questions:', err);
+        res.status(500).send('Server error');
+    } finally {
+        if (conn) conn.release();
+    }
+});
+
+// Delete question
+// Delete question endpoint
 app.delete('/api/questions/delete', async (req, res) => {
     let conn;
     try {
-      const { id } = req.body;
-      
-      if (!id) {
-        return res.status(400).json({ error: 'Question ID is required' });
-      }
-  
-      conn = await pool.getConnection();
-      await conn.beginTransaction();
-  
-      // First delete options if they exist
-      await conn.query('DELETE FROM question_options WHERE question_id = ?', [id]);
-      
-      // Then delete the question
-      await conn.query('DELETE FROM questions WHERE id = ?', [id]);
-      
-      await conn.commit();
-      res.status(200).json({ message: 'Question deleted successfully' });
+        const { id } = req.body;
+        
+        if (!id) {
+            return res.status(400).json({ error: 'Question ID is required' });
+        }
+
+        conn = await pool.getConnection();
+        await conn.beginTransaction();
+
+        // Delete the question
+        const result = await conn.query('DELETE FROM questions WHERE id = ?', [id]);
+        
+        if (result.affectedRows === 0) {
+            await conn.rollback();
+            return res.status(404).json({ error: 'Question not found' });
+        }
+
+        await conn.commit();
+        res.status(200).json({ message: 'Question deleted successfully' });
     } catch (err) {
-      if (conn) {
-        await conn.rollback();
-      }
-      console.error('Error deleting question:', err);
-      res.status(500).json({ error: 'Failed to delete question' });
+        if (conn) {
+            await conn.rollback();
+        }
+        console.error('Error deleting question:', err);
+        res.status(500).json({ error: 'Failed to delete question' });
     } finally {
-      if (conn) conn.release();
+        if (conn) conn.release();
     }
-  });
+});
+
