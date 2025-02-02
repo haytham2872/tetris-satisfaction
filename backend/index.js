@@ -13,7 +13,7 @@ app.use(bodyParser.json());
 // Database configuration
 const pool = mariadb.createPool({
     host: 'localhost',
-    port:3306,
+    port:3307,
     user: 'root',
     password: '123',
     database: 'satisfaction_db',
@@ -415,17 +415,23 @@ app.get('/api/questions', async (req, res) => {
                 question_type, 
                 max_value, 
                 class,
+                KPI_type,
+                kpi_poids,  
+                class_poids,
+                (kpi_poids * class_poids) AS raw_importance,
                 options
             FROM questions
             ORDER BY id ASC
         `);
+
+        // Calcul de la somme totale des importances
+        const totalImportance = questions.reduce((sum, q) => sum + (q.raw_importance || 0), 0);
 
         // Format the response
         const formattedQuestions = questions.map(q => {
             let parsedOptions = null;
             if (q.options) {
                 try {
-                    // Try to parse if it's a string
                     parsedOptions = typeof q.options === 'string' 
                         ? JSON.parse(q.options) 
                         : q.options;
@@ -441,6 +447,12 @@ app.get('/api/questions', async (req, res) => {
                 question_type: q.question_type,
                 max_value: q.max_value,
                 class: q.class,
+                KPI_type: q.KPI_type,
+                kpi_poids: q.kpi_poids,  
+                class_poids: q.class_poids,
+                importance: totalImportance > 0 && q.raw_importance !== null && q.raw_importance !== undefined 
+                ? Number(q.raw_importance / totalImportance).toFixed(4) 
+                : "0.0000",
                 options: parsedOptions || []
             };
         });
@@ -451,6 +463,7 @@ app.get('/api/questions', async (req, res) => {
         res.status(500).json({ error: 'Error fetching questions', details: err.message });
     }
 });
+
 
 // Update or create questions
 app.post('/api/questions/update', async (req, res) => {
@@ -470,6 +483,9 @@ app.post('/api/questions/update', async (req, res) => {
             const options = question.options ? JSON.stringify(question.options) : null;
 
             if (checkResult.length > 0) {
+                const validatePoids = (poids) => {
+                    return poids !== undefined && poids !== null && poids >= 0 && poids <= 1;
+                };
                 // Update existing question
                 await conn.query(`
                     UPDATE questions
@@ -478,6 +494,10 @@ app.post('/api/questions/update', async (req, res) => {
                         question_type = ?,
                         max_value = ?,
                         class = ?,
+                        KPI_type = ?,
+                        kpi_poids = ?,
+                        class_poids = ?,
+                        importance = (kpi_poids * class_poids) / (SELECT SUM(kpi_poids * class_poids) FROM questions),
                         options = ?
                     WHERE id = ?
                 `, [
@@ -485,6 +505,9 @@ app.post('/api/questions/update', async (req, res) => {
                     question.question_type,
                     question.max_value,
                     question.class,
+                    question.KPI_type || null,
+                    validatePoids(question.kpi_poids) ? question.kpi_poids : 0, 
+                    validatePoids(question.class_poids) ? question.class_poids : 0, 
                     options,
                     question.id
                 ]);
@@ -492,14 +515,17 @@ app.post('/api/questions/update', async (req, res) => {
                 // Insert new question
                 await conn.query(`
                     INSERT INTO questions 
-                    (id, question_text, question_type, max_value, class, options)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                    (id, question_text, question_type, max_value, class,KPI_type,kpi_poids,class_poids, options)
+                    VALUES (?, ?, ?, ?, ?, ? , ?, ?,?)
                 `, [
                     question.id,
                     question.question_text,
                     question.question_type,
                     question.max_value,
                     question.class,
+                    question.KPI_type || null,
+                    question.kpi_poids || null,
+                    question.class_poids || null,
                     options
                 ]);
             }

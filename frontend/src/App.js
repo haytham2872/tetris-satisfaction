@@ -1,5 +1,5 @@
 // App.js
-import React from 'react';
+import React, { useEffect } from 'react';
 import './index.css';
 import { useSurvey } from './components/hooks/useSurvey';
 import { useAnalytics } from './components/hooks/useAnalytics';
@@ -13,7 +13,6 @@ import SurveyContainer from './components/survey/SurveyContainer';
 import NavigationButtons from './components/survey/NavigationButtons';
 import ThankYouScreen from './components/ThankYouScreen';
 import ContactDetails from './components/ContactDetails';
-import ContactButton from './components/ContactButton';
 import SatisfactionAnalytics from './components/SatisfactionAnalytics';
 import AdditionalAnalytics from './components/AdditionalAnalytics';
 import FeedbackAnalysisPage from './components/FeedbackAnalysisPage';
@@ -22,7 +21,6 @@ import CommentsAnalysis from './components/CommentsAnalysis';
 import VercelAnalytics from './components/VercelAnalytics';
 
 function App() {
-  // Initialize hooks
   const {
     currentStep,
     responses,
@@ -39,7 +37,9 @@ function App() {
     handleNextStep,
     handlePrevStep,
     handleContactSubmit,
-    setShowContactForm
+    setShowContactForm,
+    contactFormSkipped,
+    setContactFormSkipped
   } = useSurvey();
 
   const {
@@ -74,22 +74,19 @@ function App() {
     getError
   } = useFormValidation();
 
-  // Render conditions
+  // Affichage automatique du formulaire de contact sur la dernière question
+  // si des réponses négatives ont été détectées et que l'utilisateur ne l'a pas
+  // déjà masqué via "skip"
+  useEffect(() => {
+    if (currentStep === questions.length - 1 && showContactButton && !contactFormSkipped) {
+      setShowContactForm(true);
+    } else {
+      setShowContactForm(false);
+    }
+  }, [currentStep, questions.length, showContactButton, contactFormSkipped, setShowContactForm]);
+
   if (showThankYou) {
     return <ThankYouScreen />;
-  }
-
-  if (showContactForm) {
-    return (
-      <ContactDetails
-        responses={responses}
-        onSubmit={handleContactSubmit}
-        onSkip={() => setShowContactForm(false)}
-        validateForm={validateContactForm}
-        errors={errors}
-        clearErrors={clearErrors}
-      />
-    );
   }
 
   if (showAnalytics) {
@@ -122,13 +119,12 @@ function App() {
       );
     }
     if (showEditForm) {
-  return (
-    <EditFormPage
-      onBack={() => setShowEditForm(false)}
-    />
-  );
-}
-
+      return (
+        <EditFormPage
+          onBack={() => setShowEditForm(false)}
+        />
+      );
+    }
     
     return (
       <SatisfactionAnalytics
@@ -141,7 +137,6 @@ function App() {
     );
   }
 
-  // Main survey view
   return (
     <>
       <VercelAnalytics />
@@ -150,12 +145,6 @@ function App() {
           <ChatConversation messages={messageHistory} />
         )}
         
-        {showContactButton && !showContactForm && (
-          <ContactButton 
-            onClick={() => setShowContactForm(true)}
-          />
-        )}
-  
         <Header 
           currentStep={currentStep} 
           totalSteps={questions.length} 
@@ -173,6 +162,23 @@ function App() {
               getError={getError}
               questions={questions}
             />
+
+            {/* Affichage inline du formulaire de contact sous la dernière question 
+                si des réponses négatives sont détectées */}
+            {currentStep === questions.length - 1 && showContactButton && showContactForm && (
+              <ContactDetails
+                responses={responses}
+                onSubmit={handleContactSubmit}
+                onSkip={() => {
+                  setShowContactForm(false);
+                  setContactFormSkipped(true);
+                  handleSubmit(); // on soumet les réponses du questionnaire après "skip"
+                }}
+                validateForm={validateContactForm}
+                errors={errors}
+                clearErrors={clearErrors}
+              />
+            )}
   
             <NavigationButtons
               currentStep={currentStep}

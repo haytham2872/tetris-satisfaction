@@ -101,3 +101,64 @@ WHERE id = 8;
 UPDATE questions 
 SET options = JSON_ARRAY("Très compétitive", "Assez compétitive", "Peu compétitive", "Pas du tout compétitive")
 WHERE id = 9;
+
+
+UPDATE questions
+SET class = 
+    CASE 
+        WHEN id IN (1, 2) THEN 'Satisfaction générale'
+        WHEN id IN (3, 4, 5) THEN 'Qualité du service'
+        WHEN id IN (6, 7, 8, 9) THEN 'Processus et support'
+    END
+WHERE id BETWEEN 1 AND 9;
+
+
+ALTER TABLE questions ADD COLUMN KPI_type VARCHAR(50) NULL;
+
+ALTER TABLE questions 
+ADD COLUMN kpi_poids FLOAT DEFAULT NULL,
+ADD COLUMN class_poids FLOAT DEFAULT NULL;
+
+ALTER TABLE questions 
+MODIFY COLUMN kpi_poids FLOAT DEFAULT NULL CHECK (kpi_poids >= 0 AND kpi_poids <= 1),
+MODIFY COLUMN class_poids FLOAT DEFAULT NULL CHECK (class_poids >= 0 AND class_poids <= 1);
+
+UPDATE questions 
+SET KPI_type = 'NPS', kpi_poids = 0.40, class = 'Satisfaction Générale', class_poids = 0.50 
+WHERE id = 1;
+
+UPDATE questions 
+SET KPI_type = 'CSAT', kpi_poids = 0.35, class = 'Satisfaction Générale', class_poids = 0.50 
+WHERE id = 2;
+
+UPDATE questions 
+SET KPI_type = 'CES', kpi_poids = 0.25, class = 'Qualité du Service', class_poids = 0.30 
+WHERE id = 3;
+
+UPDATE questions 
+SET KPI_type = 'CSAT', kpi_poids = 0.35, class = 'Processus & Support', class_poids = 0.20 
+WHERE id = 4;
+
+UPDATE questions 
+SET KPI_type = 'CES', kpi_poids = 0.25, class = 'Qualité du Service', class_poids = 0.30 
+WHERE id = 5;
+
+UPDATE questions 
+SET KPI_type = 'CES', kpi_poids = 0.25, class = 'Processus & Support', class_poids = 0.20 
+WHERE id = 6;
+
+UPDATE questions 
+SET KPI_type = 'CES', kpi_poids = 0.25, class = 'Processus & Support', class_poids = 0.20 
+WHERE id = 7;
+
+UPDATE questions 
+SET KPI_type = 'CES', kpi_poids = 0.25, class = 'Qualité du Service', class_poids = 0.30 
+WHERE id = 8;
+
+UPDATE questions 
+SET KPI_type = 'CSAT', kpi_poids = 0.35, class = 'Satisfaction Générale', class_poids = 0.50 
+WHERE id = 9;
+
+
+ALTER TABLE questions 
+ADD COLUMN importance FLOAT DEFAULT NULL;

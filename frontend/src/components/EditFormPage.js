@@ -58,7 +58,8 @@ const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
     const bottomRef = useRef(null);
   
     const questionTypes = ['rating', 'stars', 'choice', 'text'];
-    const classTypes = ['satisfaction', 'performance', 'adequacy', 'clarity', 'usability', 'support', 'pricing', 'feedback'];
+    const classTypes = ['Satisfaction générale','Qualité du service','Processus et support'];
+    const KPITypes = ['NPS', 'CSAT', 'CES'];
   
     useEffect(() => {
       fetchQuestions();
@@ -77,11 +78,16 @@ const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
     
             // Ensure options are properly formatted
             const formattedData = data.map(q => ({
-                ...q,
-                options: q.question_type === 'choice' 
-                    ? (Array.isArray(q.options) ? q.options : [])
-                    : []
+              ...q,
+              kpi_type: q.KPI_type !== undefined ? q.KPI_type : '',
+              kpi_poids: q.kpi_poids !== undefined ? q.kpi_poids : 0, 
+              class_poids: q.class_poids !== undefined ? q.class_poids : 0,
+              importance: q.importance !== undefined ? Number(q.importance).toFixed(4) : "0.0000",
+              options: q.question_type === 'choice' 
+                  ? (Array.isArray(q.options) ? q.options : [])
+                  : []
             }));
+          
     
             setQuestions(formattedData);
             setLoading(false);
@@ -117,18 +123,9 @@ const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
       setQuestions(updatedQuestions);
     };
   
-    const handleQuestionTypeChange = (index, value) => {
-      const updatedQuestions = [...questions];
-      updatedQuestions[index] = {
-        ...updatedQuestions[index],
-        question_type: value,
-        options: value === 'choice' ? (updatedQuestions[index].options || []) : [],
-        max_value: value === 'rating' ? 10 : value === 'stars' ? 5 : null
-      };
-      setQuestions(updatedQuestions);
-    };
-  
+    
     const handleQuestionChange = (index, field, value) => {
+      console.log(`Updating question ${index}:`, field, value); // Debug
       const updatedQuestions = [...questions];
       updatedQuestions[index] = {
         ...updatedQuestions[index],
@@ -136,6 +133,7 @@ const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
       };
       setQuestions(updatedQuestions);
     };
+    
   
     const addNewQuestion = () => {
       const maxId = Math.max(...questions.map(q => q.id), 0);
@@ -144,7 +142,7 @@ const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
         question_text: 'Nouvelle question',
         question_type: 'choice',
         max_value: null,
-        class: 'satisfaction',
+        class: null,
         options: []
       };
       
@@ -218,6 +216,9 @@ const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
                 question_type: q.question_type,
                 max_value: q.max_value,
                 class: q.class,
+                KPI_type: q.kpi_type || null,
+                kpi_poids: q.kpi_poids || 0, 
+                class_poids: q.class_poids || 0, 
                 options: q.question_type === 'choice' ? (q.options || []) : null
             }));
     
@@ -363,20 +364,106 @@ const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
                           </div>
                         )}
   
+                        {question.question_type !== 'text' && (
+                        <>
+                          {/* Sélection de la Classe */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Classe
+                            </label>
+                            <select
+                              value={question.class}
+                              onChange={(e) => handleQuestionChange(index, 'class', e.target.value)}
+                              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-tetris-blue focus:border-transparent"
+                            >
+                              {classTypes.map(type => (
+                                <option key={type} value={type}>{type}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Sélection du KPI Type */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              KPI Type
+                            </label>
+                            <select
+                              value={question.kpi_type || ''}
+                              onChange={(e) => handleQuestionChange(index, 'kpi_type', e.target.value)}
+                              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-tetris-blue focus:border-transparent"
+                            >
+                              <option value="">Sélectionner un KPI</option>
+                              {KPITypes.map(type => (
+                                <option key={type} value={type}>{type}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Poids KPI */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              KPI Poids
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={question.kpi_poids !== undefined ? question.kpi_poids : ""}
+                              onChange={(e) => {
+                                let value = e.target.value;
+                                if (value === "" || /^[0-9.]*$/.test(value)) {
+                                  handleQuestionChange(index, 'kpi_poids', value);
+                                }
+                              }}
+                              onBlur={(e) => {
+                                let value = parseFloat(e.target.value);
+                                if (isNaN(value) || value < 0) value = 0;
+                                if (value > 1) value = 1;
+                                handleQuestionChange(index, 'kpi_poids', value);
+                              }}
+                              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-tetris-blue focus:border-transparent"
+                            />
+                          </div>
+
+                          {/* Poids Classe */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Classe Poids
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={question.class_poids !== undefined ? question.class_poids : ""}
+                              onChange={(e) => {
+                                let value = e.target.value;
+                                if (value === "" || /^[0-9.]*$/.test(value)) {
+                                  handleQuestionChange(index, 'class_poids', value);
+                                }
+                              }}
+                              onBlur={(e) => {
+                                let value = parseFloat(e.target.value);
+                                if (isNaN(value) || value < 0) value = 0;
+                                if (value > 1) value = 1;
+                                handleQuestionChange(index, 'class_poids', value);
+                              }}
+                              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-tetris-blue focus:border-transparent"
+                            />
+                          </div>
+                        </>
+                      )}
+
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Classe
+                            Importance
                           </label>
-                          <select
-                            value={question.class}
-                            onChange={(e) => handleQuestionChange(index, 'class', e.target.value)}
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-tetris-blue focus:border-transparent"
-                          >
-                            {classTypes.map(type => (
-                              <option key={type} value={type}>{type}</option>
-                            ))}
-                          </select>
+                          <input
+                            type="text"
+                            value={question.importance || 0}
+                            disabled  // Désactiver la modification car c'est calculé
+                            className="w-full p-3 border border-gray-300 rounded-lg bg-gray-100 text-gray-700"
+                          />
                         </div>
+
+
                       </div>
                     </div>
                   </div>

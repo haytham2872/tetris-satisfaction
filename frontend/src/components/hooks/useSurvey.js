@@ -14,9 +14,11 @@ export const useSurvey = () => {
   const [showContactButton, setShowContactButton] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [lastResponse, setLastResponse] = useState(null);
+  const [contactFormSkipped, setContactFormSkipped] = useState(false);
+  const [contactDetailsSubmitted, setContactDetailsSubmitted] = useState(false);
   const { questions, loading: questionsLoading } = useQuestions();
 
-  // Initialize survey
+  // Initialisation du questionnaire
   useEffect(() => {
     const initializeSurvey = async () => {
       try {
@@ -43,7 +45,7 @@ export const useSurvey = () => {
     }));
     setLastResponse({ questionId, answer: value });
 
-    // Check conditions for showing contact button
+    // Vérification des conditions pour afficher le formulaire de contact
     const shouldShowContact = () => {
       if (questionId === 1) {
         return parseInt(value) < 4;
@@ -99,6 +101,13 @@ export const useSurvey = () => {
       return;
     }
 
+    // Si on est sur la dernière question et que le formulaire de contact
+    // est requis (réponses négatives) mais que l'utilisateur n'a ni soumis ni ignoré ce formulaire,
+    // on n'exécute pas encore la soumission finale
+    if (currentStep === questions.length - 1 && showContactButton && !contactFormSkipped && !contactDetailsSubmitted) {
+      return;
+    }
+
     try {
       const success = await submitResponses(surveyId, responses);
       
@@ -106,7 +115,6 @@ export const useSurvey = () => {
         if (responses[10]?.answer) {
           try {
             const analysis = await analyzeFeedback(responses[10].answer);
-            
             const analysisResponse = await fetch('http://localhost:5000/api/feedback/analyze', {
               method: 'POST',
               headers: {
@@ -171,6 +179,7 @@ export const useSurvey = () => {
       const success = await submitResponses(surveyId, responses);
       
       if (success) {
+        setContactDetailsSubmitted(true);
         setShowThankYou(true);
       } else {
         console.error('Failed to submit survey responses');
@@ -197,6 +206,8 @@ export const useSurvey = () => {
     handleNextStep,
     handlePrevStep,
     handleContactSubmit,
-    setShowContactForm
+    setShowContactForm,
+    contactFormSkipped,
+    setContactFormSkipped
   };
 };
