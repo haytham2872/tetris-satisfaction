@@ -4,7 +4,7 @@ import {
     XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
     Cell,
 } from 'recharts';
-import { ArrowLeft, TrendingUp, Clock, MessageSquare, CreditCard, Info } from 'lucide-react';
+import { ArrowLeft, TrendingUp, Clock, MessageSquare, CreditCard, Info,User } from 'lucide-react';
 
 const COLORS = ['#0B3D91', '#1E90FF', '#4169E1', '#6495ED', '#87CEEB'];
 const RADIAN = Math.PI / 180;
@@ -42,7 +42,7 @@ const StatCard = ({ icon: Icon, title, value, description }) => (
     </div>
 );
 
-const AdditionalAnalytics = ({ onBack, onShowFeedback }) => {
+const AdditionalAnalytics = ({ onBack, onShowFeedback, onShowContacts }) => {
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -303,6 +303,17 @@ const AdditionalAnalytics = ({ onBack, onShowFeedback }) => {
                         </ResponsiveContainer>
                     </div>
                 </div>
+                <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2">
+    <button
+        onClick={onShowContacts}
+        className="bg-white border-2 border-tetris-blue text-tetris-blue px-6 py-3 rounded-lg 
+                  hover:bg-tetris-blue hover:text-white transition-colors flex items-center 
+                  gap-2 text-lg font-medium shadow-md hover:shadow-lg"
+    >
+        <User size={24} />
+        Voir les contacts à suivre
+    </button>
+</div>
             </div>
         </div>
     );

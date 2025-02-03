@@ -7,6 +7,7 @@ export const useAnalytics = () => {
   const [showFeedbackAnalysis, setShowFeedbackAnalysis] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
+  const [showContacts, setShowContacts] = useState(false);
 
 
   const handleBackToSurvey = () => {
@@ -32,11 +33,13 @@ export const useAnalytics = () => {
     showFeedbackAnalysis,
     showComments,
     showEditForm,
+    showContacts,
     setShowAnalytics,
     setAnalyticsView,
     setShowFeedbackAnalysis,
     setShowComments,
     setShowEditForm,
+    setShowContacts,
     handleBackToSurvey,
     handleViewAdditional,
     handleShowFeedback,

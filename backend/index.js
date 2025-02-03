@@ -13,7 +13,7 @@ app.use(bodyParser.json());
 // Database configuration
 const pool = mariadb.createPool({
     host: 'localhost',
-    port:3307,
+    port:3306,
     user: 'root',
     password: '123',
     database: 'satisfaction_db',
@@ -386,21 +386,40 @@ app.post('/api/low-satisfaction', async (req, res) => {
   });
   
   // Endpoint to get all low satisfaction responses
-  app.get('/api/low-satisfaction', async (req, res) => {
+app.get('/api/low-satisfaction', async (req, res) => {
     try {
       const query = `
-        SELECT ls.*, s.id 
-        FROM low_satisfaction_responses ls
-        JOIN surveys s ON ls.survey_id = s.id
-        ORDER BY ls.created_at DESC
+        SELECT 
+          lsr.id,
+          lsr.survey_id,
+          lsr.name,
+          lsr.phone,
+          lsr.email,
+          lsr.created_at
+        FROM low_satisfaction_responses lsr
+        ORDER BY lsr.created_at DESC
       `;
   
       const results = await executeQuery(query);
-      res.json(results);
+      
+      if (!results) {
+        return res.status(404).json({ 
+          error: 'No low satisfaction responses found' 
+        });
+      }
+  
+      // Format the dates before sending
+      const formattedResults = results.map(result => ({
+        ...result,
+        created_at: new Date(result.created_at).toISOString()
+      }));
+  
+      res.json(formattedResults);
     } catch (err) {
       console.error('Error fetching low satisfaction responses:', err);
       res.status(500).json({ 
-        error: 'Failed to fetch low satisfaction responses' 
+        error: 'Failed to fetch low satisfaction responses',
+        details: err.message 
       });
     }
   });

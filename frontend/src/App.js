@@ -6,6 +6,7 @@ import { useAnalytics } from './components/hooks/useAnalytics';
 import { useChat } from './components/hooks/usechat';
 import { useFormValidation } from './components/hooks/useFormValidation';
 import EditFormPage from './components/EditFormPage';
+import ContactDetailsView from './components/ContactDetailsView';
 
 // Components
 import Header from './components/Header';
@@ -48,11 +49,13 @@ function App() {
     showFeedbackAnalysis,
     showComments,
     showEditForm,
+    showContacts,
     setShowAnalytics,
     setAnalyticsView,
     setShowFeedbackAnalysis,
     setShowComments,
     setShowEditForm,
+    setShowContacts,
     handleBackToSurvey,
     handleViewAdditional,
     handleShowFeedback,
@@ -109,12 +112,20 @@ function App() {
         />
       );
     }
+    if (showContacts) {  // Add this block
+      return (
+          <ContactDetailsView
+              onBack={() => setShowContacts(false)}
+          />
+      );
+    }
     
     if (analyticsView === 'additional') {
       return (
         <AdditionalAnalytics
           onBack={() => setAnalyticsView('main')}
           onShowFeedback={() => setShowFeedbackAnalysis(true)}
+          onShowContacts={() => setShowContacts(true)} 
         />
       );
     }
