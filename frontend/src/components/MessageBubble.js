@@ -18,28 +18,25 @@ const SpeechBubble = ({ message, icon: Icon }) => (
   </div>
 );
 
-const ChatConversation = ({ messages }) => {
+const ChatConversation = ({
+  messages,
+  currentStep,
+  isNextClicked
+}) => {
   const [currentMessage, setCurrentMessage] = useState(null);
-  const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
     if (messages && messages.length > 0) {
+      // Show the most recent message
       const latestMessage = messages[messages.length - 1];
       setCurrentMessage(latestMessage);
-      setIsVisible(true);
-
-      const timer = setTimeout(() => {
-        setIsVisible(false);
-      }, 5000);
-
-      return () => clearTimeout(timer);
     }
-  }, [messages]);
+  }, [messages, currentStep, isNextClicked]);
 
   return (
     <div className="fixed left-8 bottom-8 z-50">
       <div className="relative w-48">
-        {currentMessage && isVisible && (
+        {currentMessage && !isNextClicked && (
           <SpeechBubble
             message={currentMessage.message}
             icon={currentMessage.icon}
@@ -49,7 +46,7 @@ const ChatConversation = ({ messages }) => {
         <img
           src={pilotImage}
           alt="Pilot Mascot"
-          className={`w-full h-auto transition-transform duration-300 ${isVisible ? 'transform scale-105' : ''}`}
+          className="w-full h-auto transform scale-105"
         />
       </div>
     </div>
@@ -94,7 +91,7 @@ const getFeedbackMessage = (questionId, answer) => {
 };
 
 const getEngagementMessage = (step, totalSteps, responses, currentResponse) => {
-  // Initial welcome message
+  // Only return initial welcome message
   if (step === 0) {
     const hour = new Date().getHours();
     if (hour < 15) {
@@ -106,11 +103,8 @@ const getEngagementMessage = (step, totalSteps, responses, currentResponse) => {
     }
   }
 
-  if (currentResponse && [2, 4, 6, 8].includes(currentResponse.questionId)) {
-    return getFeedbackMessage(currentResponse.questionId, currentResponse.answer);
-  }
-
+  // Don't return any message for other steps unless explicitly handling feedback
   return null;
 };
 
-export { ChatConversation, getEngagementMessage };
+export { ChatConversation, getEngagementMessage, getFeedbackMessage };

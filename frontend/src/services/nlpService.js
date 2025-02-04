@@ -6,71 +6,77 @@ const ENTITY_ENDPOINT = 'https://language.googleapis.com/v1/documents:analyzeEnt
 
 const TOPICS = {
     SUPPORT: {
-        keywords: ['support', 'aide', 'assistance', 'service', 'soutien', 'accompagnement', 'dépannage', 'maintenance', 'support technique', 'helpdesk'],
+        keywords: ['support', 'aide', 'assistance', 'service', 'soutien', 'accompagnement', 'dépannage', 'maintenance', 'support technique', 'helpdesk', 'sav', 'assistance téléphonique', 'aide en ligne', 'support client', 'centre d\'aide'],
         subtopics: {
             TECHNICAL: [
                 'technique', 'bug', 'problème technique', 'erreur', 'fonctionnalité',
                 'dysfonctionnement', 'panne', 'incident', 'problème', 'bogue',
                 'défaut', 'anomalie', 'plantage', 'défaillance', 'configuration',
-                'mise à jour', 'maintenance', 'réparation', 'diagnostic'
+                'mise à jour', 'maintenance', 'réparation', 'diagnostic',
+                'installation', 'compatibilité', 'serveur', 'réseau', 'connexion',
+                'base de données', 'sécurité', 'authentification', 'performance'
             ],
             CUSTOMER_SERVICE: [
                 'service client', 'conseiller', 'équipe', 'accompagnement',
                 'assistance client', 'relation client', 'support client',
                 'agent', 'représentant', 'chargé de clientèle', 'interlocuteur',
-                'responsable', 'gestionnaire', 'expert', 'professionnel'
+                'responsable', 'gestionnaire', 'expert', 'professionnel',
+                'commercial', 'technicien', 'consultant', 'spécialiste',
+                'superviseur', 'manager', 'formateur', 'coach', 'médiateur'
             ],
             RESPONSE_TIME: [
                 'temps de réponse', 'délai', 'rapidité', 'attente',
                 'temps d\'attente', 'réactivité', 'durée', 'retard',
                 'traitement', 'prise en charge', 'intervention',
-                'promptitude', 'célérité', 'timing', 'ponctualité'
+                'promptitude', 'célérité', 'timing', 'ponctualité',
+                'disponibilité', 'immédiat', 'urgent', 'prioritaire',
+                'temps réel', 'instantané', 'différé', 'planifié'
             ]
         }
     },
     PLATFORM: {
-        keywords: ['plateforme', 'site', 'interface', 'application', 'système', 'portail', 'logiciel', 'outil en ligne', 'solution', 'environnement'],
+        keywords: ['plateforme', 'site', 'interface', 'application', 'système', 'portail', 'logiciel', 'outil en ligne', 'solution', 'environnement', 'dashboard', 'webapp', 'back-office', 'front-end', 'saas'],
         subtopics: {
             USABILITY: [
                 'utilisation', 'navigation', 'ergonomie', 'accessible',
                 'facilité', 'intuitif', 'convivial', 'pratique', 'utilisable',
                 'compréhensible', 'maniable', 'adapté', 'simple d\'utilisation',
-                'user-friendly', 'prise en main', 'apprentissage'
+                'user-friendly', 'prise en main', 'apprentissage',
+                'interface utilisateur', 'expérience utilisateur', 'ux', 'ui',
+                'design', 'responsive', 'mobile', 'tablette', 'adaptation'
             ],
             FEATURES: [
                 'fonctionnalité', 'option', 'outil', 'module',
                 'fonction', 'capacité', 'possibilité', 'caractéristique',
                 'composant', 'élément', 'service', 'paramètre', 'configuration',
-                'paramétrage', 'personnalisation', 'extension'
+                'paramétrage', 'personnalisation', 'extension',
+                'widget', 'plugin', 'add-on', 'intégration', 'api',
+                'automatisation', 'import', 'export', 'synchronisation'
             ],
             PERFORMANCE: [
                 'vitesse', 'performance', 'rapidité', 'chargement',
                 'réactivité', 'fluidité', 'efficacité', 'temps de réponse',
                 'stabilité', 'fiabilité', 'robustesse', 'optimisation',
-                'fonctionnement', 'exécution', 'débit', 'vélocité'
+                'fonctionnement', 'exécution', 'débit', 'vélocité',
+                'cache', 'mémoire', 'processeur', 'bande passante',
+                'latence', 'disponibilité', 'scalabilité', 'charge'
             ]
         }
     },
-    PROCESS: {
-        keywords: ['processus', 'procédure', 'démarche', 'étapes', 'méthode', 'protocole', 'workflow', 'circuit', 'cycle', 'organisation'],
+    SECURITY: {
+        keywords: ['sécurité', 'protection', 'confidentialité', 'authentification', 'autorisation', 'cryptage', 'firewall', 'antivirus', 'cybersécurité', 'données personnelles'],
         subtopics: {
-            DOCUMENTATION: [
-                'document', 'information', 'instruction', 'guide',
-                'documentation', 'manuel', 'mode d\'emploi', 'notice',
-                'tutoriel', 'procédure', 'directive', 'exemple',
-                'explication', 'description', 'référence', 'ressource'
+            ACCESS_CONTROL: [
+                'mot de passe', 'login', 'connexion', 'authentification',
+                'droits d\'accès', 'permission', 'habilitation', 'profil',
+                'rôle', 'identifiant', 'compte utilisateur', 'session',
+                'déconnexion', 'double authentification', 'sso'
             ],
-            EFFICIENCY: [
-                'efficacité', 'simple', 'complexe', 'simplification',
-                'optimisation', 'amélioration', 'facilitation', 'allègement',
-                'streamlining', 'productivité', 'rendement', 'performance',
-                'rapidité', 'fluidité', 'automatisation', 'organisation'
-            ],
-            COMPLIANCE: [
-                'conformité', 'règle', 'norme', 'réglementation',
-                'standard', 'directive', 'exigence', 'obligation',
-                'prescription', 'convention', 'protocole', 'politique',
-                'procédure', 'législation', 'régulation', 'cadre légal'
+            DATA_PROTECTION: [
+                'chiffrement', 'cryptage', 'confidentialité', 'rgpd',
+                'backup', 'sauvegarde', 'archivage', 'restauration',
+                'protection des données', 'conformité', 'audit', 'traçabilité',
+                'journalisation', 'logs', 'surveillance'
             ]
         }
     }
@@ -81,7 +87,9 @@ const EMOTIONS = {
         patterns: [
             'satisfait', 'content', 'heureux', 'ravi', 'excellent',
             'enchanté', 'comblé', 'réjoui', 'conquis', 'impressionné',
-            'reconnaissant', 'agréable', 'favorable', 'positif', 'apprécié'
+            'reconnaissant', 'agréable', 'favorable', 'positif', 'apprécié',
+            'épanoui', 'ravi', 'serein', 'comblé', 'gratifié',
+            'optimiste', 'confiant', 'emballé', 'enthousiasmé', 'radieux'
         ],
         weight: 1
     },
@@ -89,7 +97,9 @@ const EMOTIONS = {
         patterns: [
             'frustré', 'déçu', 'mécontent', 'agacé', 'difficile',
             'contrarié', 'insatisfait', 'énervé', 'irrité', 'excédé',
-            'exaspéré', 'fâché', 'furieux', 'dépité', 'découragé'
+            'exaspéré', 'fâché', 'furieux', 'dépité', 'découragé',
+            'désappointé', 'désemparé', 'contrarié', 'ennuyé', 'tendu',
+            'stressé', 'démotivé', 'démoralisé', 'accablé', 'las'
         ],
         weight: -1
     },
@@ -98,7 +108,9 @@ const EMOTIONS = {
             'génial', 'extraordinaire', 'fantastique', 'parfait',
             'exceptionnel', 'incroyable', 'remarquable', 'formidable',
             'excellent', 'superbe', 'magnifique', 'merveilleux',
-            'impressionnant', 'brillant', 'spectaculaire'
+            'impressionnant', 'brillant', 'spectaculaire',
+            'fabuleux', 'sensationnel', 'prodigieux', 'stupéfiant', 'éblouissant',
+            'grandiose', 'sublime', 'phénoménal', 'fascinant', 'admirable'
         ],
         weight: 2
     },
@@ -107,7 +119,8 @@ const EMOTIONS = {
             'inquiet', 'préoccupé', 'soucieux', 'craintif',
             'anxieux', 'alarmé', 'troublé', 'perturbé', 'dérangé',
             'tracassé', 'incertain', 'hésitant', 'méfiant', 'dubitatif',
-            'appréhensif'
+            'appréhensif', 'tourmenté', 'angoissé', 'nerveux', 'agité',
+            'instable', 'perplexe', 'confus', 'déstabilisé', 'embarrassé'
         ],
         weight: -0.5
     }
@@ -119,7 +132,10 @@ const URGENCY_PATTERNS = {
             'urgent', 'immédiat', 'critique', 'au plus vite',
             'rapidement', 'sans délai', 'pressant', 'prioritaire',
             'impératif', 'crucial', 'sans attendre', 'imminent',
-            'dès maintenant', 'en urgence', 'capital'
+            'dès maintenant', 'en urgence', 'capital',
+            'vital', 'primordial', 'essentiel', 'décisif', 'urgent urgent',
+            'extrêmement urgent', 'ultra prioritaire', 'sans plus tarder',
+            'action immédiate', 'urgence absolue'
         ],
         score: 3
     },
@@ -128,7 +144,11 @@ const URGENCY_PATTERNS = {
             'dès que possible', 'bientôt', 'prochainement',
             'sous peu', 'dans les meilleurs délais', 'rapidement',
             'assez urgent', 'relativement pressé', 'important',
-            'à traiter', 'à suivre', 'à faire', 'à prévoir', 'à venir'
+            'à traiter', 'à suivre', 'à faire', 'à prévoir', 'à venir',
+            'dans la semaine', 'cette semaine', 'attention particulière',
+            'suivi nécessaire', 'à programmer', 'à planifier',
+            'moyennement urgent', 'semi-urgent', 'plutôt urgent',
+            'besoin rapide', 'rapidité souhaitée'
         ],
         score: 2
     },
@@ -138,7 +158,11 @@ const URGENCY_PATTERNS = {
             'peu pressé', 'sans empressement', 'tranquillement',
             'progressivement', 'doucement', 'calmement', 'à votre rythme',
             'sans stress', 'sans précipitation', 'en temps voulu',
-            'plus tard', 'éventuellement'
+            'plus tard', 'éventuellement', 'dans le futur',
+            'pas de précipitation', 'prendre son temps',
+            'sans contrainte', 'quand vous voulez',
+            'selon vos disponibilités', 'pas pressé', 'peut attendre',
+            'non prioritaire', 'secondaire'
         ],
         score: 1
     }
@@ -150,7 +174,7 @@ const detectTopicsWithSentiment = (text, entities, documentSentiment) => {
     const words = text.split(/\s+/);
 
     Object.entries(TOPICS).forEach(([topicName, topicData]) => {
-        const isTopicPresent = topicData.keywords.some(keyword => 
+        const isTopicPresent = topicData.keywords.some(keyword =>
             lowercaseText.includes(keyword)
         );
 
@@ -160,15 +184,15 @@ const detectTopicsWithSentiment = (text, entities, documentSentiment) => {
             let mentionCount = 0;
 
             Object.entries(topicData.subtopics).forEach(([subtopicName, keywords]) => {
-                const subtopicMentions = keywords.filter(keyword => 
+                const subtopicMentions = keywords.filter(keyword =>
                     lowercaseText.includes(keyword)
                 );
 
                 if (subtopicMentions.length > 0) {
-                    const subtopicSentiment = Math.max(-1, Math.min(1, 
+                    const subtopicSentiment = Math.max(-1, Math.min(1,
                         calculateLocalSentiment(text, subtopicMentions)
                     ));
-                    
+
                     subtopics[subtopicName] = {
                         mentions: subtopicMentions.length,
                         sentiment: subtopicSentiment
@@ -178,8 +202,8 @@ const detectTopicsWithSentiment = (text, entities, documentSentiment) => {
                 }
             });
 
-            const normalizedSentiment = mentionCount > 0 ? 
-                Math.max(-1, Math.min(1, topicSentiment / mentionCount)) : 
+            const normalizedSentiment = mentionCount > 0 ?
+                Math.max(-1, Math.min(1, topicSentiment / mentionCount)) :
                 documentSentiment;
 
             results[topicName] = {
@@ -200,7 +224,7 @@ const detectEmotions = (text) => {
     let maxScore = 0;
 
     Object.entries(EMOTIONS).forEach(([emotion, data]) => {
-        const matches = data.patterns.filter(pattern => 
+        const matches = data.patterns.filter(pattern =>
             lowercaseText.includes(pattern)
         );
 
@@ -230,7 +254,7 @@ const detectUrgency = (text) => {
     let highestScore = 0;
 
     Object.entries(URGENCY_PATTERNS).forEach(([level, data]) => {
-        const matches = data.patterns.filter(pattern => 
+        const matches = data.patterns.filter(pattern =>
             lowercaseText.includes(pattern)
         );
 
@@ -252,7 +276,7 @@ const extractKeyPhrases = (text, sentiment) => {
         .map(sentence => {
             const trimmedSentence = sentence.trim();
             const sentenceSentiment = calculateLocalSentiment(trimmedSentence);
-            
+
             if (Math.abs(sentenceSentiment) > 0.3) {
                 return {
                     text: trimmedSentence,
@@ -276,13 +300,13 @@ const calculateLocalSentiment = (text, keywords = []) => {
         'horrible', 'terrible', 'lent', 'compliqué', 'inutile',
         'confus', 'pénible', 'impossible', 'défaillant', 'inadapté'
     ];
-    
+
     let score = 0;
     const words = text.toLowerCase().split(/\s+/);
-    
+
     let negationActive = false;
     let intensifierActive = false;
-    
+
     words.forEach((word, index) => {
         if (['ne', 'pas', 'plus', 'jamais', 'aucun'].includes(word)) {
             negationActive = true;
@@ -364,7 +388,7 @@ export const analyzeFeedback = async (text) => {
         const calculateSentimentStrength = (text, googleScore, localScore) => {
             const emotions = detectEmotions(text);
             let emotionModifier = 0;
-            
+
             if (emotions.emotions) {
                 Object.entries(emotions.emotions).forEach(([emotion, data]) => {
                     emotionModifier += (data.score || 0) * 0.2;
@@ -385,14 +409,14 @@ export const analyzeFeedback = async (text) => {
         };
 
         const sentimentPercentage = calculateSentimentStrength(
-            text, 
-            googleSentiment, 
+            text,
+            googleSentiment,
             localSentimentScore
         );
 
         const topicsAnalysis = detectTopicsWithSentiment(
-            text, 
-            entityData.entities || [], 
+            text,
+            entityData.entities || [],
             googleSentiment
         );
 
