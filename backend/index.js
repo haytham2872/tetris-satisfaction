@@ -6,21 +6,24 @@ const cors = require('cors');
 const app = express();
 const PORT = 5000;
 
+require('dotenv').config();
+
+
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
 
 // Database configuration
 const pool = mariadb.createPool({
-    host: 'localhost',
-    port:3306,
-    user: 'root',
-    password: '123',
-    database: 'satisfaction_db',
+    host: process.env.MYSQLHOST,
+    port: process.env.MYSQLPORT || 3306,
+    user: process.env.MYSQLUSER,
+    password: process.env.MYSQLPASSWORD,
+    database: process.env.MYSQLDATABASE,
     connectionLimit: 5,
-    bigIntAsNumber: true  // Convert BigInt to Number
-
+    bigIntAsNumber: true
 });
+
 const createLowSatisfactionTable = async () => {
     const query = `
       CREATE TABLE IF NOT EXISTS low_satisfaction_responses (
