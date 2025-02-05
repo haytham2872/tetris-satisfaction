@@ -5,21 +5,24 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
+const cors = require('cors');
+
 app.use(cors({
     origin: [
         'http://localhost:3000',
-        'https://tetris-survey.vercel.app',            // Add your Vercel domain
-        'https://tetris-survey-*.vercel.app'           // For preview deployments
+        'https://tetris-survey.vercel.app',
+        'https://tetris-survey-*.vercel.app',    // For preview deployments
+        'https://tetris-satisfaction.vercel.app'  // Add your main Vercel domain
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
 }));
+
 app.use(express.json());
 
 // Supabase client initialization
