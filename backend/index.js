@@ -1,9 +1,14 @@
-const express = require('express');
-const { createClient } = require('@supabase/supabase-js');
-const cors = require('cors');  // Only declare cors once at the top
+import express from 'express';
+import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Middleware
+const cors = require('cors');
 
 app.use(cors({
     origin: [
