@@ -1,5 +1,8 @@
+// index.js
 import express from 'express';
+import bodyParser from 'body-parser';
 import { createClient } from '@supabase/supabase-js';
+import cors from 'cors';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -7,24 +10,7 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
-const cors = require('cors');
-
-app.use(cors({
-    origin: [
-        'http://localhost:3000',
-        'https://tetris-survey.vercel.app',
-        'https://tetris-survey-*.vercel.app',    // For preview deployments
-        'https://tetris-satisfaction.vercel.app'  // Add your main Vercel domain
-    ],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true
-}));
-
-app.use(express.json());
-
-// Supabase client initialization
+// Initialize Supabase client
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -38,6 +24,20 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
         persistSession: false
     }
 });
+
+// Middleware
+app.use(cors({
+    origin: [
+        'http://localhost:3000',
+        'https://tetris-survey.vercel.app',
+        'https://tetris-survey-*.vercel.app',
+        'https://tetris-satisfaction.vercel.app'
+    ],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
+}));
+app.use(bodyParser.json());
 
 // Start survey route
 app.post('/api/start-survey', async (req, res) => {
