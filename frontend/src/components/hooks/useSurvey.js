@@ -115,14 +115,14 @@ export const useSurvey = () => {
         if (responses[10]?.answer) {
           try {
             const analysis = await analyzeFeedback(responses[10].answer);
-            const analysisResponse = await fetch('http://localhost:5000/api/feedback/analyze', {
+            const analysisResponse = await fetch(`${process.env.REACT_APP_API_URL}/api/feedback/analyze`, {
               method: 'POST',
               headers: {
-                'Content-Type': 'application/json'
+                  'Content-Type': 'application/json'
               },
               body: JSON.stringify({
-                survey_id: surveyId,
-                analysis: analysis
+                  survey_id: surveyId,
+                  analysis: analysis
               })
             });
 
@@ -161,14 +161,14 @@ export const useSurvey = () => {
 
   const handleContactSubmit = async (contactData) => {
     try {
-      const response = await fetch('http://localhost:5000/api/low-satisfaction', {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/low-satisfaction`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+            'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          id: surveyId,
-          ...contactData
+            id: surveyId,
+            ...contactData
         })
       });
 
