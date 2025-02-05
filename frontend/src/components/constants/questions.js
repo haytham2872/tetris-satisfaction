@@ -23,7 +23,7 @@ const transformDatabaseQuestion = (dbQuestion) => ({
 // Function to fetch and format questions
 export const fetchQuestions = async () => {
   try {
-    const response = await fetch('http://localhost:5000/api/questions');
+    const response = await fetch('https://tetris-satisfaction-production.up.railway.app/api/questions');
     if (!response.ok) throw new Error('Failed to fetch questions');
     const data = await response.json();
     return data.map(transformDatabaseQuestion);

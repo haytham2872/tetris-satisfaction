@@ -67,7 +67,7 @@ const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
   
     const fetchQuestions = async () => {
         try {
-            const response = await fetch('http://localhost:5000/api/questions');
+            const response = await fetch('https://tetris-satisfaction-production.up.railway.app/api/questions');
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.details || 'Failed to fetch questions');
@@ -154,22 +154,22 @@ const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
     };
   
     const deleteQuestion = async (index) => {
-        try {
-            if (questions.length <= 1) {
-                setError("Vous ne pouvez pas supprimer toutes les questions");
-                return;
-            }
-    
-            const questionToDelete = questions[index];
-            
-            // Call the delete endpoint
-            const response = await fetch('http://localhost:5000/api/questions/delete', {
+      try {
+          if (questions.length <= 1) {
+              setError("Vous ne pouvez pas supprimer toutes les questions");
+              return;
+          }
+  
+          const questionToDelete = questions[index];
+          
+          // Call the delete endpoint
+          const response = await fetch('https://tetris-satisfaction-production.up.railway.app/api/questions/delete', {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({ id: questionToDelete.id })
-            });
+          });
     
             if (!response.ok) {
                 const errorData = await response.json();
@@ -190,7 +190,7 @@ const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
             setTimeout(() => setSuccessMessage(''), 3000);
             
             // Update the reordered questions in the database
-            const updateResponse = await fetch('http://localhost:5000/api/questions/update', {
+            const updateResponse = await fetch('https://tetris-satisfaction-production.up.railway.app/api/questions/update', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -208,29 +208,28 @@ const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
     };
   
     const handleSubmit = async () => {
-        try {
-            // Format questions before sending
-            const formattedQuestions = questions.map(q => ({
-                id: q.id,
-                question_text: q.question_text,
-                question_type: q.question_type,
-                max_value: q.max_value,
-                class: q.class,
-                KPI_type: q.kpi_type || null,
-                kpi_poids: q.kpi_poids || 0, 
-                class_poids: q.class_poids || 0, 
-                options: q.question_type === 'choice' ? (q.options || []) : null
-            }));
-    
-            console.log('Submitting questions:', formattedQuestions); // Debug log
-    
-            const response = await fetch('http://localhost:5000/api/questions/update', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ questions: formattedQuestions }),
-            });
+      try {
+          const formattedQuestions = questions.map(q => ({
+              id: q.id,
+              question_text: q.question_text,
+              question_type: q.question_type,
+              max_value: q.max_value,
+              class: q.class,
+              KPI_type: q.kpi_type || null,
+              kpi_poids: q.kpi_poids || 0, 
+              class_poids: q.class_poids || 0, 
+              options: q.question_type === 'choice' ? (q.options || []) : null
+          }));
+  
+          console.log('Submitting questions:', formattedQuestions);
+  
+          const response = await fetch('https://tetris-satisfaction-production.up.railway.app/api/questions/update', {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ questions: formattedQuestions }),
+          });
     
             if (!response.ok) {
                 const errorData = await response.json();

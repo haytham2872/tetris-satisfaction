@@ -216,7 +216,7 @@ const FeedbackAnalysisPage = ({ onBack }) => {
     useEffect(() => {
         const fetchFeedback = async () => {
             try {
-                const response = await fetch('http://localhost:5000/api/feedback/analysis');
+                const response = await fetch('https://tetris-satisfaction-production.up.railway.app/api/feedback/analysis');
                 if (!response.ok) throw new Error('Failed to fetch feedback');
                 const data = await response.json();
                 setFeedbackData(data);

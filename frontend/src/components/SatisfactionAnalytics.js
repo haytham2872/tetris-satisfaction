@@ -58,7 +58,7 @@ const SatisfactionAnalytics = ({ onBack, onShowAdditional, onShowComments,onShow
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const response = await fetch('http://localhost:5000/api/analytics/responses');
+                const response = await fetch('https://tetris-satisfaction-production.up.railway.app/api/analytics/responses');
                 if (!response.ok) throw new Error('Failed to fetch data');
                 
                 const surveyData = await response.json();

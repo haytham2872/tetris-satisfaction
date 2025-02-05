@@ -23,7 +23,7 @@ const CommentsAnalysis = ({ onBack }) => {
   useEffect(() => {
     const fetchComments = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/comments');
+        const response = await fetch('https://tetris-satisfaction-production.up.railway.app/api/comments');
         if (!response.ok) throw new Error('Failed to fetch comments');
         const data = await response.json();
         

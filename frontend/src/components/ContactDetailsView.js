@@ -8,7 +8,7 @@ const ContactDetailsView = ({ onBack }) => {
   useEffect(() => {
     const fetchContacts = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/low-satisfaction');
+        const response = await fetch('https://tetris-satisfaction-production.up.railway.app/api/low-satisfaction');
         if (!response.ok) throw new Error('Failed to fetch contacts');
         const data = await response.json();
         setContacts(data);
