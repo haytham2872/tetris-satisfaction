@@ -459,7 +459,7 @@ const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
                         </>
                       )}
 
-                        {question.question_type !== 'text' && (
+                        {question.question_type  && (
                           <ImportanceField
                             question={question}
                             index={index}
