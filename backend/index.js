@@ -112,14 +112,28 @@ app.get('/api/questions', async (req, res) => {
 });
 
 // Update questions
+// Update questions
 app.post('/api/questions/update', async (req, res) => {
     try {
         const { questions } = req.body;
 
+        // More strict importance validation
         const validateImportance = (imp) => {
             let value = parseFloat(imp);
-            return !isNaN(value) && value >= 0 && value <= 100 ? value : 0;
+            if (isNaN(value) || value < 0 || value > 100) {
+                return 0;
+            }
+            return value;
         };
+
+        // Calculate total importance to validate
+        const totalImportance = questions.reduce((sum, q) => sum + validateImportance(q.importance), 0);
+        if (Math.abs(totalImportance - 100) > 0.01) {
+            return res.status(400).json({ 
+                error: 'Total importance must equal 100%',
+                details: `Current total: ${totalImportance}%`
+            });
+        }
 
         for (const question of questions) {
             const { data: existingQuestion, error: checkError } = await supabase
@@ -135,9 +149,11 @@ app.post('/api/questions/update', async (req, res) => {
                 question_type: question.question_type,
                 max_value: question.max_value,
                 class: question.class,
-                importance: validateImportance(question.importance),
-                options: question.options || null
+                importance: validateImportance(question.importance), // Properly validated importance
+                options: question.options ? question.options : null // Proper options handling
             };
+
+            console.log(`Updating question ${question.id} with importance: ${questionData.importance}`);
 
             const { error } = existingQuestion
                 ? await supabase
@@ -148,13 +164,22 @@ app.post('/api/questions/update', async (req, res) => {
                     .from('questions')
                     .insert([{ ...questionData, id: question.id }]);
 
-            if (error) throw error;
+            if (error) {
+                console.error('Error updating question:', error);
+                throw error;
+            }
         }
 
-        res.status(200).json({ message: 'Questions updated successfully' });
+        res.status(200).json({ 
+            message: 'Questions updated successfully',
+            details: 'All importance values validated and updated'
+        });
     } catch (err) {
         console.error('Error updating questions:', err);
-        res.status(500).json({ error: 'Server error', details: err.message });
+        res.status(500).json({ 
+            error: 'Server error', 
+            details: err.message 
+        });
     }
 });
 
