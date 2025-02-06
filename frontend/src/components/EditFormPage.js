@@ -272,29 +272,22 @@ const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
     };
   
     const handleSubmit = async () => {
-        const totalImportance = questions.reduce(
-          (sum, q) => sum + parseFloat(q.importance || 0),
-          0
-        );
-      
-        if (Math.abs(totalImportance - 100) > 0.01) {
-          setError("La somme des importances doit être égale à 100%.");
-          return;
-        }
-      
-        try {
-          const formattedQuestions = questions.map(q => ({
-            id: q.id,
-            question_text: q.question_text,
-            question_type: q.question_type,
-            max_value: q.max_value,
-            class: q.class,
-            importance: parseFloat(q.importance), // Change this line
-            options: q.question_type === 'choice' ? (q.options || []) : null
-        }));
+      try {
+          const formattedQuestions = questions.map(q => {
+              const importanceValue = parseFloat(q.importance);
+              console.log(`Question ${q.id} importance: ${q.importance} -> ${importanceValue}`);
+              return {
+                  id: q.id,
+                  question_text: q.question_text,
+                  question_type: q.question_type,
+                  max_value: q.max_value,
+                  class: q.class,
+                  importance: importanceValue,
+                  options: q.question_type === 'choice' ? (q.options || []) : null
+              };
+          });
   
-          console.log('Submitting questions:', formattedQuestions);
-  
+          console.log('Submitting questions:', formattedQuestions);  
           const response = await fetch('https://tetris-satisfaction-production.up.railway.app/api/questions/update', {
               method: 'POST',
               headers: {
