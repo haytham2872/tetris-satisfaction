@@ -132,34 +132,34 @@ const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
     }, []);
   
     const fetchQuestions = async () => {
-        try {
-            const response = await fetch('https://tetris-satisfaction-production.up.railway.app/api/questions');
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.details || 'Failed to fetch questions');
-            }
-            
-            const data = await response.json();
-            console.log('Fetched questions:', data); // Debug log
-    
-            // Ensure options are properly formatted
-            const formattedData = data.map(q => ({
+      try {
+          console.log('Fetching questions...');
+          const response = await fetch('https://tetris-satisfaction-production.up.railway.app/api/questions');
+          const data = await response.json();
+          console.log('Raw fetched data:', data);
+  
+          if (!response.ok) {
+              const errorData = data;
+              throw new Error(errorData.details || 'Failed to fetch questions');
+          }
+  
+          const formattedData = data.map(q => ({
               ...q,
-              importance: q.importance !== undefined ? Number(q.importance).toFixed(4) : "0.0000",
+              importance: q.importance !== undefined ? Number(q.importance).toFixed(2) : "0.00",
               options: q.question_type === 'choice' 
                   ? (Array.isArray(q.options) ? q.options : [])
                   : []
-            }));
-          
-    
-            setQuestions(formattedData);
-            setLoading(false);
-        } catch (err) {
-            console.error('Error:', err);
-            setError(err.message || 'Error fetching questions');
-            setLoading(false);
-        }
-    };
+          }));
+  
+          console.log('Formatted questions:', formattedData);
+          setQuestions(formattedData);
+          setLoading(false);
+      } catch (err) {
+          console.error('Error:', err);
+          setError(err.message || 'Error fetching questions');
+          setLoading(false);
+      }
+  };
   
     const handleOptionsChange = (questionIndex, optionIndex, value) => {
       const updatedQuestions = [...questions];
@@ -287,7 +287,8 @@ const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
               };
           });
   
-          console.log('Submitting questions:', formattedQuestions);  
+          console.log('Submitting questions:', formattedQuestions);
+  
           const response = await fetch('https://tetris-satisfaction-production.up.railway.app/api/questions/update', {
               method: 'POST',
               headers: {
@@ -295,20 +296,26 @@ const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
               },
               body: JSON.stringify({ questions: formattedQuestions }),
           });
-    
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to update questions');
-            }
-            
-            setSuccessMessage('Questions mises à jour avec succès !');
-            await fetchQuestions(); // Refresh questions
-            setTimeout(() => setSuccessMessage(''), 3000);
-        } catch (err) {
-            console.error('Error:', err);
-            setError(err.message || 'Error updating questions');
-        }
-    };
+  
+          const responseData = await response.json();
+          console.log('Server response:', responseData);
+  
+          if (!response.ok) {
+              throw new Error(responseData.error || 'Failed to update questions');
+          }
+          
+          setSuccessMessage('Questions mises à jour avec succès !');
+          
+          // Add a small delay before fetching
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          await fetchQuestions(); // Refresh questions
+          
+          setTimeout(() => setSuccessMessage(''), 3000);
+      } catch (err) {
+          console.error('Error:', err);
+          setError(err.message || 'Error updating questions');
+      }
+  };
   
     if (loading) {
       return (

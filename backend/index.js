@@ -115,36 +115,43 @@ app.get('/api/questions', async (req, res) => {
 app.post('/api/questions/update', async (req, res) => {
     try {
         const { questions } = req.body;
+        console.log('Received questions for update:', questions);
 
         for (const question of questions) {
             const { data: existingQuestion, error: checkError } = await supabase
                 .from('questions')
-                .select('id')
+                .select('*') // Change to select all fields
                 .eq('id', question.id)
                 .single();
 
-            // Parse importance value and ensure it's a number with 2 decimal places
-            const importanceValue = Number(parseFloat(question.importance).toFixed(2));
-            
+            console.log('Existing question:', existingQuestion);
+            console.log('About to update with:', question);
+
+            const importanceValue = Number(parseFloat(question.importance || 0).toFixed(2));
+            console.log(`Processing importance for question ${question.id}: ${importanceValue}`);
+
             const questionData = {
                 question_text: question.question_text,
                 question_type: question.question_type,
                 max_value: question.max_value,
                 class: question.class,
-                importance: importanceValue, // Store as number
+                importance: importanceValue,
                 options: question.options || null
             };
 
-            console.log(`Updating question ${question.id} with importance:`, importanceValue);
-
-            const { error } = existingQuestion
+            // Add explicit update logging
+            const { data: updateData, error } = existingQuestion
                 ? await supabase
                     .from('questions')
                     .update(questionData)
                     .eq('id', question.id)
+                    .select() // Add this to get the updated data
                 : await supabase
                     .from('questions')
-                    .insert([{ ...questionData, id: question.id }]);
+                    .insert([{ ...questionData, id: question.id }])
+                    .select();
+
+            console.log(`Update result for question ${question.id}:`, { data: updateData, error });
 
             if (error) {
                 console.error(`Error updating question ${question.id}:`, error);
