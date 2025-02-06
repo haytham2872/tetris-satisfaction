@@ -61,7 +61,7 @@ const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
   
       updatedQuestions[index] = {
         ...updatedQuestions[index],
-        importance: newValueNum.toFixed(2),
+        importance: Number(newValueNum).toFixed(2),
       };
   
       const totalImportance = updatedQuestions.reduce(
@@ -206,7 +206,8 @@ const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
         question_type: 'choice',
         max_value: null,
         class: null,
-        options: []
+        options: [],
+        importance: "0.00"
       };
       
       setQuestions([...questions, newQuestion]);

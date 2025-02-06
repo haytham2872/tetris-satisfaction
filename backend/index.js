@@ -123,19 +123,19 @@ app.post('/api/questions/update', async (req, res) => {
                 .eq('id', question.id)
                 .single();
 
-            // Format the importance value
-            const importanceValue = parseFloat(question.importance) || 0;
-
+            // Parse importance value and ensure it's a number with 2 decimal places
+            const importanceValue = Number(parseFloat(question.importance).toFixed(2));
+            
             const questionData = {
                 question_text: question.question_text,
                 question_type: question.question_type,
                 max_value: question.max_value,
                 class: question.class,
-                importance: importanceValue,
+                importance: importanceValue, // Store as number
                 options: question.options || null
             };
 
-            console.log(`Updating question ${question.id}:`, questionData);
+            console.log(`Updating question ${question.id} with importance:`, importanceValue);
 
             const { error } = existingQuestion
                 ? await supabase
