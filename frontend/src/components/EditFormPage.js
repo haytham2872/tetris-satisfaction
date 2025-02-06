@@ -145,9 +145,6 @@ const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
             // Ensure options are properly formatted
             const formattedData = data.map(q => ({
               ...q,
-              kpi_type: q.KPI_type !== undefined ? q.KPI_type : '',
-              kpi_poids: q.kpi_poids !== undefined ? q.kpi_poids : 0, 
-              class_poids: q.class_poids !== undefined ? q.class_poids : 0,
               importance: q.importance !== undefined ? Number(q.importance).toFixed(4) : "0.0000",
               options: q.question_type === 'choice' 
                   ? (Array.isArray(q.options) ? q.options : [])
@@ -286,14 +283,14 @@ const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
       
         try {
           const formattedQuestions = questions.map(q => ({
-              id: q.id,
-              question_text: q.question_text,
-              question_type: q.question_type,
-              max_value: q.max_value,
-              class: q.class,
-              importance: q.importance,
-              options: q.question_type === 'choice' ? (q.options || []) : null
-          }));
+            id: q.id,
+            question_text: q.question_text,
+            question_type: q.question_type,
+            max_value: q.max_value,
+            class: q.class,
+            importance: parseFloat(q.importance), // Change this line
+            options: q.question_type === 'choice' ? (q.options || []) : null
+        }));
   
           console.log('Submitting questions:', formattedQuestions);
   
