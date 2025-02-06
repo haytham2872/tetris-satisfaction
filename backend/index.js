@@ -201,7 +201,10 @@ app.listen(PORT, () => {
 // Submit responses route
 app.post('/api/responses', async (req, res) => {
     try {
-        const { survey_id, responses } = req.body;
+        console.log('[POST /api/responses] Body received:', req.body);
+        const { survey_id, responses, negativeScore } = req.body;
+
+        console.log('[POST /api/responses] negativeScore received =', negativeScore);
 
         if (!survey_id || !Array.isArray(responses) || responses.length === 0) {
             return res.status(400).json({
@@ -209,6 +212,22 @@ app.post('/api/responses', async (req, res) => {
             });
         }
 
+        // Update negative score if provided
+        if (typeof negativeScore !== 'undefined') {
+            const nsValue = Number(negativeScore) || 0.0;
+            console.log(`[POST /api/responses] Updating score_negatif=${nsValue} for survey_id=${survey_id}`);
+
+            const { error: updateError } = await supabase
+                .from('surveys')
+                .update({ score_negatif: nsValue })
+                .eq('id', Number(survey_id));
+
+            if (updateError) throw updateError;
+        } else {
+            console.log('[POST /api/responses] No negativeScore in body, skipping surveys table update');
+        }
+
+        // Insert responses
         const currentDateTime = new Date().toISOString();
         const responsesToInsert = responses.map(item => ({
             survey_id: Number(survey_id),
@@ -224,9 +243,10 @@ app.post('/api/responses', async (req, res) => {
 
         if (error) throw error;
 
+        console.log('[POST /api/responses] Insertion successful, sending 200...');
         res.status(200).json({ message: 'Responses recorded successfully' });
     } catch (err) {
-        console.error('Error inserting responses:', err);
+        console.error('[POST /api/responses] Error:', err);
         res.status(500).json({ error: 'Server error', details: err.message });
     }
 });

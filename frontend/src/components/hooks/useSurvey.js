@@ -18,23 +18,125 @@ export const useSurvey = () => {
   const [contactDetailsSubmitted, setContactDetailsSubmitted] = useState(false);
   const { questions, loading: questionsLoading } = useQuestions();
 
-  // Initialisation du questionnaire
+  // New function to calculate negative weight for a response
+  const getNegativeWeight = (question, response) => {
+    if (question.question_type === 'rating' || question.question_type === 'stars') {
+      const numericResponse = parseInt(response, 10);
+      const threshold = Math.floor(question.max_value / 2);
+
+      if (numericResponse > threshold) {
+        console.log(
+          `[getNegativeWeight] Question ${question.id}: ${numericResponse} > ${threshold} → Weight: 0`
+        );
+        return 0;
+      } else {
+        const weight = 1 - numericResponse / (threshold + 1);
+        console.log(
+          `[getNegativeWeight] Question ${question.id}: Response=${numericResponse}, Threshold=${threshold}, Weight=${weight}`
+        );
+        return weight;
+      }
+    } else if (question.question_type === 'choice') {
+      if (!question.options) return 0;
+      let optionsArray = question.options;
+
+      // Convert options to array if needed
+      if (!Array.isArray(optionsArray)) {
+        if (typeof optionsArray === 'string') {
+          try {
+            optionsArray = JSON.parse(optionsArray);
+          } catch (error) {
+            optionsArray = optionsArray.split(',');
+          }
+        } else {
+          console.error(`[getNegativeWeight] Invalid options for question ${question.id}`);
+          return 0;
+        }
+      }
+
+      // Determine chosen index
+      let chosenIndex;
+      const responseAsNumber = parseInt(response, 10);
+      if (!isNaN(responseAsNumber)) {
+        chosenIndex = responseAsNumber;
+      } else {
+        chosenIndex = optionsArray.indexOf(response);
+      }
+      
+      if (chosenIndex < 0) {
+        console.log(`[getNegativeWeight] Question ${question.id}: Response not found in options`);
+        return 0;
+      }
+
+      const threshold = Math.floor((optionsArray.length - 1) / 2);
+      if (chosenIndex <= threshold) {
+        console.log(
+          `[getNegativeWeight] Question ${question.id}: Index ${chosenIndex} <= ${threshold} → Weight: 0`
+        );
+        return 0;
+      } else {
+        const denominator = optionsArray.length - threshold - 1;
+        let weight = denominator <= 0 ? 1 : (chosenIndex - threshold) / denominator;
+        console.log(
+          `[getNegativeWeight] Question ${question.id}: Index=${chosenIndex}, Threshold=${threshold}, Weight=${weight}`
+        );
+        return weight;
+      }
+    }
+    return 0;
+  };
+
+  // New function to calculate overall negative score
+  const calculateNegativeScore = (responsesObject, questionsArray) => {
+    let totalImportance = 0;
+    let negativeImportance = 0;
+
+    Object.keys(responsesObject).forEach(key => {
+      const qId = parseInt(key, 10);
+      const questionObj = questionsArray.find(q => q.id === qId);
+
+      if (questionObj) {
+        const importance = parseFloat(questionObj.importance) || 0;
+        totalImportance += importance;
+
+        const negativeWeight = getNegativeWeight(questionObj, responsesObject[qId].answer);
+        negativeImportance += importance * negativeWeight;
+
+        console.log(
+          `[calculateNegativeScore] Q${qId}: importance=${importance}, weight=${negativeWeight}`
+        );
+      }
+    });
+
+    if (totalImportance === 0) {
+      console.log('[calculateNegativeScore] Total importance is 0 → score = 0');
+      return 0;
+    }
+
+    const score = negativeImportance / totalImportance;
+    console.log(`[calculateNegativeScore] Final: negative=${negativeImportance}, total=${totalImportance}, score=${score}`);
+    return score;
+  };
+
+  // Initialize survey
   useEffect(() => {
     const initializeSurvey = async () => {
       try {
         const response = await startSurvey();
         if (response && response.id) {
           setSurveyId(response.id);
+          console.log('[initializeSurvey] Started new survey:', response.id);
         } else {
-          console.error('Unable to start new survey.');
+          console.error('[initializeSurvey] Failed to start survey');
         }
       } catch (error) {
-        console.error('Error initializing survey:', error);
+        console.error('[initializeSurvey] Error:', error);
       }
     };
     initializeSurvey();
   }, []);
 
+  // Updated handleResponse with negative score check
   const handleResponse = (questionId, value) => {
     setResponses(prev => ({
       ...prev,
@@ -45,44 +147,21 @@ export const useSurvey = () => {
     }));
     setLastResponse({ questionId, answer: value });
 
-    // Vérification des conditions pour afficher le formulaire de contact
+    // Check if contact form should be shown based on negative score
     const shouldShowContact = () => {
-      if (questionId === 1) {
-        return parseInt(value) < 4;
-      }
-
-      const mostNegativeResponses = SURVEY_CONFIG.NEGATIVE_RESPONSES;
       const updatedResponses = {
         ...responses,
         [questionId]: { answer: value }
       };
-
-      const firstResponse = updatedResponses[1]?.answer;
-      if (firstResponse === undefined || parseInt(firstResponse) >= 4) {
-        return false;
-      }
-
-      let answeredQuestions = 0;
-      let negativeResponses = 0;
-
-      for (let qId = 2; qId <= questionId; qId++) {
-        const response = updatedResponses[qId]?.answer;
-        if (response !== undefined) {
-          answeredQuestions++;
-          if (qId === 2) {
-            if (parseInt(response) <= mostNegativeResponses[2]) {
-              negativeResponses++;
-            }
-          } else if (response === mostNegativeResponses[qId]) {
-            negativeResponses++;
-          }
-        }
-      }
-
-      return answeredQuestions > 0 && negativeResponses === answeredQuestions;
+      const negativeScore = calculateNegativeScore(updatedResponses, questions);
+      const threshold = SURVEY_CONFIG.NEGATIVE_SCORE_THRESHOLD || 0.5;
+      console.log(`[handleResponse] negativeScore=${negativeScore}, threshold=${threshold}`);
+      return negativeScore >= threshold;
     };
 
-    setShowContactButton(shouldShowContact());
+    const showContact = shouldShowContact();
+    console.log(`[handleResponse] Show contact form: ${showContact}`);
+    setShowContactButton(showContact);
   };
 
   const handleOptionalAnswer = (questionId, value) => {
@@ -95,21 +174,23 @@ export const useSurvey = () => {
     }));
   };
 
+  // Updated handleSubmit with negative score
   const handleSubmit = async () => {
     if (!surveyId) {
-      console.error('Missing Survey ID!');
+      console.error('[handleSubmit] Missing Survey ID');
       return;
     }
 
-    // Si on est sur la dernière question et que le formulaire de contact
-    // est requis (réponses négatives) mais que l'utilisateur n'a ni soumis ni ignoré ce formulaire,
-    // on n'exécute pas encore la soumission finale
     if (currentStep === questions.length - 1 && showContactButton && !contactFormSkipped && !contactDetailsSubmitted) {
       return;
     }
 
     try {
-      const success = await submitResponses(surveyId, responses);
+      // Calculate negative score before submission
+      const negativeScore = calculateNegativeScore(responses, questions);
+      console.log('[handleSubmit] Calculated negative score:', negativeScore);
+
+      const success = await submitResponses(surveyId, responses, negativeScore);
       
       if (success) {
         if (responses[10]?.answer) {
@@ -118,31 +199,32 @@ export const useSurvey = () => {
             const analysisResponse = await fetch(`${process.env.REACT_APP_API_URL}/api/feedback/analyze`, {
               method: 'POST',
               headers: {
-                  'Content-Type': 'application/json'
+                'Content-Type': 'application/json'
               },
               body: JSON.stringify({
-                  survey_id: surveyId,
-                  analysis: analysis
+                survey_id: surveyId,
+                analysis: analysis
               })
             });
 
             if (!analysisResponse.ok) {
-              console.error('Failed to store analysis:', await analysisResponse.text());
+              console.error('[handleSubmit] Failed to store analysis:', await analysisResponse.text());
             }
           } catch (error) {
-            console.error('Error in feedback analysis:', error);
+            console.error('[handleSubmit] Feedback analysis error:', error);
           }
         }
         
         setShowThankYou(true);
       } else {
-        console.error('Failed to save responses.');
+        console.error('[handleSubmit] Failed to save responses');
       }
     } catch (error) {
-      console.error('Error submitting responses:', error);
+      console.error('[handleSubmit] Error:', error);
     }
   };
 
+  // Rest of the existing functions remain the same
   const handleNextStep = () => {
     setIsAnimating(true);
     setTimeout(() => {
@@ -164,11 +246,11 @@ export const useSurvey = () => {
       const response = await fetch(`${process.env.REACT_APP_API_URL}/api/low-satisfaction`, {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json'
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            id: surveyId,
-            ...contactData
+          id: surveyId,
+          ...contactData
         })
       });
 
@@ -176,16 +258,18 @@ export const useSurvey = () => {
         throw new Error('Failed to submit contact details');
       }
 
-      const success = await submitResponses(surveyId, responses);
+      // Include negative score in final submission
+      const negativeScore = calculateNegativeScore(responses, questions);
+      const success = await submitResponses(surveyId, responses, negativeScore);
       
       if (success) {
         setContactDetailsSubmitted(true);
         setShowThankYou(true);
       } else {
-        console.error('Failed to submit survey responses');
+        console.error('[handleContactSubmit] Failed to submit survey responses');
       }
     } catch (error) {
-      console.error('Error submitting contact details:', error);
+      console.error('[handleContactSubmit] Error:', error);
     }
   };
 

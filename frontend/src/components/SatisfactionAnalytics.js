@@ -106,6 +106,9 @@ const SatisfactionAnalytics = ({ onBack, onShowAdditional, onShowComments,onShow
                             goodSolutions++;
                         }
                         break;
+                    default:
+                            // Handle any other question_id or do nothing
+                            break;
                 }
             });
         });

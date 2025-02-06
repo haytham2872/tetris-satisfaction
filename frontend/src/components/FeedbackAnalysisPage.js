@@ -3,13 +3,10 @@ import {
     MessageSquare, 
     ArrowLeft,
     ThumbsUp,
-    Users,
     AlertCircle,
     Filter,
     Clock,
-    Headphones,
     Flag,
-    BarChart2,
     ThumbsDown,
     Minus,
     Heart,
@@ -109,12 +106,11 @@ const TopicAnalysis = ({ topic, data }) => {
 
 // Main FeedbackCard Component
 const FeedbackCard = ({ feedback }) => {
-    const [isExpanded, setIsExpanded] = useState(false);
+
     
     const { 
         overall = {},
         topics = {},
-        keyPhrases = [],
         metadata = {}
     } = feedback?.analysis || {};
 

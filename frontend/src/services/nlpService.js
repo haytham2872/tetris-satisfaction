@@ -171,7 +171,7 @@ const URGENCY_PATTERNS = {
 const detectTopicsWithSentiment = (text, entities, documentSentiment) => {
     const results = {};
     const lowercaseText = text.toLowerCase();
-    const words = text.split(/\s+/);
+
 
     Object.entries(TOPICS).forEach(([topicName, topicData]) => {
         const isTopicPresent = topicData.keywords.some(keyword =>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Save, AlertCircle, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Save, AlertCircle, Plus, Trash2,HelpCircle } from 'lucide-react';
 
 const CustomAlert = ({ children, variant = 'default', className = '' }) => {
   const baseStyles = "p-4 rounded-lg mb-4 flex items-center gap-2";
@@ -49,6 +49,73 @@ const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
       </div>
     );
   };
+
+  const ImportanceField = ({ question, index, questions, setQuestions }) => {
+    const [showTooltip, setShowTooltip] = useState(false);
+    const [tempImportance, setTempImportance] = useState(question.importance);
+  
+    const handleBlur = () => {
+      const newValueNum = parseFloat(tempImportance) || 0;
+      const oldValueNum = parseFloat(question.importance) || 0;
+      const updatedQuestions = [...questions];
+  
+      updatedQuestions[index] = {
+        ...updatedQuestions[index],
+        importance: newValueNum.toFixed(2),
+      };
+  
+      const totalImportance = updatedQuestions.reduce(
+        (sum, q) => sum + parseFloat(q.importance || 0),
+        0
+      );
+  
+      if (totalImportance > 100.0 + 0.01) {
+        setTempImportance(oldValueNum.toFixed(2));
+        alert("La somme des importances dépasse 100%. Valeur annulée.");
+        return;
+      }
+  
+      setQuestions(updatedQuestions);
+    };
+  
+    return (
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="flex items-center gap-2">
+            Importance (%)
+            <div 
+              className="relative"
+              onMouseEnter={() => setShowTooltip(true)}
+              onMouseLeave={() => setShowTooltip(false)}
+            >
+              <HelpCircle
+                size={16}
+                className="text-gray-400 cursor-pointer hover:text-gray-600"
+              />
+              {showTooltip && (
+                <div className="absolute z-10 bottom-full left-1/2 transform -translate-x-1/2 mb-2 
+                                bg-gray-800 text-white text-xs rounded py-1 px-2 
+                                whitespace-nowrap">
+                  Sur un total de 100%, indiquez l'importance que vous accordez à cette question par rapport aux autres questions.
+                </div>
+              )}
+            </div>
+          </div>
+        </label>
+  
+        <input
+          type="number"
+          step="0.01"
+          min="0"
+          max="100"
+          value={tempImportance}
+          onChange={(e) => setTempImportance(e.target.value)}
+          onBlur={handleBlur}
+          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-tetris-blue focus:border-transparent"
+        />
+      </div>
+    );
+  };
   
   const EditFormPage = ({ onBack }) => {
     const [questions, setQuestions] = useState([]);
@@ -59,7 +126,6 @@ const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
   
     const questionTypes = ['rating', 'stars', 'choice', 'text'];
     const classTypes = ['Satisfaction générale','Qualité du service','Processus et support'];
-    const KPITypes = ['NPS', 'CSAT', 'CES'];
   
     useEffect(() => {
       fetchQuestions();
@@ -208,7 +274,17 @@ const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
     };
   
     const handleSubmit = async () => {
-      try {
+        const totalImportance = questions.reduce(
+          (sum, q) => sum + parseFloat(q.importance || 0),
+          0
+        );
+      
+        if (Math.abs(totalImportance - 100) > 0.01) {
+          setError("La somme des importances doit être égale à 100%.");
+          return;
+        }
+      
+        try {
           const formattedQuestions = questions.map(q => ({
               id: q.id,
               question_text: q.question_text,
@@ -380,87 +456,17 @@ const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
                               ))}
                             </select>
                           </div>
-
-                          {/* Sélection du KPI Type */}
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              KPI Type
-                            </label>
-                            <select
-                              value={question.kpi_type || ''}
-                              onChange={(e) => handleQuestionChange(index, 'kpi_type', e.target.value)}
-                              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-tetris-blue focus:border-transparent"
-                            >
-                              <option value="">Sélectionner un KPI</option>
-                              {KPITypes.map(type => (
-                                <option key={type} value={type}>{type}</option>
-                              ))}
-                            </select>
-                          </div>
-
-                          {/* Poids KPI */}
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              KPI Poids
-                            </label>
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={question.kpi_poids !== undefined ? question.kpi_poids : ""}
-                              onChange={(e) => {
-                                let value = e.target.value;
-                                if (value === "" || /^[0-9.]*$/.test(value)) {
-                                  handleQuestionChange(index, 'kpi_poids', value);
-                                }
-                              }}
-                              onBlur={(e) => {
-                                let value = parseFloat(e.target.value);
-                                if (isNaN(value) || value < 0) value = 0;
-                                if (value > 1) value = 1;
-                                handleQuestionChange(index, 'kpi_poids', value);
-                              }}
-                              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-tetris-blue focus:border-transparent"
-                            />
-                          </div>
-
-                          {/* Poids Classe */}
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Classe Poids
-                            </label>
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={question.class_poids !== undefined ? question.class_poids : ""}
-                              onChange={(e) => {
-                                let value = e.target.value;
-                                if (value === "" || /^[0-9.]*$/.test(value)) {
-                                  handleQuestionChange(index, 'class_poids', value);
-                                }
-                              }}
-                              onBlur={(e) => {
-                                let value = parseFloat(e.target.value);
-                                if (isNaN(value) || value < 0) value = 0;
-                                if (value > 1) value = 1;
-                                handleQuestionChange(index, 'class_poids', value);
-                              }}
-                              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-tetris-blue focus:border-transparent"
-                            />
-                          </div>
                         </>
                       )}
 
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Importance
-                          </label>
-                          <input
-                            type="text"
-                            value={question.importance || 0}
-                            disabled  // Désactiver la modification car c'est calculé
-                            className="w-full p-3 border border-gray-300 rounded-lg bg-gray-100 text-gray-700"
+                        {question.question_type !== 'text' && (
+                          <ImportanceField
+                            question={question}
+                            index={index}
+                            questions={questions}
+                            setQuestions={setQuestions}
                           />
-                        </div>
+                        )}
 
 
                       </div>
