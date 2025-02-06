@@ -291,9 +291,7 @@ const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
               question_type: q.question_type,
               max_value: q.max_value,
               class: q.class,
-              KPI_type: q.kpi_type || null,
-              kpi_poids: q.kpi_poids || 0, 
-              class_poids: q.class_poids || 0, 
+              importance: q.importance,
               options: q.question_type === 'choice' ? (q.options || []) : null
           }));
   
