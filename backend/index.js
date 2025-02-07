@@ -473,6 +473,9 @@ const startServer = async () => {
         
         app.listen(PORT, () => {
             console.log(`Server listening on port ${PORT}`);
+        }).on('error', (err) => {
+            console.error('Server failed to start:', err);
+            process.exit(1);
         });
     } catch (err) {
         console.error('Server initialization failed:', err);

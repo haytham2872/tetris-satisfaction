@@ -57,7 +57,7 @@ const AdditionalAnalytics = ({ onBack, onShowFeedback, onShowContacts }) => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const response = await fetch('https://tetris-satisfaction-production.up.railway.app/api/analytics/additional');
+                const response = await fetch('https://tetris-forms.azurewebsites.net/api/analytics/additional');
                 if (!response.ok) throw new Error('Failed to fetch data');
                 
                 const surveyData = await response.json();

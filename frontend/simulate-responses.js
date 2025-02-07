@@ -101,7 +101,7 @@ const simulateSurveyResponses = async (count) => {
 
     for (let i = 0; i < count; i++) {
         try {
-            const surveyResponse = await fetch('https://tetris-satisfaction-production.up.railway.app/api/start-survey', {
+            const surveyResponse = await fetch('https://tetris-forms.azurewebsites.net/api/start-survey', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -119,7 +119,7 @@ const simulateSurveyResponses = async (count) => {
             const responses = generateSurveyResponse();
             
             // Format the request payload according to the backend's expectation
-            const submitResponse = await fetch('https://tetris-satisfaction-production.up.railway.app/api/responses', {
+            const submitResponse = await fetch('https://tetris-forms.azurewebsites.net/api/responses', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

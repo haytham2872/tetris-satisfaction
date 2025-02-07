@@ -1,7 +1,7 @@
 export const SURVEY_CONFIG = {
     ANIMATION_DURATION: 300,
     API_ENDPOINTS: {
-      BASE_URL: 'https://tetris-satisfaction-production.up.railway.app',
+      BASE_URL: 'https://tetris-forms.azurewebsites.net',
       SURVEY: '/api/start-survey',
       RESPONSES: '/api/responses',
       FEEDBACK: '/api/feedback/analyze',

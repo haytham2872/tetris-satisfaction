@@ -135,7 +135,7 @@ const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
     const fetchQuestions = async () => {
       try {
           console.log('Fetching questions...');
-          const response = await fetch('https://tetris-satisfaction-production.up.railway.app/api/questions');
+          const response = await fetch('https://tetris-forms.azurewebsites.net/api/questions');
           const data = await response.json();
           console.log('Raw fetched data:', data);
   
@@ -228,7 +228,7 @@ const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
           const questionToDelete = questions[index];
           
           // Call the delete endpoint
-          const response = await fetch('https://tetris-satisfaction-production.up.railway.app/api/questions/delete', {
+          const response = await fetch('https://tetris-forms.azurewebsites.net/api/questions/delete', {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json',
@@ -255,7 +255,7 @@ const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
             setTimeout(() => setSuccessMessage(''), 3000);
             
             // Update the reordered questions in the database
-            const updateResponse = await fetch('https://tetris-satisfaction-production.up.railway.app/api/questions/update', {
+            const updateResponse = await fetch('https://tetris-forms.azurewebsites.net/api/questions/update', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -290,7 +290,7 @@ const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
   
           console.log('Submitting questions:', formattedQuestions);
   
-          const response = await fetch('https://tetris-satisfaction-production.up.railway.app/api/questions/update', {
+          const response = await fetch('https://tetris-forms.azurewebsites.net/api/questions/update', {
               method: 'POST',
               headers: {
                   'Content-Type': 'application/json',

@@ -1,5 +1,5 @@
 // API.js
-const API_URL = 'https://tetris-satisfaction-production.up.railway.app';
+const API_URL = 'https://tetris-forms.azurewebsites.net';
 
 if (!API_URL) {
     console.error('API_URL is not defined! Make sure REACT_APP_API_URL is set in your environment variables.');
