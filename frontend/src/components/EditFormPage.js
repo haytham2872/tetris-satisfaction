@@ -55,27 +55,34 @@ const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
     const [tempImportance, setTempImportance] = useState(question.importance);
   
     const handleBlur = () => {
-      const newValueNum = parseFloat(tempImportance) || 0;
-      const oldValueNum = parseFloat(question.importance) || 0;
+      // Parse and validate the input value
+      let newValue = parseFloat(tempImportance);
+      if (isNaN(newValue)) newValue = 0;
+      newValue = Math.min(Math.max(newValue, 0), 100);
+      newValue = Number(newValue.toFixed(2));
+  
       const updatedQuestions = [...questions];
+      const oldValue = parseFloat(question.importance) || 0;
   
-      updatedQuestions[index] = {
-        ...updatedQuestions[index],
-        importance: Number(newValueNum).toFixed(2),
-      };
+      // Calculate total importance excluding current question
+      const totalOthers = updatedQuestions.reduce((sum, q, i) => 
+        i !== index ? sum + (parseFloat(q.importance) || 0) : sum, 0);
   
-      const totalImportance = updatedQuestions.reduce(
-        (sum, q) => sum + parseFloat(q.importance || 0),
-        0
-      );
-  
-      if (totalImportance > 100.0 + 0.01) {
-        setTempImportance(oldValueNum.toFixed(2));
+      // Check if new total would exceed 100%
+      if (totalOthers + newValue > 100.01) { // Allow small rounding error
+        setTempImportance(oldValue.toFixed(2));
         alert("La somme des importances dépasse 100%. Valeur annulée.");
         return;
       }
   
+      // Update the question with the new value
+      updatedQuestions[index] = {
+        ...updatedQuestions[index],
+        importance: newValue.toFixed(2)
+      };
+  
       setQuestions(updatedQuestions);
+      setTempImportance(newValue.toFixed(2));
     };
   
     return (
@@ -83,26 +90,20 @@ const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
         <label className="block text-sm font-medium text-gray-700 mb-2">
           <div className="flex items-center gap-2">
             Importance (%)
-            <div 
-              className="relative"
-              onMouseEnter={() => setShowTooltip(true)}
-              onMouseLeave={() => setShowTooltip(false)}
-            >
-              <HelpCircle
-                size={16}
-                className="text-gray-400 cursor-pointer hover:text-gray-600"
+            <div className="relative">
+              <HelpCircle size={16} className="text-gray-400 cursor-pointer hover:text-gray-600" 
+                onMouseEnter={() => setShowTooltip(true)}
+                onMouseLeave={() => setShowTooltip(false)}
               />
               {showTooltip && (
                 <div className="absolute z-10 bottom-full left-1/2 transform -translate-x-1/2 mb-2 
-                                bg-gray-800 text-white text-xs rounded py-1 px-2 
-                                whitespace-nowrap">
-                  Sur un total de 100%, indiquez l'importance que vous accordez à cette question par rapport aux autres questions.
+                              bg-gray-800 text-white text-xs rounded py-1 px-2 whitespace-nowrap">
+                  Sur un total de 100%, indiquez l'importance que vous accordez à cette question.
                 </div>
               )}
             </div>
           </div>
         </label>
-  
         <input
           type="number"
           step="0.01"
@@ -273,19 +274,19 @@ const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
   
     const handleSubmit = async () => {
       try {
-          const formattedQuestions = questions.map(q => {
-              const importanceValue = parseFloat(q.importance);
-              console.log(`Question ${q.id} importance: ${q.importance} -> ${importanceValue}`);
-              return {
-                  id: q.id,
-                  question_text: q.question_text,
-                  question_type: q.question_type,
-                  max_value: q.max_value,
-                  class: q.class,
-                  importance: importanceValue,
-                  options: q.question_type === 'choice' ? (q.options || []) : null
-              };
-          });
+          setError(null);
+          setSuccessMessage('');
+          
+          // Format questions for submission
+          const formattedQuestions = questions.map(q => ({
+              id: parseInt(q.id),
+              question_text: q.question_text || '',
+              question_type: q.question_type || 'choice',
+              max_value: q.max_value ? parseInt(q.max_value) : null,
+              class: q.class || null,
+              importance: parseFloat(q.importance || 0),
+              options: Array.isArray(q.options) ? q.options : null
+          }));
   
           console.log('Submitting questions:', formattedQuestions);
   
@@ -294,7 +295,7 @@ const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
               headers: {
                   'Content-Type': 'application/json',
               },
-              body: JSON.stringify({ questions: formattedQuestions }),
+              body: JSON.stringify({ questions: formattedQuestions })
           });
   
           const responseData = await response.json();
@@ -303,16 +304,14 @@ const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
           if (!response.ok) {
               throw new Error(responseData.error || 'Failed to update questions');
           }
+  
+          // Force a fresh fetch from the server
+          await fetchQuestions();
           
           setSuccessMessage('Questions mises à jour avec succès !');
-          
-          // Add a small delay before fetching
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          await fetchQuestions(); // Refresh questions
-          
           setTimeout(() => setSuccessMessage(''), 3000);
       } catch (err) {
-          console.error('Error:', err);
+          console.error('Error in handleSubmit:', err);
           setError(err.message || 'Error updating questions');
       }
   };

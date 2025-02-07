@@ -102,4 +102,5 @@ UPDATE questions
 SET options = JSON_ARRAY("Très compétitive", "Assez compétitive", "Peu compétitive", "Pas du tout compétitive")
 WHERE id = 9;
 
-
+ALTER TABLE surveys
+ADD COLUMN score_negatif FLOAT DEFAULT NULL;
