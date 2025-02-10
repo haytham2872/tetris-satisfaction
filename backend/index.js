@@ -1,4 +1,3 @@
-// index.js
 import express from 'express';
 import sql from 'mssql';
 import cors from 'cors';
@@ -6,6 +5,32 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+// Basic error logging
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+    console.error('Uncaught Exception:', error);
+});
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// Health check endpoint that doesn't require database connection
+app.get('/', (req, res) => {
+    res.json({ status: 'Server is running' });
+});
+
+app.get('/health', (req, res) => {
+    res.json({ status: 'healthy' });
+});
+
+// Database configuration
 const config = {
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
@@ -13,44 +38,32 @@ const config = {
     database: process.env.DB_NAME,
     options: {
         encrypt: true,
-        trustServerCertificate: false
+        trustServerCertificate: false,
+        connectionTimeout: 30000,
+        requestTimeout: 30000
+    },
+    pool: {
+        max: 10,
+        min: 0,
+        idleTimeoutMillis: 30000
     }
 };
 
-const app = express();
-const PORT = process.env.PORT || 5000;
-
-// Middleware with cors allowing all origins
-app.use(cors());
-app.use(express.json());
-
-// Database connection pool
+// Global pool variable
 let pool;
+
+// Database connection function
 const connectToDatabase = async () => {
     try {
+        console.log('Attempting database connection...');
         pool = await sql.connect(config);
-        console.log('Connected to Azure SQL Database');
+        console.log('Database connected successfully');
+        return true;
     } catch (err) {
-        console.error('Database connection failed:', err);
-        process.exit(1);
+        console.error('Database connection error:', err);
+        return false;
     }
 };
-// Test connection endpoint
-app.get('/api/test', async (req, res) => {
-    try {
-        const result = await pool.request().query('SELECT 1 as testValue');
-        res.json({ 
-            success: true, 
-            message: 'Database connection successful',
-            data: result.recordset 
-        });
-    } catch (err) {
-        res.status(500).json({ 
-            success: false, 
-            error: err.message 
-        });
-    }
-});
 
 // Start survey route
 app.post('/api/start-survey', async (req, res) => {

@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node index.js"
   },
   "type": "module",
@@ -11,19 +10,12 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@supabase/supabase-js": "^2.48.1",
-    "azure-cli": "^0.10.20",
-    "body-parser": "^1.20.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
-    "mariadb": "^3.4.0",
-    "mssql": "^9.1.1",
-    "node-fetch": "^3.3.2"
+    "mssql": "^9.1.1"
   },
-  "description": "",
-  
   "engines": {
     "node": ">=18.0.0"
-}
+  }
 }
