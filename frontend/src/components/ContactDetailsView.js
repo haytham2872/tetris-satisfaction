@@ -34,13 +34,6 @@ const ContactDetailsView = ({ onBack }) => {
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 text-tetris-blue hover:text-tetris-light transition-colors"
-          >
-            <ArrowLeft size={20} />
-            Retour aux statistiques
-          </button>
 
           <h1 className="text-3xl font-bold text-gray-900 mt-6">Contacts à Suivre</h1>
           <p className="mt-2 text-gray-600">Liste des utilisateurs nécessitant une attention particulière</p>

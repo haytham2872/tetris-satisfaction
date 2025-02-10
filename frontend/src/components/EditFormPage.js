@@ -326,32 +326,25 @@ const OptionsEditor = ({ options = [], onChange, onAdd, onRemove }) => {
   
     return (
       <div className="min-h-screen bg-gray-50 p-8">
-        <div className="max-w-5xl mx-auto">
-          <div className="flex justify-between items-center mb-8 sticky top-0 bg-gray-50 z-10 py-4">
-            <button
-              onClick={onBack}
-              className="flex items-center gap-2 text-tetris-blue hover:text-tetris-light transition-colors"
-            >
-              <ArrowLeft size={20} />
-              Retour aux statistiques
-            </button>
-            <div className="flex gap-4">
-              <button
-                onClick={addNewQuestion}
-                className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors"
-              >
-                <Plus size={20} />
-                Ajouter une question
-              </button>
-              <button
-                onClick={handleSubmit}
-                className="flex items-center gap-2 bg-tetris-blue text-white px-6 py-3 rounded-lg hover:bg-tetris-light transition-colors"
-              >
-                <Save size={20} />
-                Enregistrer les modifications
-              </button>
-            </div>
-          </div>
+    <div className="max-w-5xl mx-auto">
+      <div className="sticky top-0 bg-gray-50 z-10 py-4">
+        <div className="flex items-center justify-between w-full">
+          <button
+            onClick={addNewQuestion}
+            className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors"
+          >
+            <Plus size={20} />
+            Ajouter une question
+          </button>
+          <button
+            onClick={handleSubmit}
+            className="flex items-center gap-2 bg-tetris-blue text-white px-6 py-3 rounded-lg hover:bg-tetris-light transition-colors ml-8"
+          >
+            <Save size={20} />
+            Enregistrer les modifications
+          </button>
+        </div>
+      </div>
   
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900">Éditer le formulaire</h1>

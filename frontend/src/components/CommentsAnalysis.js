@@ -70,13 +70,6 @@ const CommentsAnalysis = ({ onBack }) => {
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 text-tetris-blue hover:text-tetris-light transition-colors mb-6"
-          >
-            <ArrowLeft size={20} />
-            Retour aux statistiques
-          </button>
 
           <div className="flex justify-between items-center mb-6">
             <div>

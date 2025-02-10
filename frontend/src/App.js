@@ -1,12 +1,13 @@
-// App.js
 import React, { useEffect, useState } from 'react';
 import './index.css';
 import { useSurvey } from './components/hooks/useSurvey';
-import { useAnalytics } from './components/hooks/useAnalytics';
 import { useChat } from './components/hooks/usechat';
 import { useFormValidation } from './components/hooks/useFormValidation';
 import EditFormPage from './components/EditFormPage';
 import ContactDetailsView from './components/ContactDetailsView';
+import Page from './components/Page';
+import useDashboardState from './components/hooks/useDashboardState';
+import { SURVEY_CONFIG } from './components/constants/config';
 
 // Components
 import Header from './components/Header';
@@ -20,8 +21,14 @@ import FeedbackAnalysisPage from './components/FeedbackAnalysisPage';
 import { ChatConversation } from './components/MessageBubble';
 import CommentsAnalysis from './components/CommentsAnalysis';
 import VercelAnalytics from './components/VercelAnalytics';
+import ContactButton from './components/ContactButton';
 
 function App() {
+  const [isNextClicked, setIsNextClicked] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [optionClicked, setOptionClicked] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
+
   const {
     responses,
     showThankYou,
@@ -31,7 +38,7 @@ function App() {
     lastResponse,
     questionsLoading,
     questions,
-    handleResponse: surveyHandleResponse, // Rename to avoid conflict
+    handleResponse: surveyHandleResponse,
     handleOptionalAnswer,
     handleSubmit,
     handlePrevStep,
@@ -40,16 +47,6 @@ function App() {
     contactFormSkipped,
     setContactFormSkipped
   } = useSurvey();
-
-  const [isNextClicked, setIsNextClicked] = useState(false);
-  const [currentStep, setCurrentStep] = useState(0);
-  const SURVEY_CONFIG = {
-    ANIMATION_DURATION: 300
-  };
-  const handleResponse = (questionId, answer) => {
-    setOptionClicked(true);
-    surveyHandleResponse(questionId, answer);
-  };
 
   const {
     showAnalytics,
@@ -63,30 +60,38 @@ function App() {
     setShowFeedbackAnalysis,
     setShowComments,
     setShowEditForm,
-    setShowContacts,
-    handleBackToSurvey,
-    handleViewAdditional,
-    handleShowFeedback,
-    handleShowComments
-  } = useAnalytics();
+    setShowContacts
+  } = useDashboardState();
 
-  const [optionClicked, setOptionClicked] = useState(false);
+  const handleBackToDashboard = () => {
+    setShowAnalytics(false);
+    setShowFeedbackAnalysis(false);
+    setShowEditForm(false);
+    setShowComments(false);
+    setShowContacts(false);
+    setAnalyticsView('main');
+    setShowDashboard(true);
+  };
+
+  const handleViewAdditional = () => {
+    setAnalyticsView('additional');
+  };
+
+  const handleShowFeedback = () => {
+    setShowFeedbackAnalysis(true);
+  };
+
+  const handleShowComments = () => {
+    setShowComments(true);
+  };
 
   const { messageHistory } = useChat(
     currentStep,
     questions.length,
     responses,
     lastResponse,
-    optionClicked // New parameter
+    optionClicked
   );
-
-  const handleNextStep = () => {
-    setIsNextClicked(true);
-    setTimeout(() => {
-      setCurrentStep(prev => prev + 1);
-      setIsNextClicked(false);
-    }, SURVEY_CONFIG.ANIMATION_DURATION);
-  };
 
   const {
     errors,
@@ -96,9 +101,6 @@ function App() {
     getError
   } = useFormValidation();
 
-  // Affichage automatique du formulaire de contact sur la dernière question
-  // si des réponses négatives ont été détectées et que l'utilisateur ne l'a pas
-  // déjà masqué via "skip"
   useEffect(() => {
     if (currentStep === questions.length - 1 && showContactButton && !contactFormSkipped) {
       setShowContactForm(true);
@@ -111,63 +113,64 @@ function App() {
     setOptionClicked(false);
   }, [currentStep]);
 
+  const handleResponse = (questionId, answer) => {
+    setOptionClicked(true);
+    surveyHandleResponse(questionId, answer);
+  };
+
+  const handleNextStep = () => {
+    setIsNextClicked(true);
+    setTimeout(() => {
+      setCurrentStep(prev => prev + 1);
+      setIsNextClicked(false);
+    }, SURVEY_CONFIG.ANIMATION_DURATION);
+  };
+
   if (showThankYou) {
     return <ThankYouScreen />;
   }
 
-  if (showAnalytics) {
-    if (showFeedbackAnalysis) {
-      return (
-        <FeedbackAnalysisPage
-          onBack={() => setShowFeedbackAnalysis(false)}
-        />
-      );
-    }
-
-    if (showComments) {
-      return (
-        <CommentsAnalysis
-          onBack={() => setShowComments(false)}
-          onShowAdditional={() => {
-            setShowComments(false);
-            setAnalyticsView('additional');
-          }}
-        />
-      );
-    }
-    if (showContacts) {  // Add this block
-      return (
-        <ContactDetailsView
-          onBack={() => setShowContacts(false)}
-        />
-      );
-    }
-
-    if (analyticsView === 'additional') {
-      return (
-        <AdditionalAnalytics
-          onBack={() => setAnalyticsView('main')}
-          onShowFeedback={() => setShowFeedbackAnalysis(true)}
-          onShowContacts={() => setShowContacts(true)}
-        />
-      );
-    }
-    if (showEditForm) {
-      return (
-        <EditFormPage
-          onBack={() => setShowEditForm(false)}
-        />
-      );
-    }
-
+  if (showDashboard) {
     return (
-      <SatisfactionAnalytics
-        onBack={handleBackToSurvey}
-        onShowAdditional={handleViewAdditional}
-        onShowComments={handleShowComments}
-        onShowFeedback={handleShowFeedback}
-        onShowEditForm={() => setShowEditForm(true)}
-      />
+      <Page
+        setShowAnalytics={setShowAnalytics}
+        setShowFeedbackAnalysis={setShowFeedbackAnalysis}
+        setShowEditForm={setShowEditForm}
+        setAnalyticsView={setAnalyticsView}
+        setShowComments={setShowComments}
+        setShowContacts={setShowContacts}
+        onBack={handleBackToDashboard}
+        setShowDashboard={setShowDashboard}
+      >
+        {showAnalytics && analyticsView === 'main' && (
+          <SatisfactionAnalytics
+            onBack={handleBackToDashboard}
+            onShowAdditional={handleViewAdditional}
+            onShowComments={handleShowComments}
+            onShowFeedback={handleShowFeedback}
+            onShowEditForm={() => setShowEditForm(true)}
+          />
+        )}
+        {showFeedbackAnalysis && <FeedbackAnalysisPage />}
+        {showEditForm && <EditFormPage onBack={handleBackToDashboard} />}
+        {showComments && (
+          <CommentsAnalysis
+            onBack={handleBackToDashboard}
+            onShowAdditional={() => {
+              setShowComments(false);
+              setAnalyticsView('additional');
+            }}
+          />
+        )}
+        {showContacts && <ContactDetailsView onBack={handleBackToDashboard} />}
+        {analyticsView === 'additional' && (
+          <AdditionalAnalytics
+            onBack={() => setAnalyticsView('main')}
+            onShowFeedback={() => setShowFeedbackAnalysis(true)}
+            onShowContacts={() => setShowContacts(true)}
+          />
+        )}
+      </Page>
     );
   }
 
@@ -182,6 +185,11 @@ function App() {
             isNextClicked={isNextClicked}
           />
         )}
+
+        {showContactButton && (
+          <ContactButton onClick={() => setShowContactForm(true)} />
+        )}
+
         <Header
           currentStep={currentStep}
           totalSteps={questions.length}
@@ -193,14 +201,13 @@ function App() {
               currentStep={currentStep}
               responses={responses}
               isAnimating={isAnimating || questionsLoading}
-              onResponse={handleResponse}  // Use the new handler that sets optionClicked
+              onResponse={handleResponse}
               onOptionalAnswer={handleOptionalAnswer}
               validateResponse={validateSurveyResponse}
               getError={getError}
               questions={questions}
             />
-            {/* Affichage inline du formulaire de contact sous la dernière question 
-                si des réponses négatives sont détectées */}
+
             {currentStep === questions.length - 1 && showContactButton && showContactForm && (
               <ContactDetails
                 responses={responses}
@@ -208,7 +215,7 @@ function App() {
                 onSkip={() => {
                   setShowContactForm(false);
                   setContactFormSkipped(true);
-                  handleSubmit(); // on soumet les réponses du questionnaire après "skip"
+                  handleSubmit();
                 }}
                 validateForm={validateContactForm}
                 errors={errors}
@@ -227,9 +234,11 @@ function App() {
         </main>
 
         <button
-          onClick={() => setShowAnalytics(true)}
-          className="fixed bottom-6 right-6 bg-tetris-blue hover:bg-tetris-light text-white 
-                     rounded-lg px-4 py-2 shadow-lg flex items-center gap-2 transition-colors"
+          onClick={() => {
+            setShowDashboard(true);
+            setShowAnalytics(true);
+          }}
+          className="fixed bottom-6 right-6 bg-tetris-blue hover:bg-tetris-light text-white rounded-lg px-4 py-2 shadow-lg flex items-center gap-2 transition-colors"
         >
           Statistiques
         </button>

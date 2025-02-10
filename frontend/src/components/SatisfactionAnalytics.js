@@ -5,7 +5,7 @@ import {
     Cell,
 } from 'recharts';
 import { 
-    ArrowLeft, ThumbsUp, Star, Zap, Target,ArrowRight,MessageSquare,Edit
+    ThumbsUp, Star, Zap, Target,
 } from 'lucide-react';
 
 const COLORS = ['#0B3D91', '#1E90FF', '#4169E1', '#6495ED', '#87CEEB'];
@@ -44,7 +44,7 @@ const StatCard = ({ icon: Icon, title, value, description }) => (
     </div>
 );
 
-const SatisfactionAnalytics = ({ onBack, onShowAdditional, onShowComments,onShowEditForm }) => {
+const SatisfactionAnalytics = ({onback}) => {
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -182,22 +182,6 @@ const SatisfactionAnalytics = ({ onBack, onShowAdditional, onShowComments,onShow
     return (
         <div className="min-h-screen bg-gray-50 p-8">
             <div className="max-w-7xl mx-auto">
-                <div className="flex justify-between items-center mb-8">
-                    <button
-                        onClick={onBack}
-                        className="flex items-center gap-2 text-tetris-blue hover:text-tetris-light transition-colors"
-                    >
-                        <ArrowLeft size={20} />
-                        Retour au questionnaire
-                    </button>
-                    <button
-                        onClick={onShowAdditional}
-                        className="bg-tetris-blue text-white px-4 py-2 rounded-lg hover:bg-tetris-light transition-colors flex items-center gap-2"
-                    >
-                        Statistiques complémentaires
-                        <ArrowRight size={20} />
-                    </button>
-                </div>
                 <div className="mb-12">
                     <h1 className="text-3xl font-bold text-gray-900">Analyse des réponses</h1>
                     <div className="flex items-center gap-2 mt-2">
@@ -332,28 +316,6 @@ const SatisfactionAnalytics = ({ onBack, onShowAdditional, onShowComments,onShow
                                 <Legend verticalAlign="bottom" height={36} />
                             </PieChart>
                         </ResponsiveContainer>
-                    </div>
-                    <div className="fixed bottom-0 left-0 right-0 p-6 bg-gray-50 border-t border-gray-200 z-50">
-                        <div className="max-w-7xl mx-auto flex justify-center gap-4">
-                            <button
-                                onClick={onShowComments}
-                                className="bg-white border-2 border-tetris-blue text-tetris-blue px-6 py-3 rounded-lg 
-                                        hover:bg-tetris-blue hover:text-white transition-colors flex items-center gap-2 
-                                        text-lg font-medium shadow-md hover:shadow-lg"
-                            >
-                                <MessageSquare size={24} />
-                                Voir tous les commentaires 
-                            </button>
-                            <button
-                                onClick={onShowEditForm}
-                                className="bg-white border-2 border-tetris-blue text-tetris-blue px-6 py-3 rounded-lg 
-                                        hover:bg-tetris-blue hover:text-white transition-colors flex items-center gap-2 
-                                        text-lg font-medium shadow-md hover:shadow-lg"
-                            >
-                                <Edit size={24} />
-                                Éditer le formulaire
-                            </button>
-                        </div>
                     </div>
             </div>
         </div>
