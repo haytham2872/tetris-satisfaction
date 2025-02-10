@@ -21,7 +21,7 @@ import FeedbackAnalysisPage from './components/FeedbackAnalysisPage';
 import { ChatConversation } from './components/MessageBubble';
 import CommentsAnalysis from './components/CommentsAnalysis';
 import VercelAnalytics from './components/VercelAnalytics';
-import ContactButton from './components/ContactButton';
+
 
 function App() {
   const [isNextClicked, setIsNextClicked] = useState(false);
@@ -33,7 +33,6 @@ function App() {
     responses,
     showThankYou,
     showContactForm,
-    showContactButton,
     isAnimating,
     lastResponse,
     questionsLoading,
@@ -102,12 +101,12 @@ function App() {
   } = useFormValidation();
 
   useEffect(() => {
-    if (currentStep === questions.length - 1 && showContactButton && !contactFormSkipped) {
+    if (currentStep === questions.length - 1  && !contactFormSkipped) {
       setShowContactForm(true);
     } else {
       setShowContactForm(false);
     }
-  }, [currentStep, questions.length, showContactButton, contactFormSkipped, setShowContactForm]);
+  }, [currentStep, questions.length, contactFormSkipped, setShowContactForm]);
 
   useEffect(() => {
     setOptionClicked(false);
@@ -186,9 +185,7 @@ function App() {
           />
         )}
 
-        {showContactButton && (
-          <ContactButton onClick={() => setShowContactForm(true)} />
-        )}
+        
 
         <Header
           currentStep={currentStep}
@@ -208,7 +205,7 @@ function App() {
               questions={questions}
             />
 
-            {currentStep === questions.length - 1 && showContactButton && showContactForm && (
+            {currentStep === questions.length - 1 && showContactForm && (
               <ContactDetails
                 responses={responses}
                 onSubmit={handleContactSubmit}
