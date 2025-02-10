@@ -36,33 +36,65 @@ export const startSurvey = async () => {
     }
 };
 
+const formatAnswer = (answer) => {
+    if (answer === null || answer === undefined) {
+        return '';
+    }
+    
+    // Handle different types of answers
+    if (typeof answer === 'number') {
+        return answer.toString();
+    }
+    
+    if (typeof answer === 'boolean') {
+        return answer.toString();
+    }
+    
+    if (Array.isArray(answer)) {
+        return answer.join(',');
+    }
+    
+    // Ensure the answer is a string
+    return String(answer).trim();
+};
+
 export const submitResponses = async (surveyId, responses, negativeScore) => {
     try {
         if (!surveyId) {
             throw new Error('Survey ID is required');
         }
 
-        console.log('[submitResponses] Starting submission, surveyId=', surveyId, 'negativeScore=', negativeScore);
+        console.log('[submitResponses] Starting submission', {
+            surveyId,
+            negativeScore,
+            responseCount: Object.keys(responses).length
+        });
 
-        const formattedResponses = Object.entries(responses).map(([questionId, data]) => ({
-            question_id: Number(questionId),
-            answer: data.answer,
-            optional_answer: data.optionalAnswer || null,
-        }));
+        // Format and validate responses
+        const formattedResponses = Object.entries(responses).map(([questionId, data]) => {
+            const formattedAnswer = formatAnswer(data.answer);
+            const formattedOptionalAnswer = data.optionalAnswer ? formatAnswer(data.optionalAnswer) : null;
+
+            // Log the formatted data for debugging
+            console.log(`Formatting response for question ${questionId}:`, {
+                original: data.answer,
+                formatted: formattedAnswer
+            });
+
+            return {
+                question_id: Number(questionId),
+                answer: formattedAnswer,
+                optional_answer: formattedOptionalAnswer,
+            };
+        });
 
         const payload = {
             survey_id: Number(surveyId),
-            responses: formattedResponses
+            responses: formattedResponses,
+            negativeScore: typeof negativeScore === 'number' ? Number(negativeScore.toFixed(2)) : null
         };
 
-        // Include negativeScore only if it's defined
-        if (typeof negativeScore !== 'undefined') {
-            payload.negativeScore = negativeScore;
-            console.log('[submitResponses] Including negativeScore:', negativeScore);
-        }
-
-        console.log('Sending payload to:', `${API_URL}/api/responses`);
-        console.log('Payload:', payload);
+        console.log('Sending payload:', JSON.stringify(payload, null, 2));
 
         const response = await fetch(`${API_URL}/api/responses`, {
             method: 'POST',
@@ -73,17 +105,20 @@ export const submitResponses = async (surveyId, responses, negativeScore) => {
             body: JSON.stringify(payload),
         });
 
+        const responseData = await response.json();
+
         if (!response.ok) {
-            const errorText = await response.text();
-            console.error('[submitResponses] HTTP error, status=', response.status, 'message=', errorText);
-            throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+            console.error('[submitResponses] HTTP error:', responseData);
+            throw new Error(responseData.error || 'Failed to submit responses');
         }
 
-        console.log('[submitResponses] Submission successful');
-        return true;
+        console.log('[submitResponses] Submission successful:', responseData);
+        return {
+            success: true,
+            shouldShowContact: responseData.shouldShowContact
+        };
     } catch (error) {
-        console.error('[submitResponses] Network error:', error);
-        console.error('API URL used:', API_URL);
-        return false;
+        console.error('[submitResponses] Error:', error);
+        throw error;
     }
 };

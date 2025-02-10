@@ -430,15 +430,19 @@ app.delete('/api/questions/delete', async (req, res) => {
 });
 
 // Submit responses route
+// Update the submit responses route to properly handle the negative score
 app.post('/api/responses', async (req, res) => {
     try {
+        if (!pool) {
+            return res.status(503).json({ error: 'Database connection not available' });
+        }
         const { survey_id, responses, negativeScore } = req.body;
         const transaction = new sql.Transaction(pool);
         
         await transaction.begin();
         try {
-            // Update negative score if provided
-            if (typeof negativeScore !== 'undefined') {
+            // Update negative score
+            if (typeof negativeScore === 'number') {
                 await transaction.request()
                     .input('surveyId', sql.Int, survey_id)
                     .input('score', sql.Decimal(5,2), negativeScore)
@@ -447,15 +451,20 @@ app.post('/api/responses', async (req, res) => {
                         SET score_negatif = @score
                         WHERE id = @surveyId
                     `;
+                console.log(`Updated negative score for survey ${survey_id}: ${negativeScore}`);
             }
 
             // Insert responses
             for (const response of responses) {
+                if (!response.answer && response.answer !== '') {
+                    throw new Error(`Invalid answer for question ${response.question_id}`);
+                }
+
                 await transaction.request()
                     .input('surveyId', sql.Int, survey_id)
                     .input('questionId', sql.Int, response.question_id)
-                    .input('answer', sql.NVarChar, response.answer)
-                    .input('optionalAnswer', sql.NVarChar, response.optional_answer)
+                    .input('answer', sql.NVarChar, response.answer.toString())
+                    .input('optionalAnswer', sql.NVarChar, response.optional_answer || null)
                     .query`
                         INSERT INTO responses (survey_id, question_id, answer, optional_answer)
                         VALUES (@surveyId, @questionId, @answer, @optionalAnswer)
@@ -463,7 +472,10 @@ app.post('/api/responses', async (req, res) => {
             }
 
             await transaction.commit();
-            res.status(200).json({ message: 'Responses recorded successfully' });
+            res.status(200).json({ 
+                message: 'Responses recorded successfully',
+                shouldShowContact: negativeScore >= 0.5 // You can adjust this threshold
+            });
         } catch (err) {
             await transaction.rollback();
             throw err;

@@ -1,9 +1,10 @@
 // hooks/useSurvey.js
 import { useState, useEffect } from 'react';
-import { startSurvey, submitResponses } from '../../API';
+import { startSurvey, submitResponses } from '../../API'; // <-- Assurez-vous que submitResponses accepte le score négatif
 import { analyzeFeedback } from '../../services/nlpService';
 import { SURVEY_CONFIG } from './../constants/config';
 import { useQuestions } from './useQuestions';
+
 
 export const useSurvey = () => {
   const [surveyId, setSurveyId] = useState(null);
@@ -16,31 +17,31 @@ export const useSurvey = () => {
   const [lastResponse, setLastResponse] = useState(null);
   const [contactFormSkipped, setContactFormSkipped] = useState(false);
   const [contactDetailsSubmitted, setContactDetailsSubmitted] = useState(false);
+
   const { questions, loading: questionsLoading } = useQuestions();
 
-  // New function to calculate negative weight for a response
   const getNegativeWeight = (question, response) => {
-    if (question.question_type === 'rating' || question.question_type === 'stars') {
+    if (question.type === 'rating' || question.type === 'stars') {
       const numericResponse = parseInt(response, 10);
-      const threshold = Math.floor(question.max_value / 2);
+      const threshold = Math.floor(question.max / 2);
 
       if (numericResponse > threshold) {
         console.log(
-          `[getNegativeWeight] Question ${question.id}: ${numericResponse} > ${threshold} → Weight: 0`
+          `[getNegativeWeight] [Question ${question.id} - ${question.type}] Réponse: ${numericResponse} > seuil (${threshold}) → Poids négatif: 0`
         );
         return 0;
       } else {
         const weight = 1 - numericResponse / (threshold + 1);
         console.log(
-          `[getNegativeWeight] Question ${question.id}: Response=${numericResponse}, Threshold=${threshold}, Weight=${weight}`
+          `[getNegativeWeight] [Question ${question.id} - ${question.type}] Réponse: ${numericResponse}, Seuil: ${threshold}, Poids négatif=${weight}`
         );
         return weight;
       }
-    } else if (question.question_type === 'choice') {
+    } else if (question.type === 'choice') {
       if (!question.options) return 0;
       let optionsArray = question.options;
 
-      // Convert options to array if needed
+      // Conversion éventuelle du champ options en tableau
       if (!Array.isArray(optionsArray)) {
         if (typeof optionsArray === 'string') {
           try {
@@ -49,12 +50,12 @@ export const useSurvey = () => {
             optionsArray = optionsArray.split(',');
           }
         } else {
-          console.error(`[getNegativeWeight] Invalid options for question ${question.id}`);
+          console.error(`[getNegativeWeight] Les options pour la question ${question.id} ne sont ni un tableau ni une chaîne.`);
           return 0;
         }
       }
 
-      // Determine chosen index
+      // On détermine l'indice choisi
       let chosenIndex;
       const responseAsNumber = parseInt(response, 10);
       if (!isNaN(responseAsNumber)) {
@@ -62,23 +63,22 @@ export const useSurvey = () => {
       } else {
         chosenIndex = optionsArray.indexOf(response);
       }
-      
       if (chosenIndex < 0) {
-        console.log(`[getNegativeWeight] Question ${question.id}: Response not found in options`);
+        console.log(`[getNegativeWeight] [Question ${question.id} - choice] Réponse non trouvée dans les options.`);
         return 0;
       }
 
       const threshold = Math.floor((optionsArray.length - 1) / 2);
       if (chosenIndex <= threshold) {
         console.log(
-          `[getNegativeWeight] Question ${question.id}: Index ${chosenIndex} <= ${threshold} → Weight: 0`
+          `[getNegativeWeight] [Question ${question.id} - choice] Réponse: ${response} (Index: ${chosenIndex}) <= seuil (${threshold}) → Poids négatif: 0`
         );
         return 0;
       } else {
         const denominator = optionsArray.length - threshold - 1;
         let weight = denominator <= 0 ? 1 : (chosenIndex - threshold) / denominator;
         console.log(
-          `[getNegativeWeight] Question ${question.id}: Index=${chosenIndex}, Threshold=${threshold}, Weight=${weight}`
+          `[getNegativeWeight] [Question ${question.id} - choice] Réponse: ${response} (Index: ${chosenIndex}), Seuil: ${threshold}, Poids négatif=${weight}`
         );
         return weight;
       }
@@ -86,7 +86,7 @@ export const useSurvey = () => {
     return 0;
   };
 
-  // New function to calculate overall negative score
+  // Calcule le score négatif global
   const calculateNegativeScore = (responsesObject, questionsArray) => {
     let totalImportance = 0;
     let negativeImportance = 0;
@@ -103,41 +103,45 @@ export const useSurvey = () => {
         negativeImportance += importance * negativeWeight;
 
         console.log(
-          `[calculateNegativeScore] Q${qId}: importance=${importance}, weight=${negativeWeight}`
+          `[calculateNegativeScore] QID=${qId}, importance=${importance}, weight=${negativeWeight}`
         );
       }
     });
 
     if (totalImportance === 0) {
-      console.log('[calculateNegativeScore] Total importance is 0 → score = 0');
+      console.log('[calculateNegativeScore] totalImportance = 0 → score négatif = 0');
       return 0;
     }
 
     const score = negativeImportance / totalImportance;
-    console.log(`[calculateNegativeScore] Final: negative=${negativeImportance}, total=${totalImportance}, score=${score}`);
+    console.log(`[calculateNegativeScore] negativeImportance=${negativeImportance}, totalImportance=${totalImportance}, scoreFinal=${score}`);
     return score;
   };
 
-  // Initialize survey
+  // Lance un nouveau survey
   useEffect(() => {
     const initializeSurvey = async () => {
       try {
+        console.log('[useEffect] startSurvey');
         const response = await startSurvey();
         if (response && response.id) {
           setSurveyId(response.id);
-          console.log('[initializeSurvey] Started new survey:', response.id);
+          console.log('[useEffect] Nouveau survey démarré. ID:', response.id);
         } else {
-          console.error('[initializeSurvey] Failed to start survey');
+          console.error('[useEffect] Unable to start new survey: pas de response.id');
         }
       } catch (error) {
-        console.error('[initializeSurvey] Error:', error);
+        console.error('[useEffect] Error initializing survey:', error);
       }
     };
     initializeSurvey();
   }, []);
 
-  // Updated handleResponse with negative score check
+  // handleResponse : l'utilisateur répond à une question
   const handleResponse = (questionId, value) => {
+    console.log(`[handleResponse] QID=${questionId}, value="${value}"`);
+
+    // On stocke la réponse
     setResponses(prev => ({
       ...prev,
       [questionId]: {
@@ -147,7 +151,7 @@ export const useSurvey = () => {
     }));
     setLastResponse({ questionId, answer: value });
 
-    // Check if contact form should be shown based on negative score
+    // Vérification si on affiche le bouton de contact
     const shouldShowContact = () => {
       const updatedResponses = {
         ...responses,
@@ -159,12 +163,14 @@ export const useSurvey = () => {
       return negativeScore >= threshold;
     };
 
-    const showContact = shouldShowContact();
-    console.log(`[handleResponse] Show contact form: ${showContact}`);
-    setShowContactButton(showContact);
+    const contactVisibility = shouldShowContact();
+    console.log(`[handleResponse] Le formulaire de contact doit être affiché=${contactVisibility}`);
+    setShowContactButton(contactVisibility);
   };
 
   const handleOptionalAnswer = (questionId, value) => {
+    console.log(`[handleOptionalAnswer] QID=${questionId}, optionalValue="${value}"`);
+
     setResponses(prev => ({
       ...prev,
       [questionId]: {
@@ -174,29 +180,44 @@ export const useSurvey = () => {
     }));
   };
 
-  // Updated handleSubmit with negative score
+  // Soumission finale
   const handleSubmit = async () => {
+    console.log('[handleSubmit] Début de la soumission...');
     if (!surveyId) {
-      console.error('[handleSubmit] Missing Survey ID');
+      console.error('[handleSubmit] Impossible de soumettre: surveyId manquant');
       return;
     }
 
-    if (currentStep === questions.length - 1 && showContactButton && !contactFormSkipped && !contactDetailsSubmitted) {
+    if (
+      currentStep === questions.length - 1 &&
+      showContactButton &&
+      !contactFormSkipped &&
+      !contactDetailsSubmitted
+    ) {
+      console.log('[handleSubmit] Le formulaire de contact est requis, et pas encore géré.');
       return;
     }
 
     try {
-      // Calculate negative score before submission
+      // Calcul du score négatif
       const negativeScore = calculateNegativeScore(responses, questions);
-      console.log('[handleSubmit] Calculated negative score:', negativeScore);
+      console.log('[handleSubmit] negativeScore calculé:', negativeScore);
 
+      // Envoi au backend
+      console.log('[handleSubmit] Appel de submitResponses...');
       const success = await submitResponses(surveyId, responses, negativeScore);
-      
+
+      console.log('[handleSubmit] submitResponses success=', success);
       if (success) {
+        // Analyse NLP sur la question 10, si elle existe
         if (responses[10]?.answer) {
+          console.log('[handleSubmit] Analyse NLP de la question 10...');
           try {
             const analysis = await analyzeFeedback(responses[10].answer);
-            const analysisResponse = await fetch(`${process.env.REACT_APP_API_URL}/api/feedback/analyze`, {
+            console.log('[handleSubmit] NLP analysis result:', analysis);
+
+            console.log('[handleSubmit] Envoi de l analyse sur /api/feedback/analyze...');
+            const analysisResponse = await fetch(`https://tetris-forms.azurewebsites.net/api/feedback/analyze`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json'
@@ -206,26 +227,28 @@ export const useSurvey = () => {
                 analysis: analysis
               })
             });
-
             if (!analysisResponse.ok) {
-              console.error('[handleSubmit] Failed to store analysis:', await analysisResponse.text());
+              const errMsg = await analysisResponse.text();
+              console.error('[handleSubmit] Failed to store analysis:', errMsg);
+            } else {
+              console.log('[handleSubmit] Analyse NLP stockée avec succès.');
             }
           } catch (error) {
-            console.error('[handleSubmit] Feedback analysis error:', error);
+            console.error('[handleSubmit] Erreur dans analyzeFeedback:', error);
           }
         }
-        
         setShowThankYou(true);
+        console.log('[handleSubmit] -> On affiche le Thank You');
       } else {
-        console.error('[handleSubmit] Failed to save responses');
+        console.error('[handleSubmit] Erreur de soumission (returned false).');
       }
     } catch (error) {
-      console.error('[handleSubmit] Error:', error);
+      console.error('[handleSubmit] Exception:', error);
     }
   };
 
-  // Rest of the existing functions remain the same
   const handleNextStep = () => {
+    console.log('[handleNextStep] Passage au step suivant...');
     setIsAnimating(true);
     setTimeout(() => {
       setCurrentStep(prev => prev + 1);
@@ -234,6 +257,7 @@ export const useSurvey = () => {
   };
 
   const handlePrevStep = () => {
+    console.log('[handlePrevStep] Retour au step précédent...');
     setIsAnimating(true);
     setTimeout(() => {
       setCurrentStep(prev => Math.max(0, prev - 1));
@@ -241,9 +265,11 @@ export const useSurvey = () => {
     }, SURVEY_CONFIG.ANIMATION_DURATION);
   };
 
+  // Soumission du formulaire de contact
   const handleContactSubmit = async (contactData) => {
+    console.log('[handleContactSubmit] contactData=', contactData);
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/low-satisfaction`, {
+      const response = await fetch(`https://tetris-forms.azurewebsites.net/api/low-satisfaction`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -253,23 +279,23 @@ export const useSurvey = () => {
           ...contactData
         })
       });
-
       if (!response.ok) {
-        throw new Error('Failed to submit contact details');
+        throw new Error('[handleContactSubmit] Echec POST /api/low-satisfaction');
       }
+      console.log('[handleContactSubmit] Contact enregistré. On re-soumet le questionnaire...');
 
-      // Include negative score in final submission
-      const negativeScore = calculateNegativeScore(responses, questions);
-      const success = await submitResponses(surveyId, responses, negativeScore);
-      
+      // On peut recalculer le score négatif si besoin, ou juste laisser la fct faire son boulot
+      const success = await submitResponses(surveyId, responses);
+      console.log('[handleContactSubmit] Contact + responses success?', success);
+
       if (success) {
         setContactDetailsSubmitted(true);
         setShowThankYou(true);
       } else {
-        console.error('[handleContactSubmit] Failed to submit survey responses');
+        console.error('[handleContactSubmit] Echec de la soumission des réponses.');
       }
     } catch (error) {
-      console.error('[handleContactSubmit] Error:', error);
+      console.error('[handleContactSubmit] Erreur de soumission contact:', error);
     }
   };
 
