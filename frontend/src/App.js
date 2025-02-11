@@ -38,6 +38,7 @@ function App() {
     setIsAnimating,  // Add this from useSurvey
     lastResponse,
     questionsLoading,
+    contactVisibility,
     questions,
     handleResponse: surveyHandleResponse,
     handleOptionalAnswer,
@@ -104,12 +105,12 @@ function App() {
   } = useFormValidation();
 
   useEffect(() => {
-    if (currentStep === questions.length - 1 && !contactFormSkipped) {
+    if (currentStep === questions.length - 1 && !contactFormSkipped && contactVisibility) {
       setShowContactForm(true);
     } else {
       setShowContactForm(false);
     }
-  }, [currentStep, questions.length, contactFormSkipped, setShowContactForm]);
+  }, [currentStep, questions.length, contactFormSkipped,contactVisibility, setShowContactForm]);
 
   useEffect(() => {
     setOptionClicked(false);

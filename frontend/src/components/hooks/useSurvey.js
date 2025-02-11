@@ -16,6 +16,8 @@ export const useSurvey = () => {
   const [lastResponse, setLastResponse] = useState(null);
   const [contactFormSkipped, setContactFormSkipped] = useState(false);
   const [contactDetailsSubmitted, setContactDetailsSubmitted] = useState(false);
+  const [contactVisibility, setContactVisibility] = useState(false);
+
 
   const { questions, loading: questionsLoading } = useQuestions();
 
@@ -177,6 +179,7 @@ export const useSurvey = () => {
     const contactVisibility = shouldShowContact();
     console.log(`[handleResponse] Le formulaire de contact doit être affiché=${contactVisibility}`);
     setShowContactButton(contactVisibility);
+    setContactVisibility(contactVisibility);
   };
 
   const handleOptionalAnswer = (questionId, value) => {
@@ -198,26 +201,21 @@ export const useSurvey = () => {
       console.error('[handleSubmit] Impossible de soumettre: surveyId manquant');
       return;
     }
-
-    if (
-      currentStep === questions.length - 1 &&
-      showContactButton &&
-      !contactFormSkipped &&
-      !contactDetailsSubmitted
-    ) {
-      console.log('[handleSubmit] Le formulaire de contact est requis, et pas encore géré.');
-      return;
+  
+    // Modification de la condition ici
+    if (currentStep === questions.length - 1 && showContactButton && !contactFormSkipped) {
+      console.log('[handleSubmit] Le formulaire de contact n\'est pas rempli, mais la soumission est autorisée.');
     }
-
+  
     try {
       // Calcul du score négatif
       const negativeScore = calculateNegativeScore(responses, questions);
       console.log('[handleSubmit] negativeScore calculé:', negativeScore);
-
+  
       // Envoi au backend
       console.log('[handleSubmit] Appel de submitResponses...');
       const success = await submitResponses(surveyId, responses, negativeScore);
-
+  
       console.log('[handleSubmit] submitResponses success=', success);
       if (success) {
         // Analyse NLP sur la question 10, si elle existe
@@ -226,9 +224,9 @@ export const useSurvey = () => {
           try {
             const analysis = await analyzeFeedback(responses[10].answer);
             console.log('[handleSubmit] NLP analysis result:', analysis);
-
+  
             console.log('[handleSubmit] Envoi de l analyse sur /api/feedback/analyze...');
-            const analysisResponse = await fetch(`https://tetris-forms.azurewebsites.net/api/feedback/analyze`, {
+            const analysisResponse = await fetch('https://tetris-forms.azurewebsites.net/api/feedback/analyze', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json'
@@ -257,6 +255,7 @@ export const useSurvey = () => {
       console.error('[handleSubmit] Exception:', error);
     }
   };
+  
 
   const handleNextStep = () => {
     console.log('[handleNextStep] Passage au step suivant...');
@@ -321,6 +320,7 @@ export const useSurvey = () => {
     isAnimating,
     setIsAnimating,  // Add this
     lastResponse,
+    contactVisibility,
     questionsLoading,
     questions,
     handleResponse,
