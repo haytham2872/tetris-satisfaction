@@ -25,15 +25,17 @@ import VercelAnalytics from './components/VercelAnalytics';
 
 function App() {
   const [isNextClicked, setIsNextClicked] = useState(false);
-  const [currentStep, setCurrentStep] = useState(0);
   const [optionClicked, setOptionClicked] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
 
   const {
+    currentStep,
+    setCurrentStep,
     responses,
     showThankYou,
     showContactForm,
     isAnimating,
+    setIsAnimating,  // Add this from useSurvey
     lastResponse,
     questionsLoading,
     questions,
@@ -60,6 +62,7 @@ function App() {
     setShowComments,
     setShowEditForm,
     setShowContacts
+    // Remove setIsAnimating from here
   } = useDashboardState();
 
   const handleBackToDashboard = () => {
@@ -101,7 +104,7 @@ function App() {
   } = useFormValidation();
 
   useEffect(() => {
-    if (currentStep === questions.length - 1  && !contactFormSkipped) {
+    if (currentStep === questions.length - 1 && !contactFormSkipped) {
       setShowContactForm(true);
     } else {
       setShowContactForm(false);
@@ -123,6 +126,17 @@ function App() {
       setCurrentStep(prev => prev + 1);
       setIsNextClicked(false);
     }, SURVEY_CONFIG.ANIMATION_DURATION);
+  };
+
+  const handlePreviousStep = () => {
+    setIsNextClicked(false);
+    if (currentStep > 0) {
+      setIsAnimating(true);
+      setTimeout(() => {
+        setCurrentStep(prev => prev - 1);
+        setIsAnimating(false);
+      }, SURVEY_CONFIG.ANIMATION_DURATION);
+    }
   };
 
   if (showThankYou) {
@@ -185,7 +199,7 @@ function App() {
           />
         )}
 
-        
+
 
         <Header
           currentStep={currentStep}
@@ -223,7 +237,7 @@ function App() {
             <NavigationButtons
               currentStep={currentStep}
               totalSteps={questions.length}
-              onPrev={handlePrevStep}
+              onPrev={handlePreviousStep} // Use the new function here
               onNext={handleNextStep}
               onSubmit={handleSubmit}
             />

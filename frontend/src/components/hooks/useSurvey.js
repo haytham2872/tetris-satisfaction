@@ -1,10 +1,9 @@
 // hooks/useSurvey.js
 import { useState, useEffect } from 'react';
-import { startSurvey, submitResponses } from '../../API'; // <-- Assurez-vous que submitResponses accepte le score négatif
+import { startSurvey, submitResponses } from '../../API';
 import { analyzeFeedback } from '../../services/nlpService';
 import { SURVEY_CONFIG } from './../constants/config';
 import { useQuestions } from './useQuestions';
-
 
 export const useSurvey = () => {
   const [surveyId, setSurveyId] = useState(null);
@@ -120,21 +119,33 @@ export const useSurvey = () => {
 
   // Lance un nouveau survey
   useEffect(() => {
+    // Add flag to prevent double initialization
+    let isSubscribed = true;
+
     const initializeSurvey = async () => {
+      // Check if survey is already initialized
+      if (surveyId) return;
+
       try {
         console.log('[useEffect] startSurvey');
         const response = await startSurvey();
-        if (response && response.id) {
+        if (response && response.id && isSubscribed) {
           setSurveyId(response.id);
           console.log('[useEffect] Nouveau survey démarré. ID:', response.id);
-        } else {
+        } else if (isSubscribed) {
           console.error('[useEffect] Unable to start new survey: pas de response.id');
         }
       } catch (error) {
-        console.error('[useEffect] Error initializing survey:', error);
+        if (isSubscribed) {
+          console.error('[useEffect] Error initializing survey:', error);
+        }
       }
     };
+
     initializeSurvey();
+    return () => {
+      isSubscribed = false;
+    };
   }, []);
 
   // handleResponse : l'utilisateur répond à une question
@@ -302,11 +313,13 @@ export const useSurvey = () => {
   return {
     surveyId,
     currentStep,
+    setCurrentStep,
     responses,
     showThankYou,
     showContactForm,
     showContactButton,
     isAnimating,
+    setIsAnimating,  // Add this
     lastResponse,
     questionsLoading,
     questions,
