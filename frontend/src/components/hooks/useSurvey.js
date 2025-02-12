@@ -202,30 +202,43 @@ export const useSurvey = () => {
       return;
     }
   
-    // Modification de la condition ici
     if (currentStep === questions.length - 1 && showContactButton && !contactFormSkipped) {
       console.log('[handleSubmit] Le formulaire de contact n\'est pas rempli, mais la soumission est autorisée.');
     }
   
     try {
-      // Calcul du score négatif
       const negativeScore = calculateNegativeScore(responses, questions);
       console.log('[handleSubmit] negativeScore calculé:', negativeScore);
   
-      // Envoi au backend
-      console.log('[handleSubmit] Appel de submitResponses...');
       const success = await submitResponses(surveyId, responses, negativeScore);
   
       console.log('[handleSubmit] submitResponses success=', success);
       if (success) {
-        // Analyse NLP sur la question 10, si elle existe
-        if (responses[10]?.answer) {
-          console.log('[handleSubmit] Analyse NLP de la question 10...');
-          try {
-            const analysis = await analyzeFeedback(responses[10].answer);
-            console.log('[handleSubmit] NLP analysis result:', analysis);
+        // Find all text-type questions and their responses
+        const textResponses = questions
+          .filter(q => q.type === 'text')
+          .map(q => ({
+            questionId: q.id,
+            answer: responses[q.id]?.answer
+          }))
+          .filter(r => r.answer && r.answer.trim() !== '');
   
-            console.log('[handleSubmit] Envoi de l analyse sur /api/feedback/analyze...');
+        // Analyze each text response
+        if (textResponses.length > 0) {
+          console.log('[handleSubmit] Analyzing text responses:', textResponses);
+          
+          try {
+            const analyses = await Promise.all(
+              textResponses.map(async (response) => {
+                const analysis = await analyzeFeedback(response.answer);
+                return {
+                  questionId: response.questionId,
+                  analysis
+                };
+              })
+            );
+  
+            console.log('[handleSubmit] Sending analyses to backend...');
             const analysisResponse = await fetch('https://tetris-forms.azurewebsites.net/api/feedback/analyze', {
               method: 'POST',
               headers: {
@@ -233,19 +246,21 @@ export const useSurvey = () => {
               },
               body: JSON.stringify({
                 survey_id: surveyId,
-                analysis: analysis
+                analyses: analyses
               })
             });
+  
             if (!analysisResponse.ok) {
               const errMsg = await analysisResponse.text();
-              console.error('[handleSubmit] Failed to store analysis:', errMsg);
+              console.error('[handleSubmit] Failed to store analyses:', errMsg);
             } else {
-              console.log('[handleSubmit] Analyse NLP stockée avec succès.');
+              console.log('[handleSubmit] NLP analyses stored successfully.');
             }
           } catch (error) {
-            console.error('[handleSubmit] Erreur dans analyzeFeedback:', error);
+            console.error('[handleSubmit] Error in analyzeFeedback:', error);
           }
         }
+        
         setShowThankYou(true);
         console.log('[handleSubmit] -> On affiche le Thank You');
       } else {

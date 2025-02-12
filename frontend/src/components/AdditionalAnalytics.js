@@ -4,7 +4,7 @@ import {
     XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
     Cell,
 } from 'recharts';
-import { ArrowLeft, TrendingUp, Clock, MessageSquare, CreditCard, Info,User } from 'lucide-react';
+import { TrendingUp, Clock, MessageSquare, CreditCard, Info } from 'lucide-react';
 
 const COLORS = ['#0B3D91', '#1E90FF', '#4169E1', '#6495ED', '#87CEEB'];
 const RADIAN = Math.PI / 180;

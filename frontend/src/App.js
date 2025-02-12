@@ -43,7 +43,6 @@ function App() {
     handleResponse: surveyHandleResponse,
     handleOptionalAnswer,
     handleSubmit,
-    handlePrevStep,
     handleContactSubmit,
     setShowContactForm,
     contactFormSkipped,

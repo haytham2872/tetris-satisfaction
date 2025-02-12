@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { 
-    MessageSquare, 
-    ArrowLeft,
+    MessageSquare,
     ThumbsUp,
     AlertCircle,
     Filter,
-    Clock,
     Flag,
     ThumbsDown,
     Minus,
@@ -105,9 +103,18 @@ const TopicAnalysis = ({ topic, data }) => {
 };
 
 // Main FeedbackCard Component
-const FeedbackCard = ({ feedback }) => {
+const FeedbackCard = ({ feedback, questions }) => {
+    // Parse the nlp_analysis if it's a string
+    let analysis = feedback.analysis;
+    if (typeof analysis === 'string') {
+        try {
+            analysis = JSON.parse(analysis);
+        } catch (e) {
+            console.error('Error parsing analysis:', e);
+            analysis = null;
+        }
+    }
 
-    
     const { 
         overall = {},
         topics = {},
@@ -121,26 +128,36 @@ const FeedbackCard = ({ feedback }) => {
     const emotions = overall?.emotions?.emotions || {};
     const wordCount = metadata?.wordCount || 0;
 
+    // Display the actual question text if available
+    const questionHeader = feedback.questionText || `Question ${feedback.questionId}`;
+
+    // Determine sentiment display
+    const sentimentDisplay = sentimentScore >= 0 ? 'positif' : 'négatif';
+    const sentimentClass = sentimentScore >= 0 ? 
+        'bg-green-100 text-green-800' : 
+        'bg-red-100 text-red-800';
+    const SentimentIcon = sentimentScore >= 0 ? ThumbsUp : ThumbsDown;
+
     return (
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
             <div className="p-6">
-                {/* Header badges */}
+                {/* Question Header */}
+                <div className="mb-4 text-lg font-medium text-gray-700">
+                    {questionHeader}
+                </div>
+
+                {/* Badges */}
                 <div className="flex flex-wrap items-center gap-2 mb-6">
-                    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm ${
-                        sentimentScore > 0.1 ? 'bg-green-100 text-green-800' : 
-                        sentimentScore < -0.1 ? 'bg-red-100 text-red-800' : 
-                        'bg-gray-100 text-gray-800'
-                    }`}>
-                        {sentimentScore > 0 ? <ThumbsUp size={14} /> : 
-                         sentimentScore < 0 ? <ThumbsDown size={14} /> : 
-                         <Minus size={14} />}
-                        {displayPercentage}% {sentimentScore > 0 ? 'Positif' : 'Négatif'}
+                    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm ${sentimentClass}`}>
+                        <SentimentIcon size={14} />
+                        {displayPercentage}% {sentimentDisplay}
                     </span>
 
                     {dominantEmotion && (
                         <EmotionBadge 
                             emotion={dominantEmotion} 
                             score={emotions[dominantEmotion]?.score || 0}
+                            isNegated={emotions[dominantEmotion]?.isNegated}
                         />
                     )}
 
@@ -149,17 +166,11 @@ const FeedbackCard = ({ feedback }) => {
                     <div className="ml-auto flex items-center gap-2 text-sm text-gray-500">
                         <MessageSquare size={14} />
                         {wordCount} mots
-                        <Clock size={14} className="ml-2" />
-                        {new Date(feedback.timestamp).toLocaleDateString('fr-FR')}
                     </div>
                 </div>
 
-                {/* Commentaire */}
+                {/* Comment Content */}
                 <div className="mb-6">
-                    <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center gap-2">
-                        <MessageSquare className="w-5 h-5 text-tetris-blue" />
-                        Commentaire
-                    </h3>
                     <blockquote className="text-gray-700 bg-gray-50 p-4 rounded-lg border-l-4 border-tetris-blue">
                         {feedback.originalText}
                     </blockquote>
@@ -206,24 +217,37 @@ const FeedbackCard = ({ feedback }) => {
 
 const FeedbackAnalysisPage = ({ onBack }) => {
     const [feedbackData, setFeedbackData] = useState([]);
+    const [questions, setQuestions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all');
 
     useEffect(() => {
-        const fetchFeedback = async () => {
+        const fetchData = async () => {
             try {
-                const response = await fetch('https://tetris-forms.azurewebsites.net/api/feedback/analysis');
-                if (!response.ok) throw new Error('Failed to fetch feedback');
-                const data = await response.json();
-                setFeedbackData(data);
+                // Fetch both feedback and questions
+                const [feedbackResponse, questionsResponse] = await Promise.all([
+                    fetch('https://tetris-forms.azurewebsites.net/api/feedback/analysis'),
+                    fetch('https://tetris-forms.azurewebsites.net/api/questions')
+                ]);
+
+                if (!feedbackResponse.ok || !questionsResponse.ok) 
+                    throw new Error('Failed to fetch data');
+
+                const [feedbackData, questionsData] = await Promise.all([
+                    feedbackResponse.json(),
+                    questionsResponse.json()
+                ]);
+
+                setFeedbackData(feedbackData);
+                setQuestions(questionsData);
                 setLoading(false);
             } catch (error) {
-                console.error('Error fetching feedback:', error);
+                console.error('Error fetching data:', error);
                 setLoading(false);
             }
         };
 
-        fetchFeedback();
+        fetchData();
     }, []);
 
     const filteredFeedback = feedbackData.filter(feedback => {
@@ -279,12 +303,13 @@ const FeedbackAnalysisPage = ({ onBack }) => {
 
                 {/* Feedback Cards */}
                 <div className="space-y-6">
-                    {filteredFeedback.map((feedback) => (
-                        <FeedbackCard 
-                            key={feedback.id} 
-                            feedback={feedback} 
-                        />
-                    ))}
+                {filteredFeedback.map((feedback) => (
+                    <FeedbackCard 
+                        key={`${feedback.id}-${feedback.questionId}`}
+                        feedback={feedback}
+                        questions={questions}
+                    />
+                ))}
 
                     {filteredFeedback.length === 0 && (
                         <div className="text-center py-12 bg-white rounded-xl shadow-lg">

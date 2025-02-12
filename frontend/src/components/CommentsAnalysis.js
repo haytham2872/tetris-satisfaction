@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, MessageSquare, Filter, Search, Star } from 'lucide-react';
+import { MessageSquare, Filter, Search, Star } from 'lucide-react';
 
 const CommentsAnalysis = ({ onBack }) => {
   const [comments, setComments] = useState([]);

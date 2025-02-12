@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Save, AlertCircle, Plus, Trash2, HelpCircle } from 'lucide-react';
+import { Save, AlertCircle, Plus, Trash2, HelpCircle } from 'lucide-react';
 
 const CustomAlert = ({ children, variant = 'default', className = '' }) => {
   const baseStyles = "p-4 rounded-lg mb-4 flex items-center gap-2";

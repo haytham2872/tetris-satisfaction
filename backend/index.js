@@ -149,27 +149,44 @@ app.get('/api/analytics/additional', async (req, res) => {
 app.get('/api/feedback/analysis', async (req, res) => {
     try {
         const result = await pool.request().query`
-            SELECT id, survey_id, answer, nlp_analysis, responded_at
-            FROM responses
-            WHERE question_id = 10
-            AND nlp_analysis IS NOT NULL
-            ORDER BY responded_at DESC
+            SELECT 
+                r.id,
+                r.survey_id,
+                r.question_id,
+                r.answer,
+                r.nlp_analysis,
+                r.responded_at,
+                q.question_text,
+                q.question_type
+            FROM responses r
+            INNER JOIN questions q ON r.question_id = q.id
+            WHERE r.answer IS NOT NULL 
+                AND r.answer != ''
+                AND r.nlp_analysis IS NOT NULL
+            ORDER BY r.responded_at DESC
         `;
 
-        const uniqueResponses = result.recordset.reduce((acc, current) => {
-            if (!acc.some(item => item.survey_id === current.survey_id)) {
-                acc.push(current);
+        const formattedResult = result.recordset.map(row => {
+            let analysis;
+            try {
+                analysis = typeof row.nlp_analysis === 'string' ? 
+                    JSON.parse(row.nlp_analysis) : row.nlp_analysis;
+            } catch (e) {
+                console.error('Error parsing NLP analysis:', e);
+                analysis = null;
             }
-            return acc;
-        }, []);
 
-        const formattedResult = uniqueResponses.map(row => ({
-            id: row.id,
-            survey_id: row.survey_id,
-            originalText: row.answer || '',
-            analysis: row.nlp_analysis,
-            timestamp: row.responded_at
-        }));
+            return {
+                id: row.id,
+                survey_id: row.survey_id,
+                questionId: row.question_id,
+                questionText: row.question_text,
+                questionType: row.question_type,
+                originalText: row.answer || '',
+                analysis: analysis,
+                timestamp: row.responded_at
+            };
+        });
 
         res.json(formattedResult);
     } catch (err) {
@@ -178,28 +195,41 @@ app.get('/api/feedback/analysis', async (req, res) => {
     }
 });
 
-// Update feedback analysis
+// Update feedback analysis - Modified to handle multiple analyses
 app.post('/api/feedback/analyze', async (req, res) => {
     try {
-        const { survey_id, analysis } = req.body;
+        const { survey_id, analyses } = req.body;
 
-        if (!survey_id || !analysis) {
+        if (!survey_id || !analyses) {
             return res.status(400).json({ error: 'Missing required data' });
         }
 
-        const result = await pool.request()
-            .input('surveyId', sql.Int, survey_id)
-            .input('analysis', sql.NVarChar, JSON.stringify(analysis))
-            .query`
-                UPDATE responses
-                SET nlp_analysis = @analysis
-                WHERE survey_id = @surveyId
-                AND question_id = 10
-            `;
+        const transaction = new sql.Transaction(pool);
+        await transaction.begin();
 
-        res.status(200).json({ message: 'Analysis updated successfully' });
+        try {
+            // Update each analysis
+            for (const analysis of analyses) {
+                await transaction.request()
+                    .input('surveyId', sql.Int, survey_id)
+                    .input('questionId', sql.Int, analysis.questionId)
+                    .input('analysis', sql.NVarChar, JSON.stringify(analysis.analysis))
+                    .query`
+                        UPDATE responses
+                        SET nlp_analysis = @analysis
+                        WHERE survey_id = @surveyId
+                        AND question_id = @questionId
+                    `;
+            }
+
+            await transaction.commit();
+            res.status(200).json({ message: 'Analyses updated successfully' });
+        } catch (err) {
+            await transaction.rollback();
+            throw err;
+        }
     } catch (err) {
-        console.error('Error updating analysis:', err);
+        console.error('Error updating analyses:', err);
         res.status(500).json({ error: 'Server error', details: err.message });
     }
 });
@@ -208,10 +238,11 @@ app.post('/api/feedback/analyze', async (req, res) => {
 app.get('/api/feedback/sentiment-summary', async (req, res) => {
     try {
         const result = await pool.request().query`
-            SELECT nlp_analysis
-            FROM responses
-            WHERE question_id = 10
-            AND nlp_analysis IS NOT NULL
+            SELECT r.nlp_analysis
+            FROM responses r
+            INNER JOIN questions q ON r.question_id = q.id
+            WHERE q.question_type = 'text'
+            AND r.nlp_analysis IS NOT NULL
         `;
 
         const summary = {
@@ -226,7 +257,7 @@ app.get('/api/feedback/sentiment-summary', async (req, res) => {
         result.recordset.forEach(row => {
             const analysis = typeof row.nlp_analysis === 'string' ? 
                 JSON.parse(row.nlp_analysis) : row.nlp_analysis;
-            const score = analysis?.sentiment?.score || 0;
+            const score = analysis?.overall?.sentiment?.score || 0;
             totalSentiment += score;
 
             if (score > 0.2) summary.positive_count++;
@@ -431,60 +462,123 @@ app.delete('/api/questions/delete', async (req, res) => {
 
 // Submit responses route
 // Update the submit responses route to properly handle the negative score
+// In your backend index.js, update the /api/responses endpoint
+
 app.post('/api/responses', async (req, res) => {
     try {
         if (!pool) {
+            console.error('No database pool available');
             return res.status(503).json({ error: 'Database connection not available' });
         }
-        const { survey_id, responses, negativeScore } = req.body;
-        const transaction = new sql.Transaction(pool);
-        
-        await transaction.begin();
-        try {
-            // Update negative score
-            if (typeof negativeScore === 'number') {
-                await transaction.request()
-                    .input('surveyId', sql.Int, survey_id)
-                    .input('score', sql.Decimal(5,2), negativeScore)
-                    .query`
-                        UPDATE surveys 
-                        SET score_negatif = @score
-                        WHERE id = @surveyId
-                    `;
-                console.log(`Updated negative score for survey ${survey_id}: ${negativeScore}`);
-            }
 
-            // Insert responses
+        const { survey_id, responses } = req.body;
+        console.log('Received responses:', { survey_id, responses });
+
+        const transaction = new sql.Transaction(pool);
+        await transaction.begin();
+
+        try {
             for (const response of responses) {
+                console.log(`Processing response for question ${response.question_id}:`, response);
+
                 if (!response.answer && response.answer !== '') {
                     throw new Error(`Invalid answer for question ${response.question_id}`);
                 }
 
-                await transaction.request()
-                    .input('surveyId', sql.Int, survey_id)
-                    .input('questionId', sql.Int, response.question_id)
-                    .input('answer', sql.NVarChar, response.answer.toString())
-                    .input('optionalAnswer', sql.NVarChar, response.optional_answer || null)
-                    .query`
-                        INSERT INTO responses (survey_id, question_id, answer, optional_answer)
-                        VALUES (@surveyId, @questionId, @answer, @optionalAnswer)
-                    `;
+                let nlpAnalysis = null;
+                // Only analyze text responses
+                if (response.answer && 
+                    typeof response.answer === 'string' && 
+                    response.answer.trim() !== '') {
+                    try {
+                        console.log('Starting NLP analysis for:', response.answer);
+                        nlpAnalysis = await analyzeFeedback(response.answer);
+                        console.log('NLP Analysis completed:', nlpAnalysis);
+
+                        // Verify nlpAnalysis structure
+                        if (!nlpAnalysis || !nlpAnalysis.overall || !nlpAnalysis.overall.sentiment) {
+                            console.error('Invalid NLP analysis structure:', nlpAnalysis);
+                            nlpAnalysis = null;
+                        }
+                    } catch (error) {
+                        console.error('Error in NLP analysis:', error);
+                        nlpAnalysis = null;
+                    }
+                }
+
+                // Convert nlpAnalysis to string safely
+                let nlpAnalysisString = null;
+                if (nlpAnalysis) {
+                    try {
+                        nlpAnalysisString = JSON.stringify(nlpAnalysis);
+                        console.log('Stringified NLP analysis:', nlpAnalysisString);
+                    } catch (error) {
+                        console.error('Error stringifying NLP analysis:', error);
+                    }
+                }
+
+                // Log the exact values being inserted
+                console.log('Inserting into database:', {
+                    surveyId: survey_id,
+                    questionId: response.question_id,
+                    answer: response.answer,
+                    optionalAnswer: response.optional_answer,
+                    nlpAnalysis: nlpAnalysisString ? nlpAnalysisString.substring(0, 50) + '...' : null
+                });
+
+                // Perform the database insertion
+                try {
+                    await transaction.request()
+                        .input('surveyId', sql.Int, survey_id)
+                        .input('questionId', sql.Int, response.question_id)
+                        .input('answer', sql.NVarChar, response.answer.toString())
+                        .input('optionalAnswer', sql.NVarChar, response.optional_answer || null)
+                        .input('nlpAnalysis', sql.NVarChar(sql.MAX), nlpAnalysisString)
+                        .query`
+                            INSERT INTO responses (
+                                survey_id, 
+                                question_id, 
+                                answer, 
+                                optional_answer, 
+                                nlp_analysis
+                            )
+                            VALUES (
+                                @surveyId,
+                                @questionId,
+                                @answer,
+                                @optionalAnswer,
+                                @nlpAnalysis
+                            )
+                        `;
+                    
+                    console.log(`Successfully inserted response for question ${response.question_id}`);
+                } catch (dbError) {
+                    console.error('Database insertion error:', dbError);
+                    throw dbError;
+                }
             }
 
             await transaction.commit();
+            console.log('Transaction committed successfully');
             res.status(200).json({ 
                 message: 'Responses recorded successfully',
-                shouldShowContact: negativeScore >= 0.5 // You can adjust this threshold
+                debug: { processed: responses.length }
             });
         } catch (err) {
+            console.error('Transaction error:', err);
             await transaction.rollback();
             throw err;
         }
     } catch (err) {
-        console.error('Error submitting responses:', err);
-        res.status(500).json({ error: 'Server error', details: err.message });
+        console.error('Overall error in /api/responses:', err);
+        res.status(500).json({ 
+            error: 'Server error', 
+            details: err.message,
+            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        });
     }
 });
+
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error(err.stack);
