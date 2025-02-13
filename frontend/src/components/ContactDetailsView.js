@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {User, Phone, Mail, Clock, Download } from 'lucide-react';
+import {User, Phone, Mail, Clock, Download, MessageSquare } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 const ContactDetailsView = ({ onBack }) => {
@@ -28,6 +28,7 @@ const ContactDetailsView = ({ onBack }) => {
       'Nom': contact.name,
       'Téléphone': contact.phone,
       'Email': contact.email,
+      'Commentaire': contact.commentaire || '-',
       'Date': new Date(contact.created_at).toLocaleDateString('fr-FR', {
         day: '2-digit',
         month: '2-digit',
@@ -76,7 +77,7 @@ const ContactDetailsView = ({ onBack }) => {
               key={contact.id}
               className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 transition-all duration-300 hover:shadow-xl"
             >
-              <div className="grid md:grid-cols-4 gap-6">
+              <div className="grid md:grid-cols-4 gap-6 mb-4">
                 <div className="flex items-center gap-3">
                   <div className="bg-blue-50 p-3 rounded-lg">
                     <User className="w-6 h-6 text-tetris-blue" />
@@ -125,6 +126,22 @@ const ContactDetailsView = ({ onBack }) => {
                   </div>
                 </div>
               </div>
+
+              {contact.commentaire && (
+                <div className="mt-4 border-t pt-4">
+                  <div className="flex items-start gap-3">
+                    <div className="bg-blue-50 p-3 rounded-lg">
+                      <MessageSquare className="w-6 h-6 text-tetris-blue" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500 mb-1">Commentaire</p>
+                      <p className="text-gray-700 bg-gray-50 p-3 rounded-lg">
+                        {contact.commentaire}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
 

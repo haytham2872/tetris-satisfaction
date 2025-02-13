@@ -294,10 +294,10 @@ app.get('/api/comments', async (req, res) => {
     }
 });
 
-// Store low satisfaction contact details
+/// Store low satisfaction contact details
 app.post('/api/low-satisfaction', async (req, res) => {
     try {
-        const { id, name, phone, email } = req.body;
+        const { id, name, phone, email, commentaire } = req.body;
 
         if (!id || !name || !phone || !email) {
             return res.status(400).json({ error: 'Missing required fields' });
@@ -305,13 +305,14 @@ app.post('/api/low-satisfaction', async (req, res) => {
 
         await pool.request()
             .input('surveyId', sql.Int, id)
-            .input('name', sql.VarChar, name)
-            .input('phone', sql.VarChar, phone)
-            .input('email', sql.VarChar, email)
+            .input('name', sql.NVarChar, name)
+            .input('phone', sql.NVarChar, phone)
+            .input('email', sql.NVarChar, email)
+            .input('commentaire', sql.NVarChar(sql.MAX), commentaire || null)
             .query`
                 INSERT INTO low_satisfaction_responses 
-                (survey_id, name, phone, email)
-                VALUES (@surveyId, @name, @phone, @email)
+                (survey_id, name, phone, email, commentaire)
+                VALUES (@surveyId, @name, @phone, @email, @commentaire)
             `;
 
         res.status(201).json({ message: 'Response recorded successfully' });
@@ -321,14 +322,18 @@ app.post('/api/low-satisfaction', async (req, res) => {
     }
 });
 
-
-
-
 // Get low satisfaction responses
 app.get('/api/low-satisfaction', async (req, res) => {
     try {
         const result = await pool.request().query`
-            SELECT *
+            SELECT 
+                id,
+                survey_id,
+                name,
+                phone,
+                email,
+                commentaire,
+                created_at
             FROM low_satisfaction_responses
             ORDER BY created_at DESC
         `;
@@ -338,7 +343,12 @@ app.get('/api/low-satisfaction', async (req, res) => {
         }
 
         const formattedResults = result.recordset.map(result => ({
-            ...result,
+            id: result.id,
+            survey_id: result.survey_id,
+            name: result.name,
+            phone: result.phone,
+            email: result.email,
+            commentaire: result.commentaire || null,
             created_at: new Date(result.created_at).toISOString()
         }));
 

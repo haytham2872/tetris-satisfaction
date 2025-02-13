@@ -294,35 +294,38 @@ export const useSurvey = () => {
   const handleContactSubmit = async (contactData) => {
     console.log('[handleContactSubmit] contactData=', contactData);
     try {
-      const response = await fetch(`https://tetris-forms.azurewebsites.net/api/low-satisfaction`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          id: surveyId,
-          ...contactData
-        })
-      });
-      if (!response.ok) {
-        throw new Error('[handleContactSubmit] Echec POST /api/low-satisfaction');
-      }
-      console.log('[handleContactSubmit] Contact enregistré. On re-soumet le questionnaire...');
+        const response = await fetch(`https://tetris-forms.azurewebsites.net/api/low-satisfaction`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                id: surveyId,
+                name: contactData.name,
+                phone: contactData.phone,
+                email: contactData.email,
+                commentaire: contactData.commentaire || null
+            })
+        });
 
-      // On peut recalculer le score négatif si besoin, ou juste laisser la fct faire son boulot
-      const success = await submitResponses(surveyId, responses);
-      console.log('[handleContactSubmit] Contact + responses success?', success);
+        if (!response.ok) {
+            throw new Error('[handleContactSubmit] Echec POST /api/low-satisfaction');
+        }
+        console.log('[handleContactSubmit] Contact enregistré. On re-soumet le questionnaire...');
 
-      if (success) {
-        setContactDetailsSubmitted(true);
-        setShowThankYou(true);
-      } else {
-        console.error('[handleContactSubmit] Echec de la soumission des réponses.');
-      }
+        const success = await submitResponses(surveyId, responses);
+        console.log('[handleContactSubmit] Contact + responses success?', success);
+
+        if (success) {
+            setContactDetailsSubmitted(true);
+            setShowThankYou(true);
+        } else {
+            console.error('[handleContactSubmit] Echec de la soumission des réponses.');
+        }
     } catch (error) {
-      console.error('[handleContactSubmit] Erreur de soumission contact:', error);
+        console.error('[handleContactSubmit] Erreur de soumission contact:', error);
     }
-  };
+};
 
   return {
     surveyId,
