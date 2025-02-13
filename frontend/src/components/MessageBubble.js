@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Trophy, Star, Clock, ThumbsUp, Gift, Coffee, Sun, Heart, AlertCircle } from 'lucide-react';
+import { Trophy, Star, Clock, ThumbsUp, Gift, Coffee, Sun, Heart, AlertCircle, CheckCircle, Sparkles } from 'lucide-react';
 import pilotImage from '../assets/pilot.png';
 
 const SpeechBubble = ({ message, icon: Icon }) => (
@@ -27,7 +27,6 @@ const ChatConversation = ({
 
   useEffect(() => {
     if (messages && messages.length > 0) {
-      // Show the most recent message
       const latestMessage = messages[messages.length - 1];
       setCurrentMessage(latestMessage);
     }
@@ -42,7 +41,6 @@ const ChatConversation = ({
             icon={currentMessage.icon}
           />
         )}
-
         <img
           src={pilotImage}
           alt="Pilot Mascot"
@@ -54,6 +52,7 @@ const ChatConversation = ({
 };
 
 const getFeedbackMessage = (questionId, answer) => {
+  console.log(`getFeedbackMessage called with questionId: ${questionId}, answer: ${answer}`);
   const positiveMessages = [
     { message: "Excellent ! Votre satisfaction nous motive à faire encore mieux ! 🌟", icon: Trophy },
     { message: "Ravi de voir que notre service vous plaît ! On continue ainsi 💫", icon: Star },
@@ -61,7 +60,6 @@ const getFeedbackMessage = (questionId, answer) => {
     { message: "Votre satisfaction est notre priorité ! Merci ! ✨", icon: ThumbsUp },
     { message: "On est ravis de vous offrir une bonne expérience ! 🎯", icon: Gift }
   ];
-
   const negativeMessages = [
     { message: "Merci de votre franchise. On va s'améliorer ! 🎯", icon: AlertCircle },
     { message: "On note vos remarques pour progresser. Merci ! 💪", icon: Clock },
@@ -69,29 +67,33 @@ const getFeedbackMessage = (questionId, answer) => {
     { message: "Votre avis nous aide à nous améliorer 📈", icon: Star },
     { message: "On va travailler pour mieux répondre à vos attentes 🎯", icon: AlertCircle }
   ];
-
-  // Get random index for message selection
   const randomIndex = Math.floor(Math.random() * positiveMessages.length);
 
-  if (typeof answer === 'number') {
-    if (questionId === 2) {
-      return answer >= 4 ? positiveMessages[randomIndex] : negativeMessages[randomIndex];
-    }
+  // Special cases
+  if (questionId === 8) {
+    return { message: "Plus que quelques questions ! Vous y êtes presque ! 🎉", icon: CheckCircle };
+  }
+  if (questionId === 9 || questionId === 10) {
+    return { message: "Merci infiniment pour votre temps et vos précieux retours ! ✨", icon: Sparkles };
   }
 
-  // For text responses
-  if (['Excellent', 'Toujours', 'Très clair', 'Oui, très simple', 'Très compétitive'].includes(answer)) {
-    return positiveMessages[randomIndex];
-  }
-  if (['Insuffisant', 'Rarement', 'Pas clair du tout', 'Très compliqué', 'Pas du tout compétitive'].includes(answer)) {
-    return negativeMessages[randomIndex];
+  // Handle all questions (1-7)
+  if ([1, 2, 3, 4, 5, 6, 7].includes(questionId)) {
+    // Check for positive answers
+    if (answer === 'Oui' || answer === 'Très satisfaisante' || answer === 'Satisfaisante') {
+      return positiveMessages[randomIndex];
+    }
+    // Check for negative answers
+    if (answer === 'Non' || answer === 'Insatisfaisante' || answer === 'Moyenne') {
+      return negativeMessages[randomIndex];
+    }
+    return null;
   }
 
   return null;
 };
 
 const getEngagementMessage = (step, totalSteps, responses, currentResponse) => {
-  // Only return initial welcome message
   if (step === 0) {
     const hour = new Date().getHours();
     if (hour < 15) {
@@ -102,8 +104,6 @@ const getEngagementMessage = (step, totalSteps, responses, currentResponse) => {
       return { message: "Bonsoir ! Un moment pour nous ? 🌟", icon: Star };
     }
   }
-
-  // Don't return any message for other steps unless explicitly handling feedback
   return null;
 };
 

@@ -1,11 +1,11 @@
 import React from 'react';
-import { 
-  Star, 
-  ThumbsUp, 
-  Clock, 
-  Shield, 
-  FileText, 
-  Settings, 
+import {
+  Star,
+  ThumbsUp,
+  Clock,
+  Shield,
+  FileText,
+  Settings,
   HelpCircle,
   Zap,
   DollarSign,
@@ -32,19 +32,20 @@ const QuestionDisplay = ({ question }) => {
 
   const highlightKeywords = (text) => {
     const keywords = [
-      'satisfaction', 'service', 'réponses', 'solutions', 'besoins',
-      'clarté', 'processus', 'délais', 'support technique', 'tarification'
+      'satisfaction', 'service', 'réponses', 'solutions', 'besoins', 'réactive', 'disponible',
+      'clarté', 'processus', 'délais', 'support technique', 'tarification', 'compétitifs', 'souscription', 'réactivité',
+      'formations', 'formation', 'extranet', 'améliorer', 'partenariat', 'échanges', 'services', 'produits'
     ];
-    
+
     let highlightedText = text;
     keywords.forEach(keyword => {
       const regex = new RegExp(`(${keyword})`, 'gi');
       highlightedText = highlightedText.replace(
-        regex, 
+        regex,
         '<span class="text-tetris-blue font-bold">$1</span>'
       );
     });
-    
+
     return <div dangerouslySetInnerHTML={{ __html: highlightedText }} />;
   };
 
