@@ -3,7 +3,6 @@ import {
     BarChart2,
     MessageSquare,
     Edit,
-    PieChart,
     MessageCircle,
     Users,
     ArrowLeft
@@ -57,21 +56,21 @@ const Page = ({
                 setShowContacts(false);
             }
         },
-        {
-            id: 'additional',
-            icon: PieChart,
-            title: "Analyses complémentaires",
-            description: "Accédez aux analyses complémentaires",
-            onClick: () => {
-                setActiveView('additional');
-                setShowAnalytics(true);
-                setAnalyticsView('additional');
-                setShowFeedbackAnalysis(false);
-                setShowEditForm(false);
-                setShowComments(false);
-                setShowContacts(false);
-            }
-        },
+        //{
+          //  id: 'additional',
+            //icon: PieChart,
+            //title: "Analyses complémentaires",
+            //description: "Accédez aux analyses complémentaires",
+            //onClick: () => {
+            //    setActiveView('additional');
+            //    setShowAnalytics(true);
+            //    setAnalyticsView('additional');
+            //    setShowFeedbackAnalysis(false);
+            //    setShowEditForm(false);
+            //    setShowComments(false);
+            //    setShowContacts(false);
+            //}
+        //},
         
         {
             id: 'edit',

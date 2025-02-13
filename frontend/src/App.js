@@ -15,27 +15,25 @@ import SurveyContainer from './components/survey/SurveyContainer';
 import NavigationButtons from './components/survey/NavigationButtons';
 import ThankYouScreen from './components/ThankYouScreen';
 import ContactDetails from './components/ContactDetails';
-import SatisfactionAnalytics from './components/SatisfactionAnalytics';
-import AdditionalAnalytics from './components/AdditionalAnalytics';
+import DynamicSurveyAnalytics from './components/DynamicSurveyAnalytics';
 import FeedbackAnalysisPage from './components/FeedbackAnalysisPage';
 import { ChatConversation } from './components/MessageBubble';
 import CommentsAnalysis from './components/CommentsAnalysis';
 import VercelAnalytics from './components/VercelAnalytics';
 
-
 function App() {
   const [isNextClicked, setIsNextClicked] = useState(false);
   const [optionClicked, setOptionClicked] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
+  const [showContactScreen, setShowContactScreen] = useState(false);
 
   const {
     currentStep,
     setCurrentStep,
     responses,
     showThankYou,
-    showContactForm,
     isAnimating,
-    setIsAnimating,  // Add this from useSurvey
+    setIsAnimating,
     lastResponse,
     questionsLoading,
     contactVisibility,
@@ -44,7 +42,6 @@ function App() {
     handleOptionalAnswer,
     handleSubmit,
     handleContactSubmit,
-    setShowContactForm,
     contactFormSkipped,
     setContactFormSkipped
   } = useSurvey();
@@ -62,7 +59,6 @@ function App() {
     setShowComments,
     setShowEditForm,
     setShowContacts
-    // Remove setIsAnimating from here
   } = useDashboardState();
 
   const handleBackToDashboard = () => {
@@ -95,22 +91,6 @@ function App() {
     optionClicked
   );
 
-  const {
-    errors,
-    validateContactForm,
-    validateSurveyResponse,
-    clearErrors,
-    getError
-  } = useFormValidation();
-
-  useEffect(() => {
-    if (currentStep === questions.length - 1 && !contactFormSkipped && contactVisibility) {
-      setShowContactForm(true);
-    } else {
-      setShowContactForm(false);
-    }
-  }, [currentStep, questions.length, contactFormSkipped,contactVisibility, setShowContactForm]);
-
   useEffect(() => {
     setOptionClicked(false);
   }, [currentStep]);
@@ -139,8 +119,51 @@ function App() {
     }
   };
 
+  // New handler for the submit button
+  const handleSurveySubmit = () => {
+    if (contactVisibility && !contactFormSkipped) {
+      setShowContactScreen(true);
+    } else {
+      handleSubmit();
+    }
+  };
+
+  // New handler for contact form submission
+  const handleContactDetailsSubmit = async (contactData) => {
+    await handleContactSubmit(contactData);
+    setShowContactScreen(false);
+  };
+
+  // New handler for contact form skip
+  const handleContactSkip = () => {
+    setContactFormSkipped(true);
+    setShowContactScreen(false);
+    handleSubmit();
+  };
+
+  const {
+    errors,
+    validateContactForm,
+    validateSurveyResponse,
+    clearErrors,
+    getError
+  } = useFormValidation();
+
   if (showThankYou) {
     return <ThankYouScreen />;
+  }
+
+  if (showContactScreen) {
+    return (
+      <ContactDetails
+        responses={responses}
+        onSubmit={handleContactDetailsSubmit}
+        onSkip={handleContactSkip}
+        validateForm={validateContactForm}
+        errors={errors}
+        clearErrors={clearErrors}
+      />
+    );
   }
 
   if (showDashboard) {
@@ -156,7 +179,7 @@ function App() {
         setShowDashboard={setShowDashboard}
       >
         {showAnalytics && analyticsView === 'main' && (
-          <SatisfactionAnalytics
+          <DynamicSurveyAnalytics
             onBack={handleBackToDashboard}
             onShowAdditional={handleViewAdditional}
             onShowComments={handleShowComments}
@@ -164,7 +187,7 @@ function App() {
             onShowEditForm={() => setShowEditForm(true)}
           />
         )}
-        {showFeedbackAnalysis && <FeedbackAnalysisPage />}
+        {showFeedbackAnalysis && <FeedbackAnalysisPage onBack={handleBackToDashboard} />}
         {showEditForm && <EditFormPage onBack={handleBackToDashboard} />}
         {showComments && (
           <CommentsAnalysis
@@ -177,7 +200,7 @@ function App() {
         )}
         {showContacts && <ContactDetailsView onBack={handleBackToDashboard} />}
         {analyticsView === 'additional' && (
-          <AdditionalAnalytics
+          <DynamicSurveyAnalytics
             onBack={() => setAnalyticsView('main')}
             onShowFeedback={() => setShowFeedbackAnalysis(true)}
             onShowContacts={() => setShowContacts(true)}
@@ -199,8 +222,6 @@ function App() {
           />
         )}
 
-
-
         <Header
           currentStep={currentStep}
           totalSteps={questions.length}
@@ -219,27 +240,12 @@ function App() {
               questions={questions}
             />
 
-            {currentStep === questions.length - 1 && showContactForm && (
-              <ContactDetails
-                responses={responses}
-                onSubmit={handleContactSubmit}
-                onSkip={() => {
-                  setShowContactForm(false);
-                  setContactFormSkipped(true);
-                  handleSubmit();
-                }}
-                validateForm={validateContactForm}
-                errors={errors}
-                clearErrors={clearErrors}
-              />
-            )}
-
             <NavigationButtons
               currentStep={currentStep}
               totalSteps={questions.length}
-              onPrev={handlePreviousStep} // Use the new function here
+              onPrev={handlePreviousStep}
               onNext={handleNextStep}
-              onSubmit={handleSubmit}
+              onSubmit={handleSurveySubmit}
             />
           </div>
         </main>
