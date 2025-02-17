@@ -56,21 +56,6 @@ const Page = ({
                 setShowContacts(false);
             }
         },
-        //{
-          //  id: 'additional',
-            //icon: PieChart,
-            //title: "Analyses complémentaires",
-            //description: "Accédez aux analyses complémentaires",
-            //onClick: () => {
-            //    setActiveView('additional');
-            //    setShowAnalytics(true);
-            //    setAnalyticsView('additional');
-            //    setShowFeedbackAnalysis(false);
-            //    setShowEditForm(false);
-            //    setShowComments(false);
-            //    setShowContacts(false);
-            //}
-        //},
         
         {
             id: 'edit',
@@ -170,16 +155,6 @@ const Page = ({
         <div className="min-h-screen bg-gray-50 px-6 py-8">
             <div className="max-w-7xl mx-auto">
                 <div className="mb-12">
-                    <div className="mb-8">
-                        <button
-                            onClick={() => setShowDashboard(false)}
-                            className="flex items-center gap-2 px-6 py-3 text-gray-700 hover:text-gray-900 
-                            hover:bg-gray-100 rounded-xl transition-colors text-lg"
-                        >
-                            <ArrowLeft className="w-6 h-6" />
-                            <span>Retour au questionnaire</span>
-                        </button>
-                    </div>
                     <h1 className="text-5xl font-bold text-tetris-blue text-center mb-16">
                         Tableau de bord
                     </h1>
