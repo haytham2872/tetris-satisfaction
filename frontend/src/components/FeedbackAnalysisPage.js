@@ -274,16 +274,33 @@ const FeedbackAnalysisPage = ({ formId, onBack }) => {
     }, [formId]);
 
     const filteredFeedback = feedbackData.filter(feedback => {
-        // D'abord filtrer par formId si nécessaire
-        if (formId && feedback.form_id !== formId) return false;
+        // Vérifier que feedback n'est pas null ou undefined
+        if (!feedback) return false;
+    
+        // Filtrer par formId
+        if (formId && parseInt(feedback.form_id) !== parseInt(formId)) return false;
         
-        // Ensuite appliquer les autres filtres
+        // Appliquer les autres filtres
         if (filter === 'all') return true;
-        const score = feedback.analysis?.overall?.sentiment?.score || 0;
-        if (filter === 'positive') return score > 0.1;
-        if (filter === 'negative') return score < -0.1;
-        if (filter === 'urgent') return feedback.analysis?.overall?.urgency?.level === 'HIGH';
-        return Math.abs(score) <= 0.1;
+    
+        // S'assurer que l'analyse existe
+        const analysis = feedback.analysis;
+        if (!analysis || !analysis.overall || !analysis.overall.sentiment) return false;
+    
+        const score = analysis.overall.sentiment.score || 0;
+        
+        switch (filter) {
+            case 'positive':
+                return score > 0.1;
+            case 'negative':
+                return score < -0.1;
+            case 'urgent':
+                return analysis.overall.urgency?.level === 'HIGH';
+            case 'neutral':
+                return Math.abs(score) <= 0.1;
+            default:
+                return true;
+        }
     });
 
 

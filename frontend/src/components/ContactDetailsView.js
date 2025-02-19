@@ -2,29 +2,58 @@ import React, { useState, useEffect } from 'react';
 import {User, Phone, Mail, Clock, Download, MessageSquare } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
-const ContactDetailsView = ({ onBack }) => {
+const ContactDetailsView = ({ formId, onBack }) => {
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [formInfo, setFormInfo] = useState(null);
 
   useEffect(() => {
-    const fetchContacts = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch('https://tetris-forms.azurewebsites.net/api/low-satisfaction');
-        if (!response.ok) throw new Error('Failed to fetch contacts');
-        const data = await response.json();
-        setContacts(data);
-        setLoading(false);
+        setLoading(true);
+        
+        // Construire l'URL avec le formId si présent
+        const contactsUrl = formId 
+          ? `https://tetris-forms.azurewebsites.net/api/low-satisfaction?form_id=${formId}`
+          : 'https://tetris-forms.azurewebsites.net/api/low-satisfaction';
+
+        const promises = [fetch(contactsUrl)];
+
+        // Récupérer les informations du formulaire si formId est présent
+        if (formId) {
+          promises.push(
+            fetch(`https://tetris-forms.azurewebsites.net/api/forms/${formId}`)
+          );
+        }
+
+        const responses = await Promise.all(promises);
+        
+        if (!responses.every(response => response.ok)) {
+          throw new Error('Failed to fetch data');
+        }
+
+        const [contactsData, formData] = await Promise.all(
+          responses.map(response => response.json())
+        );
+
+        setContacts(contactsData);
+        if (formData) {
+          setFormInfo(formData);
+        }
       } catch (error) {
         console.error('Error:', error);
+      } finally {
         setLoading(false);
       }
     };
 
-    fetchContacts();
-  }, []);
+    fetchData();
+  }, [formId]);
 
   const downloadExcel = () => {
     const worksheet = XLSX.utils.json_to_sheet(contacts.map(contact => ({
+      'ID Formulaire': contact.form_id,
+      'Formulaire': formInfo?.name || `-`,
       'Nom': contact.name,
       'Téléphone': contact.phone,
       'Email': contact.email,
@@ -40,7 +69,7 @@ const ContactDetailsView = ({ onBack }) => {
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Contacts");
-    XLSX.writeFile(workbook, "contacts.xlsx");
+    XLSX.writeFile(workbook, `contacts${formId ? `_${formInfo?.name || formId}` : ''}.xlsx`);
   };
 
   if (loading) {
@@ -56,19 +85,38 @@ const ContactDetailsView = ({ onBack }) => {
       <div className="max-w-7xl mx-auto">
         <div className="mb-8 flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mt-6">Contacts à Suivre</h1>
-            <p className="mt-2 text-gray-600">Liste des utilisateurs nécessitant une attention particulière</p>
+            <h1 className="text-3xl font-bold text-gray-900 mt-6">
+              Contacts à Suivre
+              {formInfo && (
+                <span className="ml-2 text-lg font-normal text-gray-600">
+                  | {formInfo.name}
+                </span>
+              )}
+            </h1>
+            <p className="mt-2 text-gray-600">
+              {contacts.length} contact{contacts.length !== 1 ? 's' : ''} à suivre
+              {formInfo && ' pour ce formulaire'}
+            </p>
           </div>
 
-          {contacts.length > 0 && (
+          <div className="flex gap-4">
             <button
-              onClick={downloadExcel}
-              className="flex items-center gap-2 px-4 py-2 bg-tetris-blue text-white rounded-lg hover:bg-tetris-light transition-colors"
+              onClick={onBack}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
             >
-              <Download size={20} />
-              Télécharger Excel
+              Retour
             </button>
-          )}
+
+            {contacts.length > 0 && (
+              <button
+                onClick={downloadExcel}
+                className="flex items-center gap-2 px-4 py-2 bg-tetris-blue text-white rounded-lg hover:bg-tetris-light transition-colors"
+              >
+                <Download size={20} />
+                Télécharger Excel
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="grid gap-6">
@@ -152,7 +200,9 @@ const ContactDetailsView = ({ onBack }) => {
                 Aucun contact à suivre
               </h3>
               <p className="text-gray-500 mt-2">
-                Les contacts apparaîtront ici lorsque des utilisateurs nécessiteront une attention particulière.
+                {formInfo 
+                  ? "Aucun contact à suivre pour ce formulaire."
+                  : "Les contacts apparaîtront ici lorsque des utilisateurs nécessiteront une attention particulière."}
               </p>
             </div>
           )}

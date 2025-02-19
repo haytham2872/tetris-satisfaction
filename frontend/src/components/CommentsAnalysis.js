@@ -60,7 +60,7 @@ const UrgencyBadge = ({ level }) => {
   );
 };
 
-const CommentsAnalysis = ({ onBack }) => {
+const CommentsAnalysis = ({formId, onBack }) => {
   const [comments, setComments] = useState([]);
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -76,15 +76,19 @@ const CommentsAnalysis = ({ onBack }) => {
       setError(null);
 
       try {
-        // Fetch questions first to ensure we have them before processing comments
-        const questionsResponse = await fetch('https://tetris-forms.azurewebsites.net/api/questions');
+        // Fetch questions for specific form
+        const questionsUrl = formId 
+          ? `https://tetris-forms.azurewebsites.net/api/forms/${formId}/questions`
+          : 'https://tetris-forms.azurewebsites.net/api/questions';
+        
+        const questionsResponse = await fetch(questionsUrl);
 
         if (!questionsResponse.ok) {
           throw new Error(`Failed to fetch questions: ${questionsResponse.status}`);
         }
 
         const questionsData = await questionsResponse.json();
-
+        
         // Normalize questions data structure
         const normalizedQuestions = questionsData.map(q => ({
           id: q.id || q.question_id,
@@ -93,8 +97,12 @@ const CommentsAnalysis = ({ onBack }) => {
 
         setQuestions(normalizedQuestions);
 
-        // Now fetch and process comments
-        const commentsResponse = await fetch('https://tetris-forms.azurewebsites.net/api/comments');
+        // Fetch comments with form_id parameter
+        const commentsUrl = formId 
+          ? `https://tetris-forms.azurewebsites.net/api/comments?form_id=${formId}`
+          : 'https://tetris-forms.azurewebsites.net/api/comments';
+        
+        const commentsResponse = await fetch(commentsUrl);
 
         if (!commentsResponse.ok) {
           throw new Error(`Failed to fetch comments: ${commentsResponse.status}`);
@@ -106,18 +114,21 @@ const CommentsAnalysis = ({ onBack }) => {
         const questionsMap = new Map(normalizedQuestions.map(q => [String(q.id), q.text]));
 
         // Process comments with question text lookup
-        const processedComments = commentsData.map(item => {
-          const questionId = item.question_id || item.questionId;
-          const questionText = questionsMap.get(String(questionId));
+        const processedComments = commentsData
+          .filter(item => !formId || item.form_id === parseInt(formId)) // Filtrer par formId
+          .map(item => {
+            const questionId = item.question_id || item.questionId;
+            const questionText = questionsMap.get(String(questionId));
 
-          return {
-            questionId: parseInt(questionId, 10),
-            comment: item.optional_answer || item.comment,
-            surveyId: item.survey_id,
-            mainAnswer: item.answer,
-            questionText: questionText || `Question ${questionId}`
-          };
-        });
+            return {
+              questionId: parseInt(questionId, 10),
+              comment: item.optional_answer || item.comment,
+              surveyId: item.survey_id,
+              mainAnswer: item.answer,
+              formId: item.form_id, // Ajouter formId aux données
+              questionText: questionText || `Question ${questionId}`
+            };
+          });
 
         setComments(processedComments);
 
@@ -150,14 +161,15 @@ const CommentsAnalysis = ({ onBack }) => {
     };
 
     fetchData();
-  }, []);
+  }, [formId]); 
 
   const filteredComments = comments.filter(comment => {
+    const matchesFormId = !formId || comment.formId === parseInt(formId);
     const matchesFilter = filter === 'all' || filter === comment.questionId.toString();
     const matchesSearch = searchTerm === '' ||
       (comment.comment && comment.comment.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (comment.questionText && comment.questionText.toLowerCase().includes(searchTerm.toLowerCase()));
-    return matchesFilter && matchesSearch;
+    return matchesFormId && matchesFilter && matchesSearch;
   });
 
   if (loading) {
