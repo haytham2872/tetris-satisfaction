@@ -227,12 +227,12 @@ const FeedbackAnalysisPage = ({ formId, onBack }) => {
             try {
                 // Construire les URLs avec le formId
                 const feedbackUrl = formId 
-                    ? `http://localhost:5000/api/feedback/analysis?form_id=${formId}`
-                    : 'http://localhost:5000/api/feedback/analysis';
+                    ? `https://tetris-forms.azurewebsites.net/api/feedback/analysis?form_id=${formId}`
+                    : 'https://tetris-forms.azurewebsites.net/api/feedback/analysis';
                 
                 const questionsUrl = formId
-                    ? `http://localhost:5000/api/forms/${formId}/questions`
-                    : 'http://localhost:5000/api/questions';
+                    ? `https://tetris-forms.azurewebsites.net/api/forms/${formId}/questions`
+                    : 'https://tetris-forms.azurewebsites.net/api/questions';
 
                 // Fetch feedback, questions, et informations du formulaire
                 const promises = [
@@ -243,7 +243,7 @@ const FeedbackAnalysisPage = ({ formId, onBack }) => {
                 // Ajouter la requête pour les informations du formulaire si formId est présent
                 if (formId) {
                     promises.push(
-                        fetch(`http://localhost:5000/api/forms/${formId}`)
+                        fetch(`https://tetris-forms.azurewebsites.net/api/forms/${formId}`)
                     );
                 }
 

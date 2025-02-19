@@ -10,12 +10,9 @@ import ContactDetailsView from './components/ContactDetailsView';
 import VercelAnalytics from './components/VercelAnalytics';
 
 function AdminApp() {
-  // État pour gérer le formulaire sélectionné
   const [selectedFormId, setSelectedFormId] = useState(null);
   const [availableForms, setAvailableForms] = useState([]);
   const [isLoadingForms, setIsLoadingForms] = useState(true);
-
-  // États pour la création de formulaire
   const [isCreatingForm, setIsCreatingForm] = useState(false);
   const [newFormName, setNewFormName] = useState('');
   const [newFormDescription, setNewFormDescription] = useState('');
@@ -35,7 +32,10 @@ function AdminApp() {
     setShowContacts
   } = useDashboardState();
 
-  // Charger la liste des formulaires disponibles
+  // Check if we're on the main dashboard
+  const isMainDashboard = !showAnalytics && !showFeedbackAnalysis && 
+    !showComments && !showEditForm && !showContacts && analyticsView === 'main';
+
   useEffect(() => {
     const fetchForms = async () => {
       try {
@@ -56,7 +56,6 @@ function AdminApp() {
     fetchForms();
   }, []);
 
-  // Créer un nouveau formulaire
   const createNewForm = async () => {
     try {
       const response = await fetch(`${process.env.REACT_APP_API_URL}/api/forms`, {
@@ -73,24 +72,17 @@ function AdminApp() {
       if (!response.ok) throw new Error('Erreur lors de la création du formulaire');
 
       const newForm = await response.json();
-      
-      // Mettre à jour la liste des formulaires
       setAvailableForms(prevForms => [...prevForms, { 
         id: newForm.id, 
         name: newFormName, 
         description: newFormDescription 
       }]);
-      
-      // Sélectionner le nouveau formulaire
       setSelectedFormId(newForm.id);
-      
-      // Réinitialiser le modal
       setIsCreatingForm(false);
       setNewFormName('');
       setNewFormDescription('');
     } catch (error) {
       console.error('Erreur:', error);
-      // Optionnel : Ajouter un toast ou un message d'erreur
       alert('Impossible de créer le formulaire. Veuillez réessayer.');
     }
   };
@@ -102,18 +94,6 @@ function AdminApp() {
     setShowComments(false);
     setShowContacts(false);
     setAnalyticsView('main');
-  };
-
-  const handleViewAdditional = () => {
-    setAnalyticsView('additional');
-  };
-
-  const handleShowFeedback = () => {
-    setShowFeedbackAnalysis(true);
-  };
-
-  const handleShowComments = () => {
-    setShowComments(true);
   };
 
   const handleFormChange = (formId) => {
@@ -135,28 +115,33 @@ function AdminApp() {
     <>
       <VercelAnalytics />
       <div className="min-h-screen bg-tetris-blue">
-        <div className="fixed top-4 right-4 z-50 flex items-center space-x-2">
-          <select
-            value={selectedFormId || ''}
-            onChange={(e) => handleFormChange(Number(e.target.value))}
-            className="bg-white/90 backdrop-blur-sm rounded-lg px-4 py-2 shadow-lg"
-          >
-            {availableForms.map(form => (
-              <option key={form.id} value={form.id}>
-                {form.name}
-              </option>
-            ))}
-          </select>
-          
-          <button 
-            onClick={() => setIsCreatingForm(true)}
-            className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
-          >
-            + Nouveau
-          </button>
-        </div>
+        {/* Only show form controls on main dashboard */}
+        {isMainDashboard && (
+          <div className="fixed top-4 right-4 z-50">
+            <div className="flex items-center space-x-2">
+              <select
+                value={selectedFormId || ''}
+                onChange={(e) => handleFormChange(Number(e.target.value))}
+                className="bg-white/90 backdrop-blur-sm rounded-lg px-4 py-2 shadow-lg"
+              >
+                {availableForms.map(form => (
+                  <option key={form.id} value={form.id}>
+                    {form.name}
+                  </option>
+                ))}
+              </select>
+              
+              <button 
+                onClick={() => setIsCreatingForm(true)}
+                className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
+              >
+                + Nouveau
+              </button>
+            </div>
+          </div>
+        )}
 
-        {/* Modal de création de formulaire - MAINTENANT AU NIVEAU RACINE */}
+        {/* Create form modal */}
         {isCreatingForm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]">
             <div className="bg-white rounded-lg shadow-xl w-[500px] p-6 animate-slideUp">
@@ -218,9 +203,9 @@ function AdminApp() {
             <DynamicSurveyAnalytics
               formId={selectedFormId}
               onBack={handleBackToDashboard}
-              onShowAdditional={handleViewAdditional}
-              onShowComments={handleShowComments}
-              onShowFeedback={handleShowFeedback}
+              onShowAdditional={() => setAnalyticsView('additional')}
+              onShowComments={() => setShowComments(true)}
+              onShowFeedback={() => setShowFeedbackAnalysis(true)}
               onShowEditForm={() => setShowEditForm(true)}
             />
           )}

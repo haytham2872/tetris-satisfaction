@@ -7,7 +7,7 @@ import { Star } from 'lucide-react';
 
 const COLORS = ['#0B3D91', '#1E90FF', '#4169E1', '#6495ED', '#87CEEB'];
 const RADIAN = Math.PI / 180;
-const API_URL = 'http://localhost:5000';
+const API_URL = 'https://tetris-forms.azurewebsites.net';
 
 const CustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, value }) => {
     if (value === 0) return null;

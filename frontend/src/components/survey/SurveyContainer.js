@@ -26,7 +26,7 @@ const OptionalCommentInput = ({ questionId, value, onChange }) => (
 );
 
 const renderQuestionInput = (question, responses, onResponse) => {
-    switch (question.type) {
+    switch (question.question_type) {
       case 'rating':
         return (
           <div className="flex justify-center gap-2 flex-wrap my-8">
@@ -125,7 +125,7 @@ const SurveyContainer = ({
             {renderQuestionInput(questions[currentStep], responses, onResponse)}
           </div>
 
-          {questions[currentStep].type !== 'text' && (
+          {questions[currentStep].question_type !== 'text' && (
             <OptionalCommentInput 
               questionId={questions[currentStep].id}
               value={responses[questions[currentStep].id]?.optionalAnswer || ''}

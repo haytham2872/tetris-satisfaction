@@ -133,7 +133,7 @@ const EditFormPage = ({ formId ,onBack }) => {
     const fetchFormInfo = async () => {
       if (!formId) return;
       try {
-        const response = await fetch(`http://localhost:5000/api/forms/${formId}`);
+        const response = await fetch(`https://tetris-forms.azurewebsites.net/api/forms/${formId}`);
         if (response.ok) {
           const data = await response.json();
           setFormInfo(data);
@@ -154,8 +154,8 @@ const EditFormPage = ({ formId ,onBack }) => {
     try {
       console.log('Fetching questions...');
       const url = formId 
-        ? `http://localhost:5000/api/forms/${formId}/questions`
-        : 'http://localhost:5000/api/questions';
+        ? `https://tetris-forms.azurewebsites.net/api/forms/${formId}/questions`
+        : 'https://tetris-forms.azurewebsites.net/api/questions';
       
       const response = await fetch(url);
       const data = await response.json();
@@ -275,7 +275,7 @@ const EditFormPage = ({ formId ,onBack }) => {
 
       const questionToDelete = questions[index];
       
-      const response = await fetch('http://localhost:5000/api/questions/delete', {
+      const response = await fetch('https://tetris-forms.azurewebsites.net/api/questions/delete', {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -301,7 +301,7 @@ const EditFormPage = ({ formId ,onBack }) => {
       setSuccessMessage('Question supprimée avec succès !');
       setTimeout(() => setSuccessMessage(''), 3000);
       
-      const updateResponse = await fetch('http://localhost:5000/api/questions/update', {
+      const updateResponse = await fetch('https://tetris-forms.azurewebsites.net/api/questions/update', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

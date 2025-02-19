@@ -54,7 +54,7 @@ const QuestionDisplay = ({ question }) => {
       <div className="flex items-center gap-4 mb-4">
         {getQuestionIcon(question.id)}
         <h2 className="text-2xl font-medium text-gray-900 leading-relaxed">
-          {highlightKeywords(question.text)}
+          {highlightKeywords(question.question_text)}
         </h2>
       </div>
     </div>
