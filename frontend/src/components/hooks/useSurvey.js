@@ -5,7 +5,7 @@ import { analyzeFeedback } from '../../services/nlpService';
 import { SURVEY_CONFIG } from './../constants/config';
 import { useQuestions } from './useQuestions';
 
-export const useSurvey = () => {
+export const useSurvey = (formId) => {
   const [surveyId, setSurveyId] = useState(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [responses, setResponses] = useState({});
@@ -19,7 +19,7 @@ export const useSurvey = () => {
   const [contactVisibility, setContactVisibility] = useState(false);
 
 
-  const { questions, loading: questionsLoading } = useQuestions();
+  const { questions, loading: questionsLoading } = useQuestions(formId);
 
   const getNegativeWeight = (question, response) => {
     if (question.type === 'rating' || question.type === 'stars') {
@@ -125,12 +125,11 @@ export const useSurvey = () => {
     let isSubscribed = true;
 
     const initializeSurvey = async () => {
-      // Check if survey is already initialized
-      if (surveyId) return;
-
+      if (surveyId || !formId) return;
+    
       try {
-        console.log('[useEffect] startSurvey');
-        const response = await startSurvey();
+        console.log('[useEffect] startSurvey with formId:', formId);
+        const response = await startSurvey(formId);
         if (response && response.id && isSubscribed) {
           setSurveyId(response.id);
           console.log('[useEffect] Nouveau survey démarré. ID:', response.id);
@@ -148,7 +147,7 @@ export const useSurvey = () => {
     return () => {
       isSubscribed = false;
     };
-  }, []);
+  }, [formId]); 
 
   // handleResponse : l'utilisateur répond à une question
   const handleResponse = (questionId, value) => {
@@ -210,7 +209,7 @@ export const useSurvey = () => {
       const negativeScore = calculateNegativeScore(responses, questions);
       console.log('[handleSubmit] negativeScore calculé:', negativeScore);
   
-      const success = await submitResponses(surveyId, responses, negativeScore);
+      const success = await submitResponses(surveyId, responses, negativeScore, formId);
   
       console.log('[handleSubmit] submitResponses success=', success);
       if (success) {
@@ -301,6 +300,7 @@ export const useSurvey = () => {
             },
             body: JSON.stringify({
                 id: surveyId,
+                form_id: formId,
                 name: contactData.name,
                 phone: contactData.phone,
                 email: contactData.email,

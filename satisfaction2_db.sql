@@ -104,3 +104,45 @@ WHERE id = 9;
 
 ALTER TABLE surveys
 ADD COLUMN score_negatif FLOAT DEFAULT NULL;
+
+
+CREATE TABLE forms (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    name NVARCHAR(255) NOT NULL,
+    description NVARCHAR(MAX) NULL,
+    created_at DATETIME DEFAULT GETDATE(),
+    updated_at DATETIME DEFAULT GETDATE(),
+    is_active BIT DEFAULT 1
+);
+
+-- Ajouter form_id à la table questions
+ALTER TABLE questions
+ADD form_id INT NULL;
+
+-- Ajouter form_id à la table responses
+ALTER TABLE responses
+ADD form_id INT NULL;
+
+ALTER TABLE surveys
+ADD form_id INT NULL;
+
+-- Ajouter form_id à la table low_satisfaction_responses
+ALTER TABLE low_satisfaction_responses
+ADD form_id INT NULL;
+
+-- Si vous voulez ajouter une contrainte de clé étrangère
+ALTER TABLE questions
+ADD CONSTRAINT FK_Questions_Forms 
+FOREIGN KEY (form_id) REFERENCES forms(id);
+
+ALTER TABLE responses
+ADD CONSTRAINT FK_Responses_Forms 
+FOREIGN KEY (form_id) REFERENCES forms(id);
+
+ALTER TABLE low_satisfaction_responses
+ADD CONSTRAINT FK_LowSatisfaction_Forms 
+FOREIGN KEY (form_id) REFERENCES forms(id);
+
+ALTER TABLE surveys
+ADD CONSTRAINT FK_surveys_Forms 
+FOREIGN KEY (form_id) REFERENCES forms(id);

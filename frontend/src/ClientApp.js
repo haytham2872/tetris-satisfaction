@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import './index.css';
 import { useSurvey } from './components/hooks/useSurvey';
 import { useChat } from './components/hooks/usechat';
@@ -15,9 +16,12 @@ import { ChatConversation } from './components/MessageBubble';
 import VercelAnalytics from './components/VercelAnalytics';
 
 function ClientApp() {
+  const { formId } = useParams(); // Récupération de l'ID du formulaire depuis l'URL
   const [isNextClicked, setIsNextClicked] = useState(false);
   const [optionClicked, setOptionClicked] = useState(false);
   const [showContactScreen, setShowContactScreen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [formError, setFormError] = useState(null);
 
   const {
     currentStep,
@@ -36,7 +40,7 @@ function ClientApp() {
     handleContactSubmit,
     contactFormSkipped,
     setContactFormSkipped
-  } = useSurvey();
+  } = useSurvey(formId); // Passage du formId au hook useSurvey
 
   const { messageHistory } = useChat(
     currentStep,
@@ -45,6 +49,34 @@ function ClientApp() {
     lastResponse,
     optionClicked
   );
+
+  const {
+    errors,
+    validateContactForm,
+    validateSurveyResponse,
+    clearErrors,
+    getError
+  } = useFormValidation();
+
+  // Vérification de l'existence du formulaire
+  useEffect(() => {
+    const validateForm = async () => {
+      try {
+        const response = await fetch(`${process.env.REACT_APP_API_URL}/api/forms/${formId}`);
+        if (!response.ok) {
+          throw new Error('Formulaire non trouvé');
+        }
+        setIsLoading(false);
+      } catch (error) {
+        setFormError(error.message);
+        setIsLoading(false);
+      }
+    };
+
+    if (formId) {
+      validateForm();
+    }
+  }, [formId]);
 
   useEffect(() => {
     setOptionClicked(false);
@@ -93,13 +125,26 @@ function ClientApp() {
     handleSubmit();
   };
 
-  const {
-    errors,
-    validateContactForm,
-    validateSurveyResponse,
-    clearErrors,
-    getError
-  } = useFormValidation();
+  // Affichage des états de chargement et d'erreur
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-tetris-blue flex items-center justify-center">
+        <div className="bg-white p-8 rounded-xl shadow-xl">
+          <p className="text-lg">Chargement du formulaire...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (formError) {
+    return (
+      <div className="min-h-screen bg-tetris-blue flex items-center justify-center">
+        <div className="bg-white p-8 rounded-xl shadow-xl">
+          <p className="text-lg text-red-600">{formError}</p>
+        </div>
+      </div>
+    );
+  }
 
   if (showThankYou) {
     return <ThankYouScreen />;
@@ -108,6 +153,7 @@ function ClientApp() {
   if (showContactScreen) {
     return (
       <ContactDetails
+        formId={formId}
         responses={responses}
         onSubmit={handleContactDetailsSubmit}
         onSkip={handleContactSkip}
@@ -138,6 +184,7 @@ function ClientApp() {
         <main className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
           <div className="bg-white rounded-xl shadow-xl overflow-hidden">
             <SurveyContainer
+              formId={formId}
               currentStep={currentStep}
               responses={responses}
               isAnimating={isAnimating || questionsLoading}

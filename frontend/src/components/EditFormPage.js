@@ -116,7 +116,7 @@ const ImportanceField = ({ question, index, questions, setQuestions }) => {
   );
 };
 
-const EditFormPage = ({ onBack }) => {
+const EditFormPage = ({ formId ,onBack }) => {
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -128,6 +128,23 @@ const EditFormPage = ({ onBack }) => {
   const newClassInputRef = useRef(null);
 
   const questionTypes = ['rating', 'stars', 'choice', 'text'];
+  const [formInfo, setFormInfo] = useState(null);
+  useEffect(() => {
+    const fetchFormInfo = async () => {
+      if (!formId) return;
+      try {
+        const response = await fetch(`http://localhost:5000/api/forms/${formId}`);
+        if (response.ok) {
+          const data = await response.json();
+          setFormInfo(data);
+        }
+      } catch (error) {
+        console.error('Error fetching form info:', error);
+      }
+    };
+    
+    fetchFormInfo();
+  }, [formId]);
 
   useEffect(() => {
     fetchQuestions();
@@ -136,7 +153,11 @@ const EditFormPage = ({ onBack }) => {
   const fetchQuestions = async () => {
     try {
       console.log('Fetching questions...');
-      const response = await fetch('https://tetris-forms.azurewebsites.net/api/questions');
+      const url = formId 
+        ? `http://localhost:5000/api/forms/${formId}/questions`
+        : 'http://localhost:5000/api/questions';
+      
+      const response = await fetch(url);
       const data = await response.json();
       console.log('Raw fetched data:', data);
 
@@ -254,12 +275,14 @@ const EditFormPage = ({ onBack }) => {
 
       const questionToDelete = questions[index];
       
-      const response = await fetch('https://tetris-forms.azurewebsites.net/api/questions/delete', {
+      const response = await fetch('http://localhost:5000/api/questions/delete', {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ id: questionToDelete.id })
+        body: JSON.stringify({ 
+          id: questionToDelete.id,
+          form_id: formId })
       });
 
       if (!response.ok) {
@@ -278,7 +301,7 @@ const EditFormPage = ({ onBack }) => {
       setSuccessMessage('Question supprimée avec succès !');
       setTimeout(() => setSuccessMessage(''), 3000);
       
-      const updateResponse = await fetch('https://tetris-forms.azurewebsites.net/api/questions/update', {
+      const updateResponse = await fetch('http://localhost:5000/api/questions/update', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -297,43 +320,45 @@ const EditFormPage = ({ onBack }) => {
 
   const handleSubmit = async () => {
     try {
-      setError(null);
-      setSuccessMessage('');
-      
-      const formattedQuestions = questions.map(q => ({
-        id: parseInt(q.id),
-        question_text: q.question_text || '',
-        question_type: q.question_type || 'choice',
-        max_value: q.max_value ? parseInt(q.max_value) : null,
-        class: q.class || null,
-        importance: parseFloat(q.importance || 0),
-        options: Array.isArray(q.options) ? q.options : null
-      }));
+        setError(null);
+        setSuccessMessage('');
+        
+        const formattedQuestions = questions.map(q => ({
+            id: q.id, // Gardez l'ID original
+            form_id: formId,
+            question_text: q.question_text || '',
+            question_type: q.question_type || 'choice',
+            max_value: q.max_value ? parseInt(q.max_value) : null,
+            class: q.class || null,
+            importance: parseFloat(q.importance || 0),
+            options: Array.isArray(q.options) ? q.options : []
+        }));
 
-      console.log('Submitting questions:', formattedQuestions);
+        const response = await fetch(`${process.env.REACT_APP_API_URL}/api/questions/update`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                form_id: formId,
+                questions: formattedQuestions 
+            })
+        });
 
-      const response = await fetch('https://tetris-forms.azurewebsites.net/api/questions/update', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ questions: formattedQuestions })
-      });
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || 'Failed to update questions');
+        }
 
-      const responseData = await response.json();
-      console.log('Server response:', responseData);
-
-      if (!response.ok) {
-        throw new Error(responseData.error || 'Failed to update questions');
-      }
-
-      await fetchQuestions();
-      
-      setSuccessMessage('Questions mises à jour avec succès !');
-      setTimeout(() => setSuccessMessage(''), 3000);
+        const responseData = await response.json();
+        
+        await fetchQuestions();
+        
+        setSuccessMessage('Questions mises à jour avec succès !');
+        setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
-      console.error('Error in handleSubmit:', err);
-      setError(err.message || 'Error updating questions');
+        console.error('Error in handleSubmit:', err);
+        setError(err.message || 'Error updating questions');
     }
   };
 
@@ -368,7 +393,9 @@ const EditFormPage = ({ onBack }) => {
         </div>
 
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Éditer le formulaire</h1>
+          <h1 className="text-3xl font-bold text-gray-900">
+            {formInfo ? `Éditer le formulaire - ${formInfo.name}` : 'Éditer le formulaire'}
+          </h1>
           <p className="mt-2 text-gray-600">Modifier les questions et leurs paramètres</p>
         </div>
 

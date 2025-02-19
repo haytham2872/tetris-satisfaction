@@ -1,17 +1,34 @@
 // src/components/hooks/useQuestions.js
 import { useState, useEffect } from 'react';
-import { initialQuestions, fetchQuestions } from '../constants/questions';
+import { getQuestions } from '../../API';  // Utiliser la nouvelle fonction de l'API
 
-export const useQuestions = () => {
-  const [questions, setQuestions] = useState(initialQuestions);
+export const useQuestions = (formId) => {
+  const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const loadQuestions = async () => {
+    if (!formId) {
+      setError('Form ID is required');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const fetchedQuestions = await fetchQuestions();
-      setQuestions(fetchedQuestions);
+      setLoading(true);
+      const fetchedQuestions = await getQuestions(formId);
+      
+      if (Array.isArray(fetchedQuestions)) {
+        setQuestions(fetchedQuestions);
+        setError(null);
+      } else {
+        setError('Invalid questions data received');
+        setQuestions([]);
+      }
     } catch (error) {
       console.error('Error loading questions:', error);
+      setError(error.message || 'Error loading questions');
+      setQuestions([]);
     } finally {
       setLoading(false);
     }
@@ -19,16 +36,16 @@ export const useQuestions = () => {
 
   useEffect(() => {
     loadQuestions();
-  }, []);
+  }, [formId]); // Recharger les questions quand le formId change
 
   const refreshQuestions = () => {
-    setLoading(true);
     loadQuestions();
   };
 
   return {
     questions,
     loading,
+    error,
     refreshQuestions
   };
 };

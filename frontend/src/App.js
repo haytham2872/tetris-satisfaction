@@ -1,32 +1,59 @@
 import React, { useEffect, useState } from 'react';
-import './index.css';
-import { useSurvey } from './components/hooks/useSurvey';
 import { useChat } from './components/hooks/usechat';
+import { useSurvey } from './components/hooks/useSurvey';
 import { useFormValidation } from './components/hooks/useFormValidation';
-import EditFormPage from './components/EditFormPage';
-import ContactDetailsView from './components/ContactDetailsView';
-import Page from './components/Page';
 import useDashboardState from './components/hooks/useDashboardState';
 import { SURVEY_CONFIG } from './components/constants/config';
 
 // Components
+import Page from './components/Page';
 import Header from './components/Header';
+import ThankYouScreen from './components/ThankYouScreen';
 import SurveyContainer from './components/survey/SurveyContainer';
 import NavigationButtons from './components/survey/NavigationButtons';
-import ThankYouScreen from './components/ThankYouScreen';
 import ContactDetails from './components/ContactDetails';
 import DynamicSurveyAnalytics from './components/DynamicSurveyAnalytics';
 import FeedbackAnalysisPage from './components/FeedbackAnalysisPage';
 import { ChatConversation } from './components/MessageBubble';
 import CommentsAnalysis from './components/CommentsAnalysis';
+import ContactDetailsView from './components/ContactDetailsView';
+import EditFormPage from './components/EditFormPage';
 import VercelAnalytics from './components/VercelAnalytics';
+import LoadingSpinner from './components/LoadingSpinner';
+
+import './index.css';
 
 function App() {
+  // État de base
   const [isNextClicked, setIsNextClicked] = useState(false);
   const [optionClicked, setOptionClicked] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
   const [showContactScreen, setShowContactScreen] = useState(false);
 
+  // État pour la gestion des formulaires multiples
+  const [selectedFormId, setSelectedFormId] = useState(null);
+  const [availableForms, setAvailableForms] = useState([]);
+  const [isLoadingForms, setIsLoadingForms] = useState(true);
+
+  // Récupération de la liste des formulaires
+  useEffect(() => {
+    const fetchForms = async () => {
+      try {
+        const response = await fetch(`${process.env.REACT_APP_API_URL}/api/forms`);
+        if (!response.ok) throw new Error('Erreur lors de la récupération des formulaires');
+        const data = await response.json();
+        setAvailableForms(data);
+        setIsLoadingForms(false);
+      } catch (error) {
+        console.error('Error fetching forms:', error);
+        setIsLoadingForms(false);
+      }
+    };
+
+    fetchForms();
+  }, []);
+
+  // Hooks personnalisés
   const {
     currentStep,
     setCurrentStep,
@@ -44,7 +71,7 @@ function App() {
     handleContactSubmit,
     contactFormSkipped,
     setContactFormSkipped
-  } = useSurvey();
+  } = useSurvey(selectedFormId);
 
   const {
     showAnalytics,
@@ -61,6 +88,23 @@ function App() {
     setShowContacts
   } = useDashboardState();
 
+  const {
+    errors,
+    validateContactForm,
+    validateSurveyResponse,
+    clearErrors,
+    getError
+  } = useFormValidation();
+
+  const { messageHistory } = useChat(
+    currentStep,
+    questions.length,
+    responses,
+    lastResponse,
+    optionClicked
+  );
+
+  // Gestionnaires d'événements
   const handleBackToDashboard = () => {
     setShowAnalytics(false);
     setShowFeedbackAnalysis(false);
@@ -82,14 +126,6 @@ function App() {
   const handleShowComments = () => {
     setShowComments(true);
   };
-
-  const { messageHistory } = useChat(
-    currentStep,
-    questions.length,
-    responses,
-    lastResponse,
-    optionClicked
-  );
 
   useEffect(() => {
     setOptionClicked(false);
@@ -119,7 +155,6 @@ function App() {
     }
   };
 
-  // New handler for the submit button
   const handleSurveySubmit = () => {
     if (contactVisibility && !contactFormSkipped) {
       setShowContactScreen(true);
@@ -128,34 +163,64 @@ function App() {
     }
   };
 
-  // New handler for contact form submission
   const handleContactDetailsSubmit = async (contactData) => {
     await handleContactSubmit(contactData);
     setShowContactScreen(false);
   };
 
-  // New handler for contact form skip
   const handleContactSkip = () => {
     setContactFormSkipped(true);
     setShowContactScreen(false);
     handleSubmit();
   };
 
-  const {
-    errors,
-    validateContactForm,
-    validateSurveyResponse,
-    clearErrors,
-    getError
-  } = useFormValidation();
+  const handleFormChange = (formId) => {
+    setSelectedFormId(formId);
+    setCurrentStep(0);
+    setShowDashboard(false);
+  };
+
+  // Conditions de rendu
+  if (isLoadingForms) {
+    return (
+      <div className="min-h-screen bg-tetris-blue flex items-center justify-center">
+        <LoadingSpinner message="Chargement des formulaires..." />
+      </div>
+    );
+  }
+
+  if (!selectedFormId && availableForms.length > 0) {
+    return (
+      <div className="min-h-screen bg-tetris-blue flex items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-xl shadow-xl max-w-2xl w-full">
+          <h2 className="text-2xl font-bold mb-6 text-gray-800">Sélectionnez un formulaire</h2>
+          <div className="space-y-4">
+            {availableForms.map(form => (
+              <button
+                key={form.id}
+                onClick={() => handleFormChange(form.id)}
+                className="w-full px-6 py-4 text-left bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
+              >
+                <p className="font-medium text-gray-800">{form.name}</p>
+                {form.description && (
+                  <p className="text-sm text-gray-600 mt-1">{form.description}</p>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (showThankYou) {
-    return <ThankYouScreen />;
+    return <ThankYouScreen onNewSurvey={() => setSelectedFormId(null)} />;
   }
 
   if (showContactScreen) {
     return (
       <ContactDetails
+        formId={selectedFormId}
         responses={responses}
         onSubmit={handleContactDetailsSubmit}
         onSkip={handleContactSkip}
@@ -169,6 +234,7 @@ function App() {
   if (showDashboard) {
     return (
       <Page
+        formId={selectedFormId}
         setShowAnalytics={setShowAnalytics}
         setShowFeedbackAnalysis={setShowFeedbackAnalysis}
         setShowEditForm={setShowEditForm}
@@ -177,9 +243,12 @@ function App() {
         setShowContacts={setShowContacts}
         onBack={handleBackToDashboard}
         setShowDashboard={setShowDashboard}
+        availableForms={availableForms}
+        onFormChange={handleFormChange}
       >
         {showAnalytics && analyticsView === 'main' && (
           <DynamicSurveyAnalytics
+            formId={selectedFormId}
             onBack={handleBackToDashboard}
             onShowAdditional={handleViewAdditional}
             onShowComments={handleShowComments}
@@ -187,10 +256,21 @@ function App() {
             onShowEditForm={() => setShowEditForm(true)}
           />
         )}
-        {showFeedbackAnalysis && <FeedbackAnalysisPage onBack={handleBackToDashboard} />}
-        {showEditForm && <EditFormPage onBack={handleBackToDashboard} />}
+        {showFeedbackAnalysis && (
+          <FeedbackAnalysisPage 
+            formId={selectedFormId}
+            onBack={handleBackToDashboard} 
+          />
+        )}
+        {showEditForm && (
+          <EditFormPage 
+            formId={selectedFormId}
+            onBack={handleBackToDashboard} 
+          />
+        )}
         {showComments && (
           <CommentsAnalysis
+            formId={selectedFormId}
             onBack={handleBackToDashboard}
             onShowAdditional={() => {
               setShowComments(false);
@@ -198,22 +278,39 @@ function App() {
             }}
           />
         )}
-        {showContacts && <ContactDetailsView onBack={handleBackToDashboard} />}
+        {showContacts && (
+          <ContactDetailsView 
+            formId={selectedFormId}
+            onBack={handleBackToDashboard} 
+          />
+        )}
         {analyticsView === 'additional' && (
           <DynamicSurveyAnalytics
+            formId={selectedFormId}
             onBack={() => setAnalyticsView('main')}
             onShowFeedback={() => setShowFeedbackAnalysis(true)}
             onShowContacts={() => setShowContacts(true)}
+            isAdditionalView={true}
           />
         )}
       </Page>
     );
   }
 
+  // Rendu principal de l'application
   return (
     <>
       <VercelAnalytics />
       <div className="min-h-screen bg-tetris-blue">
+        <div className="absolute top-4 right-4 z-50">
+          <button
+            onClick={() => setSelectedFormId(null)}
+            className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg transition-colors backdrop-blur-sm"
+          >
+            Changer de formulaire
+          </button>
+        </div>
+
         {messageHistory.length > 0 && (
           <ChatConversation
             messages={messageHistory}
@@ -225,11 +322,13 @@ function App() {
         <Header
           currentStep={currentStep}
           totalSteps={questions.length}
+          formName={availableForms.find(f => f.id === selectedFormId)?.name}
         />
 
         <main className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
           <div className="bg-white rounded-xl shadow-xl overflow-hidden">
             <SurveyContainer
+              formId={selectedFormId}
               currentStep={currentStep}
               responses={responses}
               isAnimating={isAnimating || questionsLoading}

@@ -7,9 +7,9 @@ import { Star } from 'lucide-react';
 
 const COLORS = ['#0B3D91', '#1E90FF', '#4169E1', '#6495ED', '#87CEEB'];
 const RADIAN = Math.PI / 180;
+const API_URL = 'http://localhost:5000';
 
 const CustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, value }) => {
-    // Don't render label if the value is 0
     if (value === 0) return null;
     
     const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
@@ -30,41 +30,103 @@ const CustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, valu
     );
 };
 
-const DynamicSurveyAnalytics = () => {
+const DynamicSurveyAnalytics = ({ formId, onBack, onShowAdditional, onShowComments, onShowFeedback, onShowEditForm }) => {
     const [questions, setQuestions] = useState([]);
     const [responses, setResponses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [formName, setFormName] = useState('');
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [questionsRes, responsesRes] = await Promise.all([
-                    fetch('https://tetris-forms.azurewebsites.net/api/questions'),
-                    fetch('https://tetris-forms.azurewebsites.net/api/analytics/responses')
-                ]);
-
+                setLoading(true);
+                setError(null);
+    
+                // Configuration des URLs
+                const questionsUrl = formId 
+                    ? `${API_URL}/api/forms/${formId}/questions`
+                    : `${API_URL}/api/questions`;
+                    
+                const responsesUrl = formId 
+                    ? `${API_URL}/api/analytics/responses?form_id=${formId}`
+                    : `${API_URL}/api/analytics/responses`;
+    
+                // Préparation des requêtes
+                const fetchOptions = {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                };
+    
+                // Requêtes parallèles
+                const fetchPromises = [
+                    fetch(questionsUrl, fetchOptions),
+                    fetch(responsesUrl, fetchOptions)
+                ];
+    
+                // Ajouter la requête de formulaire si un ID est présent
+                if (formId) {
+                    fetchPromises.push(fetch(`${API_URL}/api/forms/${formId}`, fetchOptions));
+                }
+    
+                // Exécution des requêtes
+                const responses = await Promise.all(fetchPromises);
+    
+                // Vérification des réponses
+                for (const response of responses) {
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(`Fetch error: ${errorText || response.statusText}`);
+                    }
+                }
+    
+                // Parsing des données
+                const [questionsRes, responsesRes, formRes] = responses;
                 const questionsData = await questionsRes.json();
                 const responsesData = await responsesRes.json();
-
+    
+                // Traitement des données des questions
                 const processedQuestions = questionsData.map(q => ({
                     ...q,
-                    options: typeof q.options === 'string' ? JSON.parse(q.options) : q.options
+                    options: Array.isArray(q.options) 
+                        ? q.options 
+                        : (typeof q.options === 'string' 
+                            ? JSON.parse(q.options || '[]') 
+                            : [])
                 }));
-
+    
+                // Mise à jour du nom du formulaire si disponible
+                if (formId && formRes) {
+                    const formData = await formRes.json();
+                    setFormName(formData.name || 'Formulaire sans nom');
+                }
+    
+                // Mise à jour des états
                 setQuestions(processedQuestions);
                 setResponses(responsesData);
-                setLoading(false);
+    
             } catch (err) {
-                console.error('Error fetching data:', err);
-                setError('Failed to load data');
+                console.error('Détails complets de l\'erreur:', err);
+                
+                // Message d'erreur personnalisé
+                const errorMessage = err instanceof TypeError 
+                    ? 'Problème de connexion. Vérifiez votre réseau.' 
+                    : (err.message || 'Impossible de charger les données');
+                
+                setError(errorMessage);
+            } finally {
+                // S'assurer que le chargement s'arrête
                 setLoading(false);
             }
         };
-
-        fetchData();
-    }, []);
-
+    
+        // Déclencher le chargement uniquement si un formId est présent
+        if (formId) {
+            fetchData();
+        }
+    }, [formId, API_URL]);
     const processResponseData = (questionId) => {
         const question = questions.find(q => q.id === questionId);
         if (!question || !Array.isArray(question.options)) return [];
@@ -76,14 +138,15 @@ const DynamicSurveyAnalytics = () => {
 
         let totalResponses = 0;
         responses.forEach(survey => {
-            const response = survey.responses.find(r => r.question_id === questionId);
-            if (response && response.answer && counts.hasOwnProperty(response.answer)) {
-                counts[response.answer]++;
-                totalResponses++;
+            if (!formId || survey.form_id === formId) {
+                const response = survey.responses.find(r => r.question_id === questionId);
+                if (response && response.answer && counts.hasOwnProperty(response.answer)) {
+                    counts[response.answer]++;
+                    totalResponses++;
+                }
             }
         });
 
-        // Include all options in the data, even those with zero counts
         return Object.entries(counts).map(([label, value]) => ({
             label,
             value,
@@ -93,7 +156,6 @@ const DynamicSurveyAnalytics = () => {
 
     const getChartData = (questionId) => {
         const allData = processResponseData(questionId);
-        // For the pie chart, only include non-zero values
         return allData.filter(item => item.value > 0);
     };
 
@@ -123,8 +185,11 @@ const DynamicSurveyAnalytics = () => {
         <div className="min-h-screen bg-gray-50 p-8">
             <div className="max-w-7xl mx-auto">
                 <div className="mb-12 text-center flex flex-col items-center justify-center">
-                    <h1 className="text-3xl font-bold text-gray-900">Statistiques détaillées</h1>
+                    <h1 className="text-3xl font-bold text-gray-900">
+                        {formName ? `Statistiques - ${formName}` : 'Statistiques détaillées'}
+                    </h1>
                     <p className="mt-2 text-gray-600">Analyse approfondie des réponses</p>
+                    
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

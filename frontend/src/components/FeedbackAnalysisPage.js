@@ -215,31 +215,54 @@ const FeedbackCard = ({ feedback, questions }) => {
     );
 };
 
-const FeedbackAnalysisPage = ({ onBack }) => {
+const FeedbackAnalysisPage = ({ formId, onBack }) => {
     const [feedbackData, setFeedbackData] = useState([]);
     const [questions, setQuestions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all');
+    const [formInfo, setFormInfo] = useState(null);
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                // Fetch both feedback and questions
-                const [feedbackResponse, questionsResponse] = await Promise.all([
-                    fetch('https://tetris-forms.azurewebsites.net/api/feedback/analysis'),
-                    fetch('https://tetris-forms.azurewebsites.net/api/questions')
-                ]);
+                // Construire les URLs avec le formId
+                const feedbackUrl = formId 
+                    ? `http://localhost:5000/api/feedback/analysis?form_id=${formId}`
+                    : 'http://localhost:5000/api/feedback/analysis';
+                
+                const questionsUrl = formId
+                    ? `http://localhost:5000/api/forms/${formId}/questions`
+                    : 'http://localhost:5000/api/questions';
 
-                if (!feedbackResponse.ok || !questionsResponse.ok) 
+                // Fetch feedback, questions, et informations du formulaire
+                const promises = [
+                    fetch(feedbackUrl),
+                    fetch(questionsUrl)
+                ];
+
+                // Ajouter la requête pour les informations du formulaire si formId est présent
+                if (formId) {
+                    promises.push(
+                        fetch(`http://localhost:5000/api/forms/${formId}`)
+                    );
+                }
+
+                const responses = await Promise.all(promises);
+
+                // Vérifier que toutes les réponses sont ok
+                if (!responses.every(response => response.ok)) {
                     throw new Error('Failed to fetch data');
+                }
 
-                const [feedbackData, questionsData] = await Promise.all([
-                    feedbackResponse.json(),
-                    questionsResponse.json()
-                ]);
+                const [feedbackData, questionsData, formData] = await Promise.all(
+                    responses.map(response => response.json())
+                );
 
                 setFeedbackData(feedbackData);
                 setQuestions(questionsData);
+                if (formData) {
+                    setFormInfo(formData);
+                }
                 setLoading(false);
             } catch (error) {
                 console.error('Error fetching data:', error);
@@ -248,9 +271,13 @@ const FeedbackAnalysisPage = ({ onBack }) => {
         };
 
         fetchData();
-    }, []);
+    }, [formId]);
 
     const filteredFeedback = feedbackData.filter(feedback => {
+        // D'abord filtrer par formId si nécessaire
+        if (formId && feedback.form_id !== formId) return false;
+        
+        // Ensuite appliquer les autres filtres
         if (filter === 'all') return true;
         const score = feedback.analysis?.overall?.sentiment?.score || 0;
         if (filter === 'positive') return score > 0.1;
@@ -258,6 +285,7 @@ const FeedbackAnalysisPage = ({ onBack }) => {
         if (filter === 'urgent') return feedback.analysis?.overall?.urgency?.level === 'HIGH';
         return Math.abs(score) <= 0.1;
     });
+
 
     if (loading) {
         return (
@@ -270,21 +298,28 @@ const FeedbackAnalysisPage = ({ onBack }) => {
     return (
         <div className="min-h-screen bg-gray-50 p-8">
             <div className="max-w-4xl mx-auto">
-                {/* Header */}
+                {/* Header with form info */}
                 <div className="mb-8">
-
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-start">
                         <div>
                             <h1 className="text-3xl font-bold text-gray-900 mb-2">
                                 Analyse des Commentaires
+                                {formInfo && ` - ${formInfo.name}`}
                             </h1>
                             <p className="text-gray-600">
                                 {filteredFeedback.length} commentaires analysés
+                                {formInfo && ` pour ce formulaire`}
                             </p>
                         </div>
 
                         {/* Filters */}
                         <div className="flex items-center gap-2">
+                            <button
+                                onClick={onBack}
+                                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 mr-4"
+                            >
+                                Retour
+                            </button>
                             <Filter className="w-5 h-5 text-gray-500" />
                             <select
                                 value={filter}
@@ -303,13 +338,13 @@ const FeedbackAnalysisPage = ({ onBack }) => {
 
                 {/* Feedback Cards */}
                 <div className="space-y-6">
-                {filteredFeedback.map((feedback) => (
-                    <FeedbackCard 
-                        key={`${feedback.id}-${feedback.questionId}`}
-                        feedback={feedback}
-                        questions={questions}
-                    />
-                ))}
+                    {filteredFeedback.map((feedback) => (
+                        <FeedbackCard 
+                            key={`${feedback.id}-${feedback.questionId}`}
+                            feedback={feedback}
+                            questions={questions}
+                        />
+                    ))}
 
                     {filteredFeedback.length === 0 && (
                         <div className="text-center py-12 bg-white rounded-xl shadow-lg">
@@ -319,7 +354,9 @@ const FeedbackAnalysisPage = ({ onBack }) => {
                             </h3>
                             <p className="text-gray-500 mt-2">
                                 {filter === 'all' 
-                                    ? "Les analyses apparaîtront ici une fois que les utilisateurs auront soumis leurs commentaires."
+                                    ? formInfo
+                                        ? "Aucun commentaire n'a encore été soumis pour ce formulaire."
+                                        : "Les analyses apparaîtront ici une fois que les utilisateurs auront soumis leurs commentaires."
                                     : "Aucun commentaire ne correspond au filtre sélectionné."}
                             </p>
                         </div>
