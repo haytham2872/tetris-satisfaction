@@ -168,6 +168,7 @@ const EditFormPage = ({ formId ,onBack }) => {
 
       const formattedData = data.map(q => ({
         ...q,
+        form_id: parseInt(formId),
         importance: q.importance !== undefined ? Number(q.importance).toFixed(2) : "0.00",
         options: q.question_type === 'choice' 
           ? (Array.isArray(q.options) ? q.options : [])
@@ -223,6 +224,7 @@ const EditFormPage = ({ formId ,onBack }) => {
     const maxId = Math.max(...questions.map(q => q.id), 0);
     const newQuestion = {
       id: maxId + 1,
+      form_id: parseInt(formId),
       question_text: 'Nouvelle question',
       question_type: 'choice',
       max_value: null,
@@ -334,7 +336,7 @@ const EditFormPage = ({ formId ,onBack }) => {
             options: Array.isArray(q.options) ? q.options : []
         }));
 
-        const response = await fetch(`${process.env.REACT_APP_API_URL}/api/questions/update`, {
+        const response = await fetch(`https://tetris-forms.azurewebsites.net/api/questions/update`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -529,7 +531,7 @@ const EditFormPage = ({ formId ,onBack }) => {
                         </div>
                       )}
 
-                      {question.question_type !== 'text' && (
+                      { (
                         <ImportanceField
                           question={question}
                           index={index}

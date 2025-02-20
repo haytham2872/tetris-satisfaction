@@ -237,13 +237,19 @@ app.post('/api/questions/update', async (req, res) => {
     try {
         const { form_id, questions } = req.body;
         
+        if (!form_id) {
+            return res.status(400).json({ error: 'form_id is required' });
+        }
+
         const transaction = new sql.Transaction(pool);
         await transaction.begin();
         
         try {
             for (const question of questions) {
+                console.log('Processing question:', question); // Pour le debug
+
+                // Pour une question existante
                 if (question.id) {
-                    // Mise à jour d'une question existante
                     await transaction.request()
                         .input('id', sql.Int, question.id)
                         .input('formId', sql.Int, form_id)
@@ -261,12 +267,13 @@ app.post('/api/questions/update', async (req, res) => {
                                 max_value = @maxValue,
                                 class = @class,
                                 importance = @importance,
-                                options = @options
-                            WHERE id = @id AND form_id = @formId
+                                options = @options,
+                                form_id = @formId
+                            WHERE id = @id
                         `;
                 } else {
-                    // Création d'une nouvelle question
-                    await transaction.request()
+                    // Pour une nouvelle question
+                    const insertResult = await transaction.request()
                         .input('formId', sql.Int, form_id)
                         .input('text', sql.NVarChar, question.question_text)
                         .input('type', sql.VarChar, question.question_type)
@@ -284,6 +291,7 @@ app.post('/api/questions/update', async (req, res) => {
                                 importance,
                                 options
                             )
+                            OUTPUT INSERTED.id
                             VALUES (
                                 @formId,
                                 @text,
@@ -294,6 +302,8 @@ app.post('/api/questions/update', async (req, res) => {
                                 @options
                             )
                         `;
+                    
+                    console.log('New question inserted with ID:', insertResult.recordset[0].id);
                 }
             }
             
