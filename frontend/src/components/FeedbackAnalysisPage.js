@@ -331,12 +331,6 @@ const FeedbackAnalysisPage = ({ formId, onBack }) => {
 
                         {/* Filters */}
                         <div className="flex items-center gap-2">
-                            <button
-                                onClick={onBack}
-                                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 mr-4"
-                            >
-                                Retour
-                            </button>
                             <Filter className="w-5 h-5 text-gray-500" />
                             <select
                                 value={filter}

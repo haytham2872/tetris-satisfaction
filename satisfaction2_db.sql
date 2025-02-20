@@ -115,6 +115,10 @@ CREATE TABLE forms (
     is_active BIT DEFAULT 1
 );
 
+
+ALTER TABLE low_satisfaction_responses
+ADD commentaire nvarchar NULL;
+
 -- Ajouter form_id à la table questions
 ALTER TABLE questions
 ADD form_id INT NULL;
