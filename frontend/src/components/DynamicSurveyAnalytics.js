@@ -3,7 +3,7 @@ import {
     Tooltip, Legend, ResponsiveContainer,
     Cell, PieChart, Pie
 } from 'recharts';
-import { Star } from 'lucide-react';
+import { Star, Users, AlertTriangle, BarChart, ThumbsUp, MessageSquare } from 'lucide-react';
 
 const COLORS = ['#0B3D91', '#1E90FF', '#4169E1', '#6495ED', '#87CEEB'];
 const RADIAN = Math.PI / 180;
@@ -30,12 +30,84 @@ const CustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, valu
     );
 };
 
+const StatCard = ({ icon: Icon, title, value, description, colorClass }) => (
+    <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+        <div className="flex items-center gap-4">
+            <div className={`p-3 rounded-lg ${colorClass}`}>
+                <Icon className="w-6 h-6 text-white" />
+            </div>
+            <div>
+                <p className="text-sm text-gray-600 mb-1">{title}</p>
+                <h3 className="text-2xl font-bold text-gray-900">{value}</h3>
+                {description && (
+                    <p className="text-sm text-gray-500 mt-1">{description}</p>
+                )}
+            </div>
+        </div>
+    </div>
+);
+
 const DynamicSurveyAnalytics = ({ formId, onBack, onShowAdditional, onShowComments, onShowFeedback, onShowEditForm }) => {
     const [questions, setQuestions] = useState([]);
     const [responses, setResponses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [formName, setFormName] = useState('');
+    const [stats, setStats] = useState({
+        totalResponses: 0,
+        unsatisfiedUsers: 0,
+        positiveResponses: 0,
+        totalAnalyzed: 0,
+        averageSentiment: 0,
+        totalSentimentResponses: 0
+    });
+
+    const analyzeSentiment = (responses, questions) => {
+        let positiveCount = 0;
+        let totalAnalyzedResponses = 0;
+        let totalSentimentScore = 0;
+        let totalSentimentResponses = 0;
+
+        responses.forEach(survey => {
+            survey.responses.forEach(response => {
+                const question = questions.find(q => q.id === response.question_id);
+                if (!question) return;
+
+                if (question.question_type === 'choice' && Array.isArray(question.options) && question.options.length > 0) {
+                    // For choice questions, first option is positive
+                    if (response.answer === question.options[0]) {
+                        positiveCount++;
+                    }
+                    totalAnalyzedResponses++;
+                } else if (question.question_type === 'text' && response.nlp_analysis) {
+                    try {
+                        const nlpAnalysis = typeof response.nlp_analysis === 'string' 
+                            ? JSON.parse(response.nlp_analysis) 
+                            : response.nlp_analysis;
+
+                        const sentimentScore = nlpAnalysis?.overall?.sentiment?.score;
+                        if (typeof sentimentScore === 'number') {
+                            if (sentimentScore >= 0.5) {
+                                positiveCount++;
+                            }
+                            totalSentimentScore += sentimentScore;
+                            totalSentimentResponses++;
+                            totalAnalyzedResponses++;
+                        }
+                    } catch (e) {
+                        console.error('Error parsing NLP analysis:', e);
+                    }
+                }
+            });
+        });
+
+        return {
+            positiveResponses: positiveCount,
+            totalAnalyzed: totalAnalyzedResponses,
+            averageSentiment: totalSentimentResponses > 0 ? totalSentimentScore / totalSentimentResponses : 0,
+            totalSentimentResponses
+        };
+    };
 
     useEffect(() => {
         const fetchData = async () => {
@@ -43,51 +115,35 @@ const DynamicSurveyAnalytics = ({ formId, onBack, onShowAdditional, onShowCommen
                 setLoading(true);
                 setError(null);
     
-                // Configuration des URLs
-                const questionsUrl = formId 
-                    ? `${API_URL}/api/forms/${formId}/questions`
-                    : `${API_URL}/api/questions`;
-                    
-                const responsesUrl = formId 
-                    ? `${API_URL}/api/analytics/responses?form_id=${formId}`
-                    : `${API_URL}/api/analytics/responses`;
+                const questionsUrl = `${API_URL}/api/forms/${formId}/questions`;
+                const responsesUrl = `${API_URL}/api/analytics/responses?form_id=${formId}`;
+                const formUrl = `${API_URL}/api/forms/${formId}`;
+                const lowSatisfactionUrl = `${API_URL}/api/low-satisfaction?form_id=${formId}`;
     
-                // Préparation des requêtes
                 const fetchOptions = {
                     method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    }
+                    headers: { 'Content-Type': 'application/json' }
                 };
     
-                // Requêtes parallèles
-                const fetchPromises = [
+                const feedbackAnalysisUrl = `${API_URL}/api/feedback/analysis?form_id=${formId}`;
+                
+                const [questionsRes, responsesRes, formRes, lowSatisfactionRes, feedbackAnalysisRes] = await Promise.all([
                     fetch(questionsUrl, fetchOptions),
-                    fetch(responsesUrl, fetchOptions)
-                ];
+                    fetch(responsesUrl, fetchOptions),
+                    fetch(formUrl, fetchOptions),
+                    fetch(lowSatisfactionUrl, fetchOptions),
+                    fetch(feedbackAnalysisUrl, fetchOptions)
+                ]);
     
-                // Ajouter la requête de formulaire si un ID est présent
-                if (formId) {
-                    fetchPromises.push(fetch(`${API_URL}/api/forms/${formId}`, fetchOptions));
+                if (!questionsRes.ok || !responsesRes.ok || !formRes.ok) {
+                    throw new Error('Failed to fetch data');
                 }
     
-                // Exécution des requêtes
-                const responses = await Promise.all(fetchPromises);
-    
-                // Vérification des réponses
-                for (const response of responses) {
-                    if (!response.ok) {
-                        const errorText = await response.text();
-                        throw new Error(`Fetch error: ${errorText || response.statusText}`);
-                    }
-                }
-    
-                // Parsing des données
-                const [questionsRes, responsesRes, formRes] = responses;
                 const questionsData = await questionsRes.json();
                 const responsesData = await responsesRes.json();
+                const formData = await formRes.json();
+                const lowSatisfactionData = await lowSatisfactionRes.json();
     
-                // Traitement des données des questions
                 const processedQuestions = questionsData.map(q => ({
                     ...q,
                     options: Array.isArray(q.options) 
@@ -96,37 +152,62 @@ const DynamicSurveyAnalytics = ({ formId, onBack, onShowAdditional, onShowCommen
                             ? JSON.parse(q.options || '[]') 
                             : [])
                 }));
+
+                const feedbackAnalysisData = await feedbackAnalysisRes.json();
+                
+                // Calculate sentiment statistics from feedback analysis data
+                let totalSentimentScore = 0;
+                let totalSentimentResponses = 0;
+                let positiveResponses = 0;
+
+                feedbackAnalysisData.forEach(feedback => {
+                    try {
+                        const analysis = feedback.analysis;
+                        if (analysis?.overall?.sentiment?.score !== undefined) {
+                            const score = analysis.overall.sentiment.score;
+                            totalSentimentScore += score;
+                            totalSentimentResponses++;
+                            if (score >= 0.5) {
+                                positiveResponses++;
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Error processing feedback analysis:', e);
+                    }
+                });
+
+                const sentimentStats = {
+                    positiveResponses,
+                    totalAnalyzed: totalSentimentResponses,
+                    averageSentiment: totalSentimentResponses > 0 ? totalSentimentScore / totalSentimentResponses : 0,
+                    totalSentimentResponses
+                };
     
-                // Mise à jour du nom du formulaire si disponible
-                if (formId && formRes) {
-                    const formData = await formRes.json();
-                    setFormName(formData.name || 'Formulaire sans nom');
-                }
-    
-                // Mise à jour des états
                 setQuestions(processedQuestions);
                 setResponses(responsesData);
+                setFormName(formData.name || 'Formulaire sans nom');
+                setStats({
+                    totalResponses: responsesData.length,
+                    unsatisfiedUsers: Array.isArray(lowSatisfactionData) ? lowSatisfactionData.length : 0,
+                    positiveResponses: sentimentStats.positiveResponses,
+                    totalAnalyzed: sentimentStats.totalAnalyzed,
+                    averageSentiment: sentimentStats.averageSentiment,
+                    totalSentimentResponses: sentimentStats.totalSentimentResponses
+                });
     
             } catch (err) {
-                console.error('Détails complets de l\'erreur:', err);
-                
-                // Message d'erreur personnalisé
-                const errorMessage = err instanceof TypeError 
-                    ? 'Problème de connexion. Vérifiez votre réseau.' 
-                    : (err.message || 'Impossible de charger les données');
-                
-                setError(errorMessage);
+                console.error('Error fetching data:', err);
+                setError('Unable to load data. Please try again later.');
             } finally {
-                // S'assurer que le chargement s'arrête
                 setLoading(false);
             }
         };
     
-        // Déclencher le chargement uniquement si un formId est présent
         if (formId) {
             fetchData();
         }
-    }, [formId, API_URL]);
+    }, [formId]);
+
     const processResponseData = (questionId) => {
         const question = questions.find(q => q.id === questionId);
         if (!question || !Array.isArray(question.options)) return [];
@@ -181,17 +262,66 @@ const DynamicSurveyAnalytics = ({ formId, onBack, onShowAdditional, onShowCommen
         q.options.length > 0
     );
 
+    const positiveRate = stats.totalAnalyzed > 0 
+        ? ((stats.positiveResponses / stats.totalAnalyzed) * 100).toFixed(1)
+        : '0.0';
+
+    const satisfactionRate = stats.totalResponses > 0 
+        ? ((stats.totalResponses - stats.unsatisfiedUsers) / stats.totalResponses * 100).toFixed(1)
+        : '0.0';
+
+    const averageSentimentFormatted = stats.averageSentiment.toFixed(2);
+
     return (
         <div className="min-h-screen bg-gray-50 p-8">
             <div className="max-w-7xl mx-auto">
-                <div className="mb-12 text-center flex flex-col items-center justify-center">
-                    <h1 className="text-3xl font-bold text-gray-900">
+                <div className="mb-12 text-center">
+                    <h1 className="text-3xl font-bold text-gray-900 mb-2">
                         {formName ? `Statistiques - ${formName}` : 'Statistiques détaillées'}
                     </h1>
-                    <p className="mt-2 text-gray-600">Analyse approfondie des réponses</p>
-                    
+                    <p className="text-gray-600">Analyse approfondie des réponses</p>
                 </div>
 
+                {/* Statistics Summary Section */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-12">
+                    <StatCard
+                        icon={Users}
+                        title="Total des réponses"
+                        value={stats.totalResponses}
+                        description="Nombre total de participants"
+                        colorClass="bg-blue-600"
+                    />
+                    <StatCard
+                        icon={AlertTriangle}
+                        title="Utilisateurs insatisfaits"
+                        value={stats.unsatisfiedUsers}
+                        description="Nécessitant une attention particulière"
+                        colorClass="bg-red-500"
+                    />
+                    <StatCard
+                        icon={ThumbsUp}
+                        title="Réponses positives"
+                        value={`${positiveRate}%`}
+                        description={`${stats.positiveResponses} sur ${stats.totalAnalyzed} réponses`}
+                        colorClass="bg-green-500"
+                    />
+                    <StatCard
+                        icon={MessageSquare}
+                        title="Taux de satisfaction"
+                        value={`${satisfactionRate}%`}
+                        description="Basé sur les retours clients"
+                        colorClass="bg-indigo-500"
+                    />
+                    <StatCard
+                        icon={BarChart}
+                        title="Sentiment moyen"
+                        value={averageSentimentFormatted}
+                        description={`Basé sur ${stats.totalSentimentResponses} réponses analysées`}
+                        colorClass="bg-purple-500"
+                    />
+                </div>
+
+                {/* Pie Charts Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     {choiceQuestions.map(question => {
                         const allData = processResponseData(question.id);

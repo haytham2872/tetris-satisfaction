@@ -215,50 +215,96 @@ export const useSurvey = (formId) => {
       if (success) {
         // Find all text-type questions and their responses
         const textResponses = questions
-          .filter(q => q.type === 'text')
+          .filter(q => q.question_type === 'text')  // Changed from q.type to q.question_type
           .map(q => ({
             questionId: q.id,
             answer: responses[q.id]?.answer
           }))
           .filter(r => r.answer && r.answer.trim() !== '');
-  
         // Analyze each text response
-        if (textResponses.length > 0) {
-          console.log('[handleSubmit] Analyzing text responses:', textResponses);
-          
-          try {
-            const analyses = await Promise.all(
-              textResponses.map(async (response) => {
-                const analysis = await analyzeFeedback(response.answer);
-                return {
-                  questionId: response.questionId,
-                  analysis
-                };
-              })
-            );
   
-            console.log('[handleSubmit] Sending analyses to backend...');
+      if (textResponses.length > 0) {
+        console.log('[handleSubmit] Found text responses to analyze:', textResponses);
+        
+        try {
+          const analyses = await Promise.all(
+            textResponses.map(async (response) => {
+              console.log(`[handleSubmit] Analyzing response for question ${response.questionId}:`, response.answer);
+              const analysis = await analyzeFeedback(response.answer);
+              return {
+                questionId: response.questionId,
+                analysis: analysis
+              };
+            })
+          );
+
+          console.log('[handleSubmit] All analyses completed:', analyses);
+          
+          // Update the request body structure to match your backend expectation
+          const analysisResponse = await fetch('https://tetris-forms.azurewebsites.net/api/feedback/analyze', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              form_id: formId,
+              survey_id: surveyId,
+              analyses: analyses.map(item => ({
+                questionId: item.questionId,
+                analysis: item.analysis
+              }))
+            })
+          });
+
+          if (!analysisResponse.ok) {
+            const errMsg = await analysisResponse.text();
+            console.error('[handleSubmit] Failed to store analyses. Status:', analysisResponse.status, 'Error:', errMsg);
+            throw new Error(`Failed to store analyses: ${errMsg}`);
+          }
+
+          const responseData = await analysisResponse.json();
+          console.log('[handleSubmit] NLP analyses stored successfully:', responseData);
+
+        } catch (error) {
+          console.error('[handleSubmit] Error in feedback analysis:', error);
+          // Continue with submission even if analysis fails
+        }
+      } else {
+        console.log('[handleSubmit] No text responses found to analyze');
+      }
+
+      // Also check for optional answers that need analysis
+      Object.entries(responses).forEach(async ([questionId, response]) => {
+        if (response.optionalAnswer && response.optionalAnswer.trim() !== '') {
+          try {
+            console.log(`[handleSubmit] Analyzing optional answer for question ${questionId}`);
+            const analysis = await analyzeFeedback(response.optionalAnswer);
+            
             const analysisResponse = await fetch('https://tetris-forms.azurewebsites.net/api/feedback/analyze', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json'
               },
               body: JSON.stringify({
+                form_id: formId,
                 survey_id: surveyId,
-                analyses: analyses
+                analyses: [{
+                  questionId: parseInt(questionId),
+                  analysis: analysis
+                }]
               })
             });
-  
+
             if (!analysisResponse.ok) {
-              const errMsg = await analysisResponse.text();
-              console.error('[handleSubmit] Failed to store analyses:', errMsg);
-            } else {
-              console.log('[handleSubmit] NLP analyses stored successfully.');
+              throw new Error('Failed to store optional answer analysis');
             }
+            
+            console.log(`[handleSubmit] Optional answer analysis stored for question ${questionId}`);
           } catch (error) {
-            console.error('[handleSubmit] Error in analyzeFeedback:', error);
+            console.error(`[handleSubmit] Error analyzing optional answer for question ${questionId}:`, error);
           }
         }
+      });
         
         setShowThankYou(true);
         console.log('[handleSubmit] -> On affiche le Thank You');
