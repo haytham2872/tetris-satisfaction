@@ -22,23 +22,23 @@ export const useSurvey = (formId) => {
   const { questions, loading: questionsLoading } = useQuestions(formId);
 
   const getNegativeWeight = (question, response) => {
-    if (question.type === 'rating' || question.type === 'stars') {
+    if (question.question_type === 'rating' || question.question_type === 'stars') {
       const numericResponse = parseInt(response, 10);
-      const threshold = Math.floor(question.max / 2);
+      const threshold = Math.floor(question.max_value / 2);
 
       if (numericResponse > threshold) {
         console.log(
-          `[getNegativeWeight] [Question ${question.id} - ${question.type}] Réponse: ${numericResponse} > seuil (${threshold}) → Poids négatif: 0`
+          `[getNegativeWeight] [Question ${question.id} - ${question.question_type}] Réponse: ${numericResponse} > seuil (${threshold}) → Poids négatif: 0`
         );
         return 0;
       } else {
         const weight = 1 - numericResponse / (threshold + 1);
         console.log(
-          `[getNegativeWeight] [Question ${question.id} - ${question.type}] Réponse: ${numericResponse}, Seuil: ${threshold}, Poids négatif=${weight}`
+          `[getNegativeWeight] [Question ${question.id} - ${question.question_type}] Réponse: ${numericResponse}, Seuil: ${threshold}, Poids négatif=${weight}`
         );
         return weight;
       }
-    } else if (question.type === 'choice') {
+    } else if (question.question_type === 'choice') {
       if (!question.options) return 0;
       let optionsArray = question.options;
 
@@ -347,6 +347,7 @@ export const useSurvey = (formId) => {
             body: JSON.stringify({
                 id: surveyId,
                 form_id: formId,
+                survey_id: surveyId,
                 name: contactData.name,
                 phone: contactData.phone,
                 email: contactData.email,

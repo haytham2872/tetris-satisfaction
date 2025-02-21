@@ -1,4 +1,3 @@
-// src/components/survey/SurveyContainer.js
 import React from 'react';
 import QuestionDisplay from '../QuestionDisplay';
 
@@ -26,11 +25,18 @@ const OptionalCommentInput = ({ questionId, value, onChange }) => (
 );
 
 const renderQuestionInput = (question, responses, onResponse) => {
+    // Vérification si la question existe
+    if (!question || !question.question_type) {
+        return null;
+    }
+
     switch (question.question_type) {
       case 'rating':
+        // Vérification de max_value pour rating
+        const maxRating = question.max_value || 5; // Valeur par défaut si null
         return (
           <div className="flex justify-center gap-2 flex-wrap my-8">
-            {[...Array(question.max + 1)].map((_, i) => (
+            {[...Array(maxRating + 1)].map((_, i) => (
               <button
                 key={i}
                 onClick={() => onResponse(question.id, i)}
@@ -50,9 +56,11 @@ const renderQuestionInput = (question, responses, onResponse) => {
         );
   
       case 'stars':
+        // Vérification de max_value pour stars
+        const maxStars = question.max_value || 5; // Valeur par défaut si null
         return (
           <div className="flex justify-center gap-2 my-8">
-            {[...Array(question.max)].map((_, i) => (
+            {[...Array(maxStars)].map((_, i) => (
               <button
                 key={i}
                 onClick={() => onResponse(question.id, i + 1)}
@@ -68,6 +76,9 @@ const renderQuestionInput = (question, responses, onResponse) => {
         );
   
       case 'choice':
+        if (!question.options || !Array.isArray(question.options)) {
+          return null;
+        }
         return (
           <div className="grid grid-cols-1 gap-3 my-8">
             {question.options.map(option => (
@@ -113,22 +124,54 @@ const SurveyContainer = ({
   isAnimating,
   questions 
 }) => {
+  // Vérifications de sécurité
+  if (!Array.isArray(questions) || questions.length === 0) {
+    return (
+      <div className="bg-white rounded-xl shadow-xl p-8">
+        <div className="text-center text-gray-600">
+          Aucune question disponible
+        </div>
+      </div>
+    );
+  }
+
+  if (currentStep === undefined || currentStep < 0 || currentStep >= questions.length) {
+    return (
+      <div className="bg-white rounded-xl shadow-xl p-8">
+        <div className="text-center text-gray-600">
+          Question non trouvée
+        </div>
+      </div>
+    );
+  }
+
+  const currentQuestion = questions[currentStep];
+  if (!currentQuestion) {
+    return (
+      <div className="bg-white rounded-xl shadow-xl p-8">
+        <div className="text-center text-gray-600">
+          Question invalide
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white rounded-xl shadow-xl overflow-hidden">
       <QuestionContainer isVisible={!isAnimating}>
         <div className="p-8 space-y-6">
           <div className="text-center">
-            <QuestionDisplay question={questions[currentStep]} />
+            <QuestionDisplay question={currentQuestion} />
           </div>
           
           <div className="space-y-6">
-            {renderQuestionInput(questions[currentStep], responses, onResponse)}
+            {renderQuestionInput(currentQuestion, responses, onResponse)}
           </div>
 
-          {questions[currentStep].question_type !== 'text' && (
+          {currentQuestion.question_type !== 'text' && (
             <OptionalCommentInput 
-              questionId={questions[currentStep].id}
-              value={responses[questions[currentStep].id]?.optionalAnswer || ''}
+              questionId={currentQuestion.id}
+              value={responses[currentQuestion.id]?.optionalAnswer || ''}
               onChange={onOptionalAnswer}
             />
           )}
