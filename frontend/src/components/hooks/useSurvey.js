@@ -360,7 +360,7 @@ export const useSurvey = (formId) => {
         }
         console.log('[handleContactSubmit] Contact enregistré. On re-soumet le questionnaire...');
 
-        const success = await submitResponses(surveyId, responses);
+        const success = await submitResponses(surveyId, responses, null, formId);
         console.log('[handleContactSubmit] Contact + responses success?', success);
 
         if (success) {
