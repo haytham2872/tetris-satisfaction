@@ -245,11 +245,15 @@ app.post('/api/questions/update', async (req, res) => {
         await transaction.begin();
         
         try {
+            // Track created questions to return their IDs
+            const newQuestionIds = [];
+            
             for (const question of questions) {
-                console.log('Processing question:', question); // Pour le debug
+                console.log('Processing question:', question);
 
-                // Pour une question existante
-                if (question.id) {
+                // Check if this is an existing question (positive ID) or new question (negative ID)
+                if (question.id && question.id > 0) {
+                    // Update existing question
                     await transaction.request()
                         .input('id', sql.Int, question.id)
                         .input('formId', sql.Int, form_id)
@@ -272,7 +276,7 @@ app.post('/api/questions/update', async (req, res) => {
                             WHERE id = @id
                         `;
                 } else {
-                    // Pour une nouvelle question
+                    // Insert new question (negative or null ID)
                     const insertResult = await transaction.request()
                         .input('formId', sql.Int, form_id)
                         .input('text', sql.NVarChar, question.question_text)
@@ -303,12 +307,25 @@ app.post('/api/questions/update', async (req, res) => {
                             )
                         `;
                     
-                    console.log('New question inserted with ID:', insertResult.recordset[0].id);
+                    const newId = insertResult.recordset[0].id;
+                    console.log('New question inserted with ID:', newId);
+                    
+                    // Track the mapping from temporary ID to new database ID
+                    newQuestionIds.push({
+                        tempId: question.id, // The negative ID
+                        newId: newId        // The new database ID
+                    });
                 }
             }
             
             await transaction.commit();
-            res.status(200).json({ message: 'Questions updated successfully' });
+            
+            // Return success with the mapping of temporary to new IDs
+            res.status(200).json({ 
+                message: 'Questions updated successfully',
+                newQuestionIds: newQuestionIds
+            });
+            
         } catch (err) {
             await transaction.rollback();
             throw err;
@@ -318,6 +335,7 @@ app.post('/api/questions/update', async (req, res) => {
         res.status(500).json({ error: 'Server error', details: err.message });
     }
 });
+
 app.delete('/api/questions/delete', async (req, res) => {
     try {
         const { id } = req.body;

@@ -126,6 +126,8 @@ const EditFormPage = ({ formId ,onBack }) => {
   const [newClassName, setNewClassName] = useState('');
   const bottomRef = useRef(null);
   const newClassInputRef = useRef(null);
+  const [localQuestionIdCounter, setLocalQuestionIdCounter] = useState(-1);
+
 
   const questionTypes = ['rating', 'stars', 'choice', 'text'];
   const [formInfo, setFormInfo] = useState(null);
@@ -177,6 +179,12 @@ const EditFormPage = ({ formId ,onBack }) => {
 
       console.log('Formatted questions:', formattedData);
       setQuestions(formattedData);
+      
+      // Find the lowest temporary ID we can use (must be negative to avoid conflicts)
+      if (formattedData.length > 0) {
+        setLocalQuestionIdCounter(-1);
+      }
+      
       setLoading(false);
     } catch (err) {
       console.error('Error:', err);
@@ -221,16 +229,20 @@ const EditFormPage = ({ formId ,onBack }) => {
   };
 
   const addNewQuestion = () => {
-    const maxId = Math.max(...questions.map(q => q.id), 0);
+    // Use a negative ID to identify new questions (not yet saved to DB)
+    const newLocalId = localQuestionIdCounter - 1;
+    setLocalQuestionIdCounter(newLocalId);
+    
     const newQuestion = {
-      id: maxId + 1,
+      id: newLocalId,  // Negative ID indicates a new question
       form_id: parseInt(formId),
       question_text: 'Nouvelle question',
       question_type: 'choice',
       max_value: null,
       class: null,
       options: [],
-      importance: "0.00"
+      importance: "0.00",
+      isNew: true  // Flag to identify new questions
     };
     
     setQuestions([...questions, newQuestion]);
@@ -277,6 +289,17 @@ const EditFormPage = ({ formId ,onBack }) => {
 
       const questionToDelete = questions[index];
       
+      // If this is a new question that hasn't been saved to the database yet
+      if (questionToDelete.id < 0 || questionToDelete.isNew) {
+        // Just remove it from the local state
+        const updatedQuestions = questions.filter((_, i) => i !== index);
+        setQuestions(updatedQuestions);
+        setSuccessMessage('Question supprimée avec succès !');
+        setTimeout(() => setSuccessMessage(''), 3000);
+        return;
+      }
+      
+      // Otherwise, it's an existing question that needs to be deleted from the database
       const response = await fetch('https://tetris-forms.azurewebsites.net/api/questions/delete', {
         method: 'DELETE',
         headers: {
@@ -284,7 +307,8 @@ const EditFormPage = ({ formId ,onBack }) => {
         },
         body: JSON.stringify({ 
           id: questionToDelete.id,
-          form_id: formId })
+          form_id: formId
+        })
       });
 
       if (!response.ok) {
@@ -292,28 +316,12 @@ const EditFormPage = ({ formId ,onBack }) => {
         throw new Error(errorData.error || 'Failed to delete question');
       }
 
+      // Just remove from local state without reordering IDs
       const updatedQuestions = questions.filter((_, i) => i !== index);
-      
-      const reorderedQuestions = updatedQuestions.map((q, i) => ({
-        ...q,
-        id: i + 1
-      }));
-      
-      setQuestions(reorderedQuestions);
+      setQuestions(updatedQuestions);
       setSuccessMessage('Question supprimée avec succès !');
       setTimeout(() => setSuccessMessage(''), 3000);
       
-      const updateResponse = await fetch('https://tetris-forms.azurewebsites.net/api/questions/update', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ questions: reorderedQuestions })
-      });
-
-      if (!updateResponse.ok) {
-        throw new Error('Failed to update question order');
-      }
     } catch (err) {
       console.error('Error deleting question:', err);
       setError(err.message || 'Erreur lors de la suppression de la question');
@@ -326,7 +334,7 @@ const EditFormPage = ({ formId ,onBack }) => {
         setSuccessMessage('');
         
         const formattedQuestions = questions.map(q => ({
-            id: q.id, // Gardez l'ID original
+            id: q.id, // Keep original ID (negative for new questions)
             form_id: formId,
             question_text: q.question_text || '',
             question_type: q.question_type || 'choice',
@@ -354,6 +362,30 @@ const EditFormPage = ({ formId ,onBack }) => {
 
         const responseData = await response.json();
         
+        // If we have new question IDs returned from the server
+        if (responseData.newQuestionIds && responseData.newQuestionIds.length > 0) {
+            // Update our local state with the new IDs before refetching
+            const updatedQuestions = questions.map(q => {
+                // Find if this question got a new ID
+                const match = responseData.newQuestionIds.find(item => item.tempId === q.id);
+                if (match) {
+                    // Replace with the new database ID and remove isNew flag
+                    return {
+                        ...q,
+                        id: match.newId,
+                        isNew: false
+                    };
+                }
+                return q;
+            });
+            
+            setQuestions(updatedQuestions);
+            
+            // Reset the local ID counter since all questions are now saved
+            setLocalQuestionIdCounter(-1);
+        }
+        
+        // Refetch questions to get all updated data
         await fetchQuestions();
         
         setSuccessMessage('Questions mises à jour avec succès !');
@@ -362,7 +394,7 @@ const EditFormPage = ({ formId ,onBack }) => {
         console.error('Error in handleSubmit:', err);
         setError(err.message || 'Error updating questions');
     }
-  };
+};
 
   if (loading) {
     return (
@@ -422,6 +454,12 @@ const EditFormPage = ({ formId ,onBack }) => {
               <div className="absolute -left-4 -top-4 w-8 h-8 bg-tetris-blue text-white rounded-full flex items-center justify-center font-bold shadow-lg">
                 {index + 1}
               </div>
+              {/* Display a badge for new questions */}
+              {question.id < 0 && (
+                <div className="absolute right-2 top-2 bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
+                  Nouvelle (non sauvegardée)
+                </div>
+              )}
               
               <div className="flex items-start gap-4">
                 <div className="flex-1">
