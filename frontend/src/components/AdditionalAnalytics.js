@@ -6,6 +6,8 @@ import {
 } from 'recharts';
 import { TrendingUp, Clock, MessageSquare, CreditCard, Info } from 'lucide-react';
 
+const API_URL = process.env.REACT_APP_API_URL;
+
 const COLORS = ['#0B3D91', '#1E90FF', '#4169E1', '#6495ED', '#87CEEB'];
 const RADIAN = Math.PI / 180;
 
@@ -57,7 +59,7 @@ const AdditionalAnalytics = ({ onBack, onShowFeedback, onShowContacts }) => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const response = await fetch('https://tetris-forms.azurewebsites.net/api/analytics/additional');
+                const response = await fetch(`${API_URL}/api/analytics/additional`);
                 if (!response.ok) throw new Error('Failed to fetch data');
                 
                 const surveyData = await response.json();

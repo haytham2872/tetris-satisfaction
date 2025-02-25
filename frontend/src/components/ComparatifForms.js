@@ -3,7 +3,7 @@ import { ArrowUpDown, Filter, Download, Loader } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 // Constante pour l'URL de l'API
-const API_URL = process.env.REACT_APP_API_URL || 'https://tetris-forms.azurewebsites.net';
+const API_URL = process.env.REACT_APP_API_URL;
 
 // Composant avec informations complètes
 const ComparatifForms = ({ onBack, availableForms }) => {

@@ -25,7 +25,7 @@ const transformDatabaseQuestion = (dbQuestion) => ({
 // Function to fetch and format questions
 export const fetchQuestions = async () => {
   try {
-    const response = await fetch('https://tetris-forms.azurewebsites.net/api/questions');
+    const response = await fetch(`${API_URL}/api/questions`);
     if (!response.ok) throw new Error('Failed to fetch questions');
     const data = await response.json();
     return data.map(transformDatabaseQuestion);

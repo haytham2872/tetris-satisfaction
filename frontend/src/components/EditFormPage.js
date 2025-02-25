@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Save, AlertCircle, Plus, Trash2, HelpCircle } from 'lucide-react';
 
+const API_URL = process.env.REACT_APP_API_URL;
 const CustomAlert = ({ children, variant = 'default', className = '' }) => {
   const baseStyles = "p-4 rounded-lg mb-4 flex items-center gap-2";
   const variantStyles = {
@@ -135,7 +136,7 @@ const EditFormPage = ({ formId ,onBack }) => {
     const fetchFormInfo = async () => {
       if (!formId) return;
       try {
-        const response = await fetch(`https://tetris-forms.azurewebsites.net/api/forms/${formId}`);
+        const response = await fetch(`${API_URL}/api/forms/${formId}`);
         if (response.ok) {
           const data = await response.json();
           setFormInfo(data);
@@ -156,8 +157,8 @@ const EditFormPage = ({ formId ,onBack }) => {
     try {
       console.log('Fetching questions...');
       const url = formId 
-        ? `https://tetris-forms.azurewebsites.net/api/forms/${formId}/questions`
-        : 'https://tetris-forms.azurewebsites.net/api/questions';
+        ? `${API_URL}/api/forms/${formId}/questions`
+        : `${API_URL}/api/questions`;
       
       const response = await fetch(url);
       const data = await response.json();
@@ -300,7 +301,7 @@ const EditFormPage = ({ formId ,onBack }) => {
       }
       
       // Otherwise, it's an existing question that needs to be deleted from the database
-      const response = await fetch('https://tetris-forms.azurewebsites.net/api/questions/delete', {
+      const response = await fetch(`${API_URL}/api/questions/delete`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -344,7 +345,7 @@ const EditFormPage = ({ formId ,onBack }) => {
             options: Array.isArray(q.options) ? q.options : []
         }));
 
-        const response = await fetch(`https://tetris-forms.azurewebsites.net/api/questions/update`, {
+        const response = await fetch(`${API_URL}/api/questions/update`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

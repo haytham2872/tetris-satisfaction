@@ -13,7 +13,7 @@ import {
   SlidersHorizontal
 } from 'lucide-react';
 import { analyzeFeedback } from '../services/nlpService';
-
+const API_URL = process.env.REACT_APP_API_URL;
 // Helper function to truncate text
 const truncateText = (text, maxLength) => {
   if (!text) return '';
@@ -81,8 +81,8 @@ const CommentsAnalysis = ({ formId, onBack }) => {
       try {
         // Fetch questions for specific form
         const questionsUrl = formId
-          ? `https://tetris-forms.azurewebsites.net/api/forms/${formId}/questions`
-          : 'https://tetris-forms.azurewebsites.net/api/questions';
+          ? `${API_URL}/api/forms/${formId}/questions`
+          : `${API_URL}/api/questions`;
 
         const questionsResponse = await fetch(questionsUrl);
 
@@ -102,8 +102,8 @@ const CommentsAnalysis = ({ formId, onBack }) => {
 
         // Fetch comments with form_id parameter
         const commentsUrl = formId
-          ? `https://tetris-forms.azurewebsites.net/api/comments?form_id=${formId}`
-          : 'https://tetris-forms.azurewebsites.net/api/comments';
+          ? `${API_URL}/api/comments?form_id=${formId}`
+          : `${API_URL}/api/comments`;
 
         const commentsResponse = await fetch(commentsUrl);
 
@@ -115,7 +115,7 @@ const CommentsAnalysis = ({ formId, onBack }) => {
 
         // Fetch form info if formId is provided
         if (formId) {
-          const formResponse = await fetch(`https://tetris-forms.azurewebsites.net/api/forms/${formId}`);
+          const formResponse = await fetch(`${API_URL}/api/forms/${formId}`);
 
           if (formResponse.ok) {
             const formData = await formResponse.json();

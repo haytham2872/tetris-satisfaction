@@ -5,6 +5,7 @@ import { analyzeFeedback } from '../../services/nlpService';
 import { SURVEY_CONFIG } from './../constants/config';
 import { useQuestions } from './useQuestions';
 
+const API_URL = process.env.REACT_APP_API_URL;
 export const useSurvey = (formId) => {
   const [surveyId, setSurveyId] = useState(null);
   const [currentStep, setCurrentStep] = useState(0);
@@ -241,7 +242,7 @@ export const useSurvey = (formId) => {
           console.log('[handleSubmit] All analyses completed:', analyses);
           
           // Update the request body structure to match your backend expectation
-          const analysisResponse = await fetch('https://tetris-forms.azurewebsites.net/api/feedback/analyze', {
+          const analysisResponse = await fetch(`${API_URL}/api/feedback/analyze`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
@@ -280,7 +281,7 @@ export const useSurvey = (formId) => {
             console.log(`[handleSubmit] Analyzing optional answer for question ${questionId}`);
             const analysis = await analyzeFeedback(response.optionalAnswer);
             
-            const analysisResponse = await fetch('https://tetris-forms.azurewebsites.net/api/feedback/analyze', {
+            const analysisResponse = await fetch(`${API_URL}/api/feedback/analyze`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json'
@@ -339,7 +340,7 @@ export const useSurvey = (formId) => {
   const handleContactSubmit = async (contactData) => {
     console.log('[handleContactSubmit] contactData=', contactData);
     try {
-        const response = await fetch(`https://tetris-forms.azurewebsites.net/api/low-satisfaction`, {
+        const response = await fetch(`${API_URL}/api/low-satisfaction`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

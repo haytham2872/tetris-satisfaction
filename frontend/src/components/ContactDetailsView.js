@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { User, Phone, Mail, Clock, Download, MessageSquare, Star, AlignLeft, ListFilter, BarChart } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
-const API_URL = 'https://tetris-forms.azurewebsites.net';
+const API_URL = process.env.REACT_APP_API_URL;
 
 const ContactDetailsView = ({ formId, onBack }) => {
   const [contacts, setContacts] = useState([]);

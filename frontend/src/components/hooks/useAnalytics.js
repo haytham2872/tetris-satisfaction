@@ -1,8 +1,7 @@
 // hooks/useAnalytics.js
 import { useState, useEffect } from 'react';
 
-const API_URL = 'https://tetris-forms.azurewebsites.net';
-
+const API_URL = process.env.REACT_APP_API_URL;
 export const useAnalytics = (formId) => {
   // États existants
   const [showAnalytics, setShowAnalytics] = useState(false);

@@ -11,6 +11,7 @@ import {
     AlertTriangle
 } from 'lucide-react';
 
+const API_URL = process.env.REACT_APP_API_URL;
 const EmotionBadge = ({ emotion, score }) => {
     const configs = {
         SATISFACTION: { icon: ThumbsUp, color: 'bg-green-100 text-green-800' },
@@ -228,12 +229,12 @@ const FeedbackAnalysisPage = ({ formId, onBack, onFeedbackDataLoaded }) => {
             try {
                 // Construire les URLs avec le formId
                 const feedbackUrl = formId
-                    ? `https://tetris-forms.azurewebsites.net/api/feedback/analysis?form_id=${formId}`
-                    : 'https://tetris-forms.azurewebsites.net/api/feedback/analysis';
+                    ? `${API_URL}/api/feedback/analysis?form_id=${formId}`
+                    : `${API_URL}/api/feedback/analysis`;
 
                 const questionsUrl = formId
-                    ? `https://tetris-forms.azurewebsites.net/api/forms/${formId}/questions`
-                    : 'https://tetris-forms.azurewebsites.net/api/questions';
+                    ? `${API_URL}/api/forms/${formId}/questions`
+                    : `${API_URL}/api/questions`;
 
                 // Fetch feedback, questions, et informations du formulaire
                 const promises = [
@@ -244,7 +245,7 @@ const FeedbackAnalysisPage = ({ formId, onBack, onFeedbackDataLoaded }) => {
                 // Ajouter la requête pour les informations du formulaire si formId est présent
                 if (formId) {
                     promises.push(
-                        fetch(`https://tetris-forms.azurewebsites.net/api/forms/${formId}`)
+                        fetch(`${API_URL}/api/forms/${formId}`)
                     );
                 }
 

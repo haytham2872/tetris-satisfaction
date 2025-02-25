@@ -1,7 +1,7 @@
-const API_URL = 'https://tetris-forms.azurewebsites.net';
+const API_URL = process.env.REACT_APP_API_URL;
 
 if (!API_URL) {
-    console.error('API_URL is not defined! Make sure REACT_APP_API_URL is set in your environment variables.');
+    console.error('API_URL is not defined! Make sure environment variables are set correctly.');
 }
 
 export const startSurvey = async (formId) => {

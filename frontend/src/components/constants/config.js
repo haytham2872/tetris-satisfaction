@@ -1,7 +1,8 @@
+const API_URL = process.env.REACT_APP_API_URL;
 export const SURVEY_CONFIG = {
     ANIMATION_DURATION: 300,
     API_ENDPOINTS: {
-      BASE_URL: 'https://tetris-forms.azurewebsites.net',
+      BASE_URL: `${API_URL}`,
       SURVEY: '/api/start-survey',
       RESPONSES: '/api/responses',
       FEEDBACK: '/api/feedback/analyze',
