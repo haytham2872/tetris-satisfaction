@@ -17,6 +17,8 @@ function AdminApp() {
   const [isCreatingForm, setIsCreatingForm] = useState(false);
   const [newFormName, setNewFormName] = useState('');
   const [newFormDescription, setNewFormDescription] = useState('');
+  // NEW: Add state to store feedback data
+  const [feedbackData, setFeedbackData] = useState([]);
 
   const {
     showAnalytics,
@@ -58,6 +60,49 @@ function AdminApp() {
 
     fetchForms();
   }, []);
+
+  // NEW: Add effect to fetch feedback data when form changes
+  useEffect(() => {
+    if (selectedFormId) {
+      fetchFeedbackData(selectedFormId);
+    }
+  }, [selectedFormId]);
+
+  // NEW: Function to fetch feedback data
+  const fetchFeedbackData = async (formId) => {
+    try {
+      const feedbackUrl = `${process.env.REACT_APP_API_URL}/api/feedback/analysis?form_id=${formId}`;
+      const response = await fetch(feedbackUrl);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch feedback data');
+      }
+      
+      const data = await response.json();
+      
+      // Process the feedback data to ensure analysis is properly parsed
+      const processedData = data.map(feedback => {
+        if (typeof feedback.analysis === 'string') {
+          try {
+            feedback.analysis = JSON.parse(feedback.analysis);
+          } catch (e) {
+            console.error('Error parsing analysis:', e);
+          }
+        }
+        return feedback;
+      });
+      
+      setFeedbackData(processedData);
+    } catch (error) {
+      console.error('Error fetching feedback data:', error);
+      setFeedbackData([]);
+    }
+  };
+
+  // NEW: Function to handle feedback data from FeedbackAnalysisPage
+  const handleFeedbackDataLoaded = (data) => {
+    setFeedbackData(data);
+  };
 
   const createNewForm = async () => {
     try {
@@ -212,12 +257,14 @@ function AdminApp() {
               onShowComments={() => setShowComments(true)}
               onShowFeedback={() => setShowFeedbackAnalysis(true)}
               onShowEditForm={() => setShowEditForm(true)}
+              externalFeedbackData={feedbackData} /* NEW: Pass feedback data */
             />
           )}
           {showFeedbackAnalysis && (
             <FeedbackAnalysisPage 
               formId={selectedFormId}
               onBack={handleBackToDashboard} 
+              onFeedbackDataLoaded={handleFeedbackDataLoaded} /* NEW: Add callback */
             />
           )}
           {showEditForm && (
@@ -249,6 +296,7 @@ function AdminApp() {
               onShowFeedback={() => setShowFeedbackAnalysis(true)}
               onShowContacts={() => setShowContacts(true)}
               isAdditionalView={true}
+              externalFeedbackData={feedbackData} /* NEW: Pass feedback data here too */
             />
           )}
           {showComparatif && (

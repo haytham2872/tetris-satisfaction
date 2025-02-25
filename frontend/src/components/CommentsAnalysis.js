@@ -9,7 +9,8 @@ import {
   AlertCircle,
   Heart,
   AlertTriangle,
-  Flag
+  Flag,
+  SlidersHorizontal
 } from 'lucide-react';
 import { analyzeFeedback } from '../services/nlpService';
 
@@ -60,15 +61,17 @@ const UrgencyBadge = ({ level }) => {
   );
 };
 
-const CommentsAnalysis = ({formId, onBack }) => {
+const CommentsAnalysis = ({ formId, onBack }) => {
   const [comments, setComments] = useState([]);
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all');
+  const [questionFilter, setQuestionFilter] = useState('all');
+  const [sentimentFilter, setSentimentFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [analyzedComments, setAnalyzedComments] = useState([]);
   const [uniqueQuestionIds, setUniqueQuestionIds] = useState([]);
   const [error, setError] = useState(null);
+  const [formInfo, setFormInfo] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -77,10 +80,10 @@ const CommentsAnalysis = ({formId, onBack }) => {
 
       try {
         // Fetch questions for specific form
-        const questionsUrl = formId 
+        const questionsUrl = formId
           ? `https://tetris-forms.azurewebsites.net/api/forms/${formId}/questions`
           : 'https://tetris-forms.azurewebsites.net/api/questions';
-        
+
         const questionsResponse = await fetch(questionsUrl);
 
         if (!questionsResponse.ok) {
@@ -88,7 +91,7 @@ const CommentsAnalysis = ({formId, onBack }) => {
         }
 
         const questionsData = await questionsResponse.json();
-        
+
         // Normalize questions data structure
         const normalizedQuestions = questionsData.map(q => ({
           id: q.id || q.question_id,
@@ -98,10 +101,10 @@ const CommentsAnalysis = ({formId, onBack }) => {
         setQuestions(normalizedQuestions);
 
         // Fetch comments with form_id parameter
-        const commentsUrl = formId 
+        const commentsUrl = formId
           ? `https://tetris-forms.azurewebsites.net/api/comments?form_id=${formId}`
           : 'https://tetris-forms.azurewebsites.net/api/comments';
-        
+
         const commentsResponse = await fetch(commentsUrl);
 
         if (!commentsResponse.ok) {
@@ -109,6 +112,16 @@ const CommentsAnalysis = ({formId, onBack }) => {
         }
 
         const commentsData = await commentsResponse.json();
+
+        // Fetch form info if formId is provided
+        if (formId) {
+          const formResponse = await fetch(`https://tetris-forms.azurewebsites.net/api/forms/${formId}`);
+
+          if (formResponse.ok) {
+            const formData = await formResponse.json();
+            setFormInfo(formData);
+          }
+        }
 
         // Create a questions lookup map
         const questionsMap = new Map(normalizedQuestions.map(q => [String(q.id), q.text]));
@@ -161,15 +174,42 @@ const CommentsAnalysis = ({formId, onBack }) => {
     };
 
     fetchData();
-  }, [formId]); 
+  }, [formId]);
+
+  // Check if a comment matches the current filters
+  const matchesSentimentFilter = (comment) => {
+    const analyzed = analyzedComments.find(
+      c => c.surveyId === comment.surveyId && c.questionId === comment.questionId
+    );
+
+    if (!analyzed || !analyzed.analysis) return sentimentFilter === 'all';
+
+    const sentimentScore = analyzed.analysis.overall?.sentiment?.score || 0;
+    const urgencyLevel = analyzed.analysis.overall?.urgency?.level || 'NORMAL';
+
+    switch (sentimentFilter) {
+      case 'positive':
+        return sentimentScore >= 0;
+      case 'negative':
+        return sentimentScore < 0;
+      case 'urgent':
+        return urgencyLevel === 'HIGH' || urgencyLevel === 'MEDIUM';
+      case 'all':
+      default:
+        return true;
+    }
+  };
 
   const filteredComments = comments.filter(comment => {
     const matchesFormId = !formId || comment.formId === parseInt(formId);
-    const matchesFilter = filter === 'all' || filter === comment.questionId.toString();
+    const matchesQuestion = questionFilter === 'all' || questionFilter === comment.questionId.toString();
+    const matchesSentiment = matchesSentimentFilter(comment);
     const matchesSearch = searchTerm === '' ||
       (comment.comment && comment.comment.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (comment.questionText && comment.questionText.toLowerCase().includes(searchTerm.toLowerCase()));
-    return matchesFormId && matchesFilter && matchesSearch;
+
+    // Apply all filters
+    return matchesFormId && matchesSearch && matchesQuestion && matchesSentiment;
   });
 
   if (loading) {
@@ -205,15 +245,16 @@ const CommentsAnalysis = ({formId, onBack }) => {
         <div className="mb-8">
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Analyse des Commentaires</h1>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Analyse des Commentaires Optionnels</h1>
               <p className="text-gray-600">
-                {comments.length} commentaire{comments.length > 1 ? 's' : ''} au total
+                {filteredComments.length} commentaire{filteredComments.length > 1 ? 's' : ''} au total
+                {formInfo && ` pour "${formInfo.name}"`}
               </p>
             </div>
           </div>
 
-          {/* Filters and Search */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          {/* Search Bar */}
+          <div className="mb-6">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
@@ -224,23 +265,47 @@ const CommentsAnalysis = ({formId, onBack }) => {
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-tetris-blue focus:border-transparent"
               />
             </div>
+          </div>
 
+          {/* Filters Section - Side by side design like in FeedbackAnalysisPage */}
+          <div className="flex flex-wrap items-center gap-4 mb-6 bg-white p-4 rounded-lg shadow">
             <div className="flex items-center gap-2">
               <Filter className="w-5 h-5 text-gray-500" />
+              <span className="text-sm font-medium">Filtres:</span>
+            </div>
+
+            {/* Question Filter */}
+            <div className="flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-gray-500" />
               <select
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 bg-white"
+                value={questionFilter}
+                onChange={(e) => setQuestionFilter(e.target.value)}
+                className="border border-gray-300 rounded-lg px-3 py-2 bg-white text-sm"
               >
                 <option value="all">Toutes les questions</option>
                 {uniqueQuestionIds.map(id => {
                   const question = questions.find(q => q.id === id);
                   return (
                     <option key={id} value={id.toString()}>
-                      Question {id}: {question?.text ? truncateText(question.text, 40) : '(Texte non disponible)'}
+                      {question?.text ? truncateText(question.text, 40) : `Question ${id}`}
                     </option>
                   );
                 })}
+              </select>
+            </div>
+
+            {/* Sentiment Filter */}
+            <div className="flex items-center gap-2">
+              <ThumbsUp className="w-4 h-4 text-gray-500" />
+              <select
+                value={sentimentFilter}
+                onChange={(e) => setSentimentFilter(e.target.value)}
+                className="border border-gray-300 rounded-lg px-3 py-2 bg-white text-sm"
+              >
+                <option value="all">Tous les sentiments</option>
+                <option value="positive">Positifs</option>
+                <option value="negative">Négatifs</option>
+                <option value="urgent">Urgents</option>
               </select>
             </div>
           </div>
@@ -341,7 +406,16 @@ const CommentsAnalysis = ({formId, onBack }) => {
               <p className="text-gray-500 mt-2">
                 {searchTerm
                   ? "Aucun commentaire ne correspond à votre recherche."
-                  : "Aucun commentaire n'a été laissé pour cette question."}
+                  : questionFilter !== 'all' && sentimentFilter !== 'all'
+                    ? "Aucun commentaire ne correspond aux filtres sélectionnés."
+                    : questionFilter !== 'all'
+                      ? "Aucun commentaire n'a été laissé pour cette question."
+                      : sentimentFilter !== 'all'
+                        ? `Aucun commentaire ${sentimentFilter === 'positive' ? 'positif' :
+                          sentimentFilter === 'negative' ? 'négatif' :
+                            sentimentFilter === 'urgent' ? 'urgent' : ''
+                        } n'a été trouvé.`
+                        : "Aucun commentaire n'a été laissé."}
               </p>
             </div>
           )}

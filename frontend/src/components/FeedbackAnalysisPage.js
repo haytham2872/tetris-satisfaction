@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { 
+import {
     MessageSquare,
     ThumbsUp,
     AlertCircle,
@@ -80,9 +80,9 @@ const TopicAnalysis = ({ topic, data }) => {
             <div className="space-y-2">
                 {Object.entries(data.subtopics).map(([subtopic, details]) => {
                     if (!details || !details.mentions) return null;
-                    
+
                     const translatedSubtopic = translations.subtopics[subtopic] || subtopic;
-                    
+
                     return (
                         <div key={subtopic} className="flex items-center justify-between bg-white p-2 rounded-md">
                             <div className="flex items-center gap-2">
@@ -115,7 +115,7 @@ const FeedbackCard = ({ feedback, questions }) => {
         }
     }
 
-    const { 
+    const {
         overall = {},
         topics = {},
         metadata = {}
@@ -133,8 +133,8 @@ const FeedbackCard = ({ feedback, questions }) => {
 
     // Determine sentiment display
     const sentimentDisplay = sentimentScore >= 0 ? 'positif' : 'négatif';
-    const sentimentClass = sentimentScore >= 0 ? 
-        'bg-green-100 text-green-800' : 
+    const sentimentClass = sentimentScore >= 0 ?
+        'bg-green-100 text-green-800' :
         'bg-red-100 text-red-800';
     const SentimentIcon = sentimentScore >= 0 ? ThumbsUp : ThumbsDown;
 
@@ -154,8 +154,8 @@ const FeedbackCard = ({ feedback, questions }) => {
                     </span>
 
                     {dominantEmotion && (
-                        <EmotionBadge 
-                            emotion={dominantEmotion} 
+                        <EmotionBadge
+                            emotion={dominantEmotion}
                             score={emotions[dominantEmotion]?.score || 0}
                             isNegated={emotions[dominantEmotion]?.isNegated}
                         />
@@ -215,21 +215,22 @@ const FeedbackCard = ({ feedback, questions }) => {
     );
 };
 
-const FeedbackAnalysisPage = ({ formId, onBack }) => {
+const FeedbackAnalysisPage = ({ formId, onBack, onFeedbackDataLoaded }) => {
     const [feedbackData, setFeedbackData] = useState([]);
     const [questions, setQuestions] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [filter, setFilter] = useState('all');
+    const [sentimentFilter, setSentimentFilter] = useState('all');
+    const [questionFilter, setQuestionFilter] = useState('all');
     const [formInfo, setFormInfo] = useState(null);
 
     useEffect(() => {
         const fetchData = async () => {
             try {
                 // Construire les URLs avec le formId
-                const feedbackUrl = formId 
+                const feedbackUrl = formId
                     ? `https://tetris-forms.azurewebsites.net/api/feedback/analysis?form_id=${formId}`
                     : 'https://tetris-forms.azurewebsites.net/api/feedback/analysis';
-                
+
                 const questionsUrl = formId
                     ? `https://tetris-forms.azurewebsites.net/api/forms/${formId}/questions`
                     : 'https://tetris-forms.azurewebsites.net/api/questions';
@@ -258,11 +259,29 @@ const FeedbackAnalysisPage = ({ formId, onBack }) => {
                     responses.map(response => response.json())
                 );
 
-                setFeedbackData(feedbackData);
+                // Process the feedback data to ensure analysis is properly parsed
+                const processedFeedbackData = feedbackData.map(feedback => {
+                    if (typeof feedback.analysis === 'string') {
+                        try {
+                            feedback.analysis = JSON.parse(feedback.analysis);
+                        } catch (e) {
+                            console.error('Error parsing analysis:', e);
+                        }
+                    }
+                    return feedback;
+                });
+
+                setFeedbackData(processedFeedbackData);
                 setQuestions(questionsData);
                 if (formData) {
                     setFormInfo(formData);
                 }
+
+                // Call the callback with the processed feedback data
+                if (onFeedbackDataLoaded && typeof onFeedbackDataLoaded === 'function') {
+                    onFeedbackDataLoaded(processedFeedbackData);
+                }
+
                 setLoading(false);
             } catch (error) {
                 console.error('Error fetching data:', error);
@@ -271,38 +290,43 @@ const FeedbackAnalysisPage = ({ formId, onBack }) => {
         };
 
         fetchData();
-    }, [formId]);
+    }, [formId, onFeedbackDataLoaded]);
 
     const filteredFeedback = feedbackData.filter(feedback => {
         // Vérifier que feedback n'est pas null ou undefined
         if (!feedback) return false;
-    
+
         // Filtrer par formId
         if (formId && parseInt(feedback.form_id) !== parseInt(formId)) return false;
-        
-        // Appliquer les autres filtres
-        if (filter === 'all') return true;
-    
+
+        // Filtrer par question
+        if (questionFilter !== 'all' && feedback.questionId !== parseInt(questionFilter)) return false;
+
+        // Appliquer les filtres de sentiment
+        if (sentimentFilter === 'all') return true;
+
         // S'assurer que l'analyse existe
         const analysis = feedback.analysis;
         if (!analysis || !analysis.overall || !analysis.overall.sentiment) return false;
-    
+
         const score = analysis.overall.sentiment.score || 0;
-        
-        switch (filter) {
+
+        switch (sentimentFilter) {
             case 'positive':
                 return score > 0.1;
             case 'negative':
                 return score < -0.1;
             case 'urgent':
                 return analysis.overall.urgency?.level === 'HIGH';
-            case 'neutral':
-                return Math.abs(score) <= 0.1;
             default:
                 return true;
         }
     });
 
+    // Get unique questions from feedback data for the dropdown
+    const uniqueQuestions = Array.from(
+        new Set(feedbackData.map(feedback => feedback.questionId))
+    ).filter(Boolean);
 
     if (loading) {
         return (
@@ -320,7 +344,7 @@ const FeedbackAnalysisPage = ({ formId, onBack }) => {
                     <div className="flex justify-between items-start">
                         <div>
                             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                                Analyse des Commentaires
+                                Analyse des Retours
                                 {formInfo && ` - ${formInfo.name}`}
                             </h1>
                             <p className="text-gray-600">
@@ -328,29 +352,57 @@ const FeedbackAnalysisPage = ({ formId, onBack }) => {
                                 {formInfo && ` pour ce formulaire`}
                             </p>
                         </div>
+                    </div>
+                </div>
 
-                        {/* Filters */}
-                        <div className="flex items-center gap-2">
-                            <Filter className="w-5 h-5 text-gray-500" />
-                            <select
-                                value={filter}
-                                onChange={(e) => setFilter(e.target.value)}
-                                className="border border-gray-300 rounded-lg px-3 py-2 bg-white text-sm"
-                            >
-                                <option value="all">Tous</option>
-                                <option value="positive">Positifs</option>
-                                <option value="negative">Négatifs</option>
-                                <option value="urgent">Urgents</option>
-                                <option value="neutral">Neutres</option>
-                            </select>
-                        </div>
+                {/* Filters */}
+                <div className="flex flex-wrap items-center gap-4 mb-6 bg-white p-4 rounded-lg shadow">
+                    <div className="flex items-center gap-2">
+                        <Filter className="w-5 h-5 text-gray-500" />
+                        <span className="text-sm font-medium">Filtres:</span>
+                    </div>
+
+                    {/* Question filter */}
+                    <div className="flex items-center gap-2">
+                        <MessageSquare className="w-4 h-4 text-gray-500" />
+                        <select
+                            value={questionFilter}
+                            onChange={(e) => setQuestionFilter(e.target.value)}
+                            className="border border-gray-300 rounded-lg px-3 py-2 bg-white text-sm"
+                        >
+                            <option value="all">Toutes les questions</option>
+                            {uniqueQuestions.map(qId => {
+                                // Find the question text if available
+                                const questionText = feedbackData.find(f => f.questionId === qId)?.questionText || `Question ${qId}`;
+                                return (
+                                    <option key={qId} value={qId}>
+                                        {questionText.length > 40 ? `${questionText.substring(0, 40)}...` : questionText}
+                                    </option>
+                                );
+                            })}
+                        </select>
+                    </div>
+
+                    {/* Sentiment filter */}
+                    <div className="flex items-center gap-2">
+                        <ThumbsUp className="w-4 h-4 text-gray-500" />
+                        <select
+                            value={sentimentFilter}
+                            onChange={(e) => setSentimentFilter(e.target.value)}
+                            className="border border-gray-300 rounded-lg px-3 py-2 bg-white text-sm"
+                        >
+                            <option value="all">Tous les sentiments</option>
+                            <option value="positive">Positifs</option>
+                            <option value="negative">Négatifs</option>
+                            <option value="urgent">Urgents</option>
+                        </select>
                     </div>
                 </div>
 
                 {/* Feedback Cards */}
                 <div className="space-y-6">
                     {filteredFeedback.map((feedback) => (
-                        <FeedbackCard 
+                        <FeedbackCard
                             key={`${feedback.id}-${feedback.questionId}`}
                             feedback={feedback}
                             questions={questions}
@@ -364,11 +416,11 @@ const FeedbackAnalysisPage = ({ formId, onBack }) => {
                                 Aucun commentaire trouvé
                             </h3>
                             <p className="text-gray-500 mt-2">
-                                {filter === 'all' 
-                                    ? formInfo
+                                {(questionFilter !== 'all' || sentimentFilter !== 'all')
+                                    ? "Aucun commentaire ne correspond aux filtres sélectionnés."
+                                    : formInfo
                                         ? "Aucun commentaire n'a encore été soumis pour ce formulaire."
-                                        : "Les analyses apparaîtront ici une fois que les utilisateurs auront soumis leurs commentaires."
-                                    : "Aucun commentaire ne correspond au filtre sélectionné."}
+                                        : "Les analyses apparaîtront ici une fois que les utilisateurs auront soumis leurs commentaires."}
                             </p>
                         </div>
                     )}
