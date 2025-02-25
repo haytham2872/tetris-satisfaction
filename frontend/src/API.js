@@ -10,24 +10,24 @@ export const startSurvey = async (formId) => {
 
         const response = await fetch(`${API_URL}/api/start-survey`, {
             method: 'POST',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             },
-            body: JSON.stringify({ 
+            body: JSON.stringify({
                 name: 'Survey ' + new Date().toISOString(),
                 form_id: formId
             }),
         });
-        
+
         if (!response.ok) {
             const errorText = await response.text();
             throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
         }
-        
+
         const data = await response.json();
         return {
-            id: Number(data.id) 
+            id: Number(data.id)
         };
     } catch (error) {
         console.error('Error starting survey:', error);
@@ -40,20 +40,20 @@ const formatAnswer = (answer) => {
     if (answer === null || answer === undefined) {
         return '';
     }
-    
+
     // Handle different types of answers
     if (typeof answer === 'number') {
         return answer.toString();
     }
-    
+
     if (typeof answer === 'boolean') {
         return answer.toString();
     }
-    
+
     if (Array.isArray(answer)) {
         return answer.join(',');
     }
-    
+
     // Ensure the answer is a string
     return String(answer).trim();
 };
@@ -104,7 +104,7 @@ export const submitResponses = async (surveyId, responses, negativeScore, formId
 
         const response = await fetch(`${API_URL}/api/responses`, {
             method: 'POST',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             },
@@ -132,11 +132,11 @@ export const submitResponses = async (surveyId, responses, negativeScore, formId
 export const getQuestions = async (formId) => {
     try {
         const response = await fetch(`${API_URL}/api/forms/${formId}/questions`);
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
         return data;
     } catch (error) {
@@ -148,11 +148,11 @@ export const getQuestions = async (formId) => {
 export const getForms = async () => {
     try {
         const response = await fetch(`${API_URL}/api/forms`);
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
         return data;
     } catch (error) {
@@ -165,17 +165,17 @@ export const createForm = async (formData) => {
     try {
         const response = await fetch(`${API_URL}/api/forms`, {
             method: 'POST',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             },
             body: JSON.stringify(formData),
         });
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
         return data;
     } catch (error) {
@@ -188,17 +188,17 @@ export const updateForm = async (formId, formData) => {
     try {
         const response = await fetch(`${API_URL}/api/forms/${formId}`, {
             method: 'PUT',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             },
             body: JSON.stringify(formData),
         });
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
         return data;
     } catch (error) {
