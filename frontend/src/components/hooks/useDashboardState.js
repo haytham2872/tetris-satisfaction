@@ -15,6 +15,7 @@ const useDashboardState = () => {
     const [availableForms, setAvailableForms] = useState([]);
     const [isLoadingForms, setIsLoadingForms] = useState(true);
     const [formError, setFormError] = useState(null);
+    const [showComparatif, setShowComparatif] = useState(false);
 
     // Charger la liste des formulaires au montage
     useEffect(() => {
@@ -88,6 +89,8 @@ const useDashboardState = () => {
         isLoadingForms,
         formError,
         handleFormChange,
+        showComparatif,
+        setShowComparatif,
         refreshForms
     };
 };

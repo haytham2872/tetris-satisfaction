@@ -34,6 +34,7 @@ const Page = ({
     setAnalyticsView,
     setShowComments,
     setShowContacts,
+    setShowComparatif,
     onBack,
     setShowDashboard,
     children
@@ -56,7 +57,6 @@ const Page = ({
                 setShowContacts(false);
             }
         },
-        
         {
             id: 'edit',
             icon: Edit,
@@ -115,6 +115,22 @@ const Page = ({
                 setShowContacts(false);
             }
         },
+        // Déplacez l'élément "comparatif" ici, à la fin du tableau
+        {
+            id: 'comparatif',
+            icon: BarChart2, // Vous pouvez utiliser une autre icône si nécessaire
+            title: "Comparatif des formulaires",
+            description: "Comparez les statistiques entre tous les formulaires",
+            onClick: () => {
+                setActiveView('comparatif');
+                setShowComparatif(true);
+                setShowAnalytics(false);
+                setShowFeedbackAnalysis(false);
+                setShowEditForm(false);
+                setShowComments(false);
+                setShowContacts(false);
+            }
+        },
     ];
 
     const handleBack = () => {
@@ -124,6 +140,7 @@ const Page = ({
         setShowEditForm(false);
         setShowComments(false);
         setShowContacts(false);
+        setShowComparatif(false); 
         setAnalyticsView('main');
         onBack && onBack();
     };

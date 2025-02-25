@@ -7,6 +7,7 @@ import FeedbackAnalysisPage from './components/FeedbackAnalysisPage';
 import EditFormPage from './components/EditFormPage';
 import CommentsAnalysis from './components/CommentsAnalysis';
 import ContactDetailsView from './components/ContactDetailsView';
+import ComparatifForms from './components/ComparatifForms';
 import VercelAnalytics from './components/VercelAnalytics';
 
 function AdminApp() {
@@ -29,12 +30,14 @@ function AdminApp() {
     setShowFeedbackAnalysis,
     setShowComments,
     setShowEditForm,
+    showComparatif,
+    setShowComparatif,
     setShowContacts
   } = useDashboardState();
 
   // Check if we're on the main dashboard
   const isMainDashboard = !showAnalytics && !showFeedbackAnalysis && 
-    !showComments && !showEditForm && !showContacts && analyticsView === 'main';
+    !showComments && !showEditForm && !showContacts && !showComparatif && analyticsView === 'main';
 
   useEffect(() => {
     const fetchForms = async () => {
@@ -90,6 +93,7 @@ function AdminApp() {
   const handleBackToDashboard = () => {
     setShowAnalytics(false);
     setShowFeedbackAnalysis(false);
+    setShowComparatif(false);
     setShowEditForm(false);
     setShowComments(false);
     setShowContacts(false);
@@ -192,6 +196,7 @@ function AdminApp() {
           selectedFormId={selectedFormId}
           availableForms={availableForms}
           setShowAnalytics={setShowAnalytics}
+          setShowComparatif={setShowComparatif}
           setShowFeedbackAnalysis={setShowFeedbackAnalysis}
           setShowEditForm={setShowEditForm}
           setAnalyticsView={setAnalyticsView}
@@ -244,6 +249,12 @@ function AdminApp() {
               onShowFeedback={() => setShowFeedbackAnalysis(true)}
               onShowContacts={() => setShowContacts(true)}
               isAdditionalView={true}
+            />
+          )}
+          {showComparatif && (
+            <ComparatifForms 
+              availableForms={availableForms}
+              onBack={handleBackToDashboard}
             />
           )}
         </Page>

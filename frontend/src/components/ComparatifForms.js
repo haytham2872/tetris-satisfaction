@@ -1,0 +1,458 @@
+import React, { useState, useEffect } from 'react';
+import { ArrowUpDown, Filter, Download, Loader } from 'lucide-react';
+
+// Constante pour l'URL de l'API
+const API_URL = process.env.REACT_APP_API_URL || 'https://tetris-forms.azurewebsites.net';
+
+// Composant avec informations complètes
+const ComparatifForms = ({ onBack, availableForms }) => {
+  const [formData, setFormData] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [sortField, setSortField] = useState('name');
+  const [sortDirection, setSortDirection] = useState('asc');
+  const [filterValue, setFilterValue] = useState('');
+
+  useEffect(() => {
+    const fetchFormDetails = async () => {
+      try {
+        setIsLoading(true);
+
+        if (!availableForms || availableForms.length === 0) {
+          // Si aucun formulaire disponible, utiliser des données fictives
+          setMockData();
+          return;
+        }
+
+        // Pour chaque formulaire, récupérer les données détaillées
+        const formDetailsPromises = availableForms.map(async (form) => {
+          try {
+            // 1. Récupérer les questions pour chaque formulaire
+            const questionsResponse = await fetch(`${API_URL}/api/forms/${form.id}/questions`);
+            const questions = await questionsResponse.json();
+            
+            // 2. Récupérer les réponses pour chaque formulaire
+            const responsesResponse = await fetch(`${API_URL}/api/analytics/responses?form_id=${form.id}`);
+            const responses = await responsesResponse.json();
+            
+            // 3. Récupérer les clients insatisfaits
+            const unsatisfiedResponse = await fetch(`${API_URL}/api/low-satisfaction?form_id=${form.id}`);
+            const unsatisfied = unsatisfiedResponse.ok ? await unsatisfiedResponse.json() : [];
+            
+            // 4. Récupérer les analyses de feedback
+            const feedbackResponse = await fetch(`${API_URL}/api/feedback/analysis?form_id=${form.id}`);
+            const feedbackData = feedbackResponse.ok ? await feedbackResponse.json() : [];
+            
+            // Calculer les statistiques
+            const totalResponses = responses.length;
+            const unsatisfiedCount = Array.isArray(unsatisfied) ? unsatisfied.length : 0;
+            
+            // Calculer les statistiques de sentiment
+            let positiveResponses = 0;
+            let totalSentimentResponses = 0;
+            let totalSentimentScore = 0;
+            
+            feedbackData.forEach(feedback => {
+              try {
+                const analysis = feedback.analysis;
+                if (analysis?.overall?.sentiment?.score !== undefined) {
+                  const score = analysis.overall.sentiment.score;
+                  totalSentimentScore += score;
+                  totalSentimentResponses++;
+                  if (score >= 0.5) {
+                    positiveResponses++;
+                  }
+                }
+              } catch (e) {
+                console.error('Error processing feedback analysis:', e);
+              }
+            });
+            
+            const averageSentiment = totalSentimentResponses > 0 ? totalSentimentScore / totalSentimentResponses : 0;
+            const positiveRate = totalSentimentResponses > 0 ? ((positiveResponses / totalSentimentResponses) * 100) : 0;
+            const satisfactionRate = totalResponses > 0 ? ((totalResponses - unsatisfiedCount) / totalResponses * 100) : 0;
+            
+            return {
+              id: form.id,
+              name: form.name || 'Sans nom',
+              description: form.description || '',
+              questionCount: questions.length,
+              submissions: totalResponses,
+              unsatisfiedCount: unsatisfiedCount,
+              positiveResponses: positiveResponses,
+              totalSentimentResponses: totalSentimentResponses,
+              positiveRate: positiveRate.toFixed(1),
+              satisfactionRate: satisfactionRate.toFixed(1),
+              averageSentiment: averageSentiment.toFixed(2),
+              lastUpdated: form.updated_at || form.created_at || new Date()
+            };
+          } catch (error) {
+            console.error(`Erreur lors de la récupération des détails pour le formulaire ${form.id}:`, error);
+            
+            // En cas d'erreur, retourner le formulaire avec des statistiques par défaut
+            return {
+              id: form.id,
+              name: form.name || 'Sans nom',
+              description: form.description || '',
+              questionCount: 0,
+              submissions: 0,
+              unsatisfiedCount: 0,
+              positiveResponses: 0,
+              totalSentimentResponses: 0,
+              positiveRate: '0.0',
+              satisfactionRate: '0.0',
+              averageSentiment: '0.00',
+              lastUpdated: form.updated_at || form.created_at || new Date()
+            };
+          }
+        });
+        
+        // Attendre que toutes les requêtes soient terminées
+        const detailedForms = await Promise.all(formDetailsPromises);
+        setFormData(detailedForms);
+      } catch (error) {
+        console.error("❌ ERREUR:", error);
+        setMockData();
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    const setMockData = () => {
+      // Données fictives en cas d'erreur ou d'absence de formulaires
+      const mockData = [
+        { 
+          id: 1, 
+          name: 'Formulaire de satisfaction client', 
+          description: 'Évaluation des clients', 
+          questionCount: 12, 
+          submissions: 78, 
+          unsatisfiedCount: 5,
+          positiveResponses: 52,
+          totalSentimentResponses: 68,
+          positiveRate: '76.5',
+          satisfactionRate: '93.6',
+          averageSentiment: '0.82',
+          lastUpdated: new Date() 
+        },
+        { 
+          id: 2, 
+          name: 'Évaluation des services', 
+          description: 'Qualité de service', 
+          questionCount: 8, 
+          submissions: 45, 
+          unsatisfiedCount: 8,
+          positiveResponses: 24,
+          totalSentimentResponses: 35,
+          positiveRate: '68.6',
+          satisfactionRate: '82.2',
+          averageSentiment: '0.65',
+          lastUpdated: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000) 
+        },
+        { 
+          id: 3, 
+          name: 'Feedback produit', 
+          description: 'Avis sur produits', 
+          questionCount: 15, 
+          submissions: 120, 
+          unsatisfiedCount: 12,
+          positiveResponses: 80,
+          totalSentimentResponses: 95,
+          positiveRate: '84.2',
+          satisfactionRate: '90.0',
+          averageSentiment: '0.78',
+          lastUpdated: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000) 
+        }
+      ];
+      setFormData(mockData);
+    };
+    
+    // Simuler un délai pour montrer le chargement
+    const timer = setTimeout(() => {
+      fetchFormDetails();
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [availableForms]);
+
+  const handleSort = (field) => {
+    if (field === sortField) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const formatDate = (dateString) => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('fr-FR');
+    } catch (error) {
+      return 'Date invalide';
+    }
+  };
+
+  const sortedData = [...formData].sort((a, b) => {
+    if (sortField === 'name') {
+      return sortDirection === 'asc' 
+        ? a.name.localeCompare(b.name)
+        : b.name.localeCompare(a.name);
+    } else if (sortField === 'lastUpdated') {
+      const dateA = new Date(a.lastUpdated || 0);
+      const dateB = new Date(b.lastUpdated || 0);
+      return sortDirection === 'asc' 
+        ? dateA - dateB
+        : dateB - dateA;
+    } else if (['positiveRate', 'satisfactionRate', 'averageSentiment'].includes(sortField)) {
+      const valA = parseFloat(a[sortField] || 0);
+      const valB = parseFloat(b[sortField] || 0);
+      return sortDirection === 'asc'
+        ? valA - valB
+        : valB - valA;
+    } else {
+      return sortDirection === 'asc'
+        ? a[sortField] - b[sortField]
+        : b[sortField] - a[sortField];
+    }
+  });
+
+  const filteredData = sortedData.filter(form => 
+    form.name.toLowerCase().includes(filterValue.toLowerCase())
+  );
+
+  const handleExportCSV = () => {
+    // Créer les en-têtes du CSV
+    const headers = [
+      'Nom du formulaire', 
+      'Nombre de questions', 
+      'Nombre de réponses',
+      'Clients insatisfaits',
+      'Réponses positives',
+      'Taux de réponses positives (%)',
+      'Taux de satisfaction (%)',
+      'Sentiment moyen',
+      'Dernière mise à jour'
+    ];
+    
+    // Transformer les données en format CSV avec séparation correcte
+    // Utiliser le point-virgule comme séparateur pour une meilleure compatibilité avec Excel
+    const csvData = [
+      headers.join(';'),
+      ...filteredData.map(form => {
+        // S'assurer que les données avec virgules sont correctement échappées
+        const formattedName = `"${form.name.replace(/"/g, '""')}"`;
+        return [
+          formattedName,
+          form.questionCount,
+          form.submissions,
+          form.unsatisfiedCount,
+          form.positiveResponses,
+          form.positiveRate.replace('.', ','), // Remplacer le point par une virgule pour Excel français
+          form.satisfactionRate.replace('.', ','),
+          form.averageSentiment.replace('.', ','),
+          formatDate(form.lastUpdated)
+        ].join(';');
+      })
+    ].join('\n');
+    
+    // Créer un nom de fichier avec la date et l'heure actuelles
+    const today = new Date();
+    const date = today.toISOString().split('T')[0]; // Format YYYY-MM-DD
+    const hours = today.getHours().toString().padStart(2, '0');
+    const minutes = today.getMinutes().toString().padStart(2, '0');
+    const seconds = today.getSeconds().toString().padStart(2, '0');
+    const time = `${hours}h${minutes}m${seconds}`;
+    const fileName = `Comparaison_formulaires_${date}_${time}.csv`;
+    
+    // Créer un objet blob avec encodage UTF-8 et BOM pour Excel
+    const BOM = '\uFEFF'; // Marque d'ordre d'octet pour UTF-8
+    const blob = new Blob([BOM + csvData], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', fileName);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  return (
+    <div className="container mx-auto px-4 py-6">
+      <div className="bg-white rounded-2xl shadow-lg p-6">
+        <h2 className="text-3xl font-bold text-tetris-blue mb-8">Tableau Comparatif des Formulaires</h2>
+        
+        <div className="flex flex-col md:flex-row justify-between items-center mb-6">
+          <div className="relative w-full md:w-1/3 mb-4 md:mb-0">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Filter className="h-5 w-5 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              placeholder="Filtrer par nom..."
+              className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-tetris-blue focus:border-tetris-blue"
+              value={filterValue}
+              onChange={(e) => setFilterValue(e.target.value)}
+            />
+          </div>
+          
+          <button
+            onClick={handleExportCSV}
+            className="flex items-center gap-2 px-4 py-2 bg-tetris-blue text-white rounded-lg hover:bg-blue-700 transition-colors"
+            disabled={isLoading || filteredData.length === 0}
+          >
+            <Download className="h-5 w-5" />
+            Exporter CSV
+          </button>
+        </div>
+        
+        <div className="overflow-x-auto">
+          {isLoading ? (
+            <div className="py-20 flex flex-col items-center justify-center">
+              <Loader className="animate-spin h-10 w-10 text-tetris-blue mb-4" />
+              <p className="text-gray-600">Chargement des données des formulaires...</p>
+            </div>
+          ) : (
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th 
+                    scope="col" 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                    onClick={() => handleSort('name')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Nom du formulaire
+                      <ArrowUpDown className="h-4 w-4" />
+                    </div>
+                  </th>
+                  <th 
+                    scope="col" 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                    onClick={() => handleSort('questionCount')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Nb Questions
+                      <ArrowUpDown className="h-4 w-4" />
+                    </div>
+                  </th>
+                  <th 
+                    scope="col" 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                    onClick={() => handleSort('submissions')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Réponses
+                      <ArrowUpDown className="h-4 w-4" />
+                    </div>
+                  </th>
+                  <th 
+                    scope="col" 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                    onClick={() => handleSort('unsatisfiedCount')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Insatisfaits
+                      <ArrowUpDown className="h-4 w-4" />
+                    </div>
+                  </th>
+                  <th 
+                    scope="col" 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                    onClick={() => handleSort('positiveRate')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Taux Positif
+                      <ArrowUpDown className="h-4 w-4" />
+                    </div>
+                  </th>
+                  <th 
+                    scope="col" 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                    onClick={() => handleSort('satisfactionRate')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Satisfaction
+                      <ArrowUpDown className="h-4 w-4" />
+                    </div>
+                  </th>
+                  <th 
+                    scope="col" 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                    onClick={() => handleSort('averageSentiment')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Sentiment
+                      <ArrowUpDown className="h-4 w-4" />
+                    </div>
+                  </th>
+                  <th 
+                    scope="col" 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                    onClick={() => handleSort('lastUpdated')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Mis à jour
+                      <ArrowUpDown className="h-4 w-4" />
+                    </div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredData.length > 0 ? (
+                  filteredData.map((form) => (
+                    <tr key={form.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{form.name}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <div className="text-sm text-gray-500">{form.questionCount}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <div className="text-sm text-gray-500">{form.submissions}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <div className="text-sm text-gray-500">{form.unsatisfiedCount}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <div className="text-sm text-gray-500">{form.positiveRate}%</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="w-full bg-gray-200 rounded-full h-2.5">
+                          <div 
+                            className="bg-tetris-blue h-2.5 rounded-full" 
+                            style={{ width: `${form.satisfactionRate}%` }}
+                          ></div>
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">{form.satisfactionRate}%</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <div className={`text-sm ${
+                          parseFloat(form.averageSentiment) > 0.5 ? 'text-green-600' : 
+                          parseFloat(form.averageSentiment) < 0 ? 'text-red-600' : 'text-gray-500'
+                        }`}>
+                          {form.averageSentiment}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-500">{formatDate(form.lastUpdated)}</div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="8" className="px-6 py-4 text-center text-sm text-gray-500">
+                      Aucun formulaire ne correspond à votre recherche.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ComparatifForms;
