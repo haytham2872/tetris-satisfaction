@@ -56,7 +56,7 @@ const Page = ({
                 setShowContacts(false);
             }
         },
-        
+
         {
             id: 'edit',
             icon: Edit,
@@ -71,8 +71,8 @@ const Page = ({
                 setShowContacts(false);
             }
         },
-        
-        
+
+
         {
             id: 'contacts',
             icon: Users,
@@ -90,7 +90,7 @@ const Page = ({
         {
             id: 'comments',
             icon: MessageCircle,
-            title: "Commentaires optionels",
+            title: "Commentaires optionnels",
             description: "Consultez les commentaires",
             onClick: () => {
                 setActiveView('comments');
@@ -128,7 +128,7 @@ const Page = ({
         onBack && onBack();
     };
 
-    
+
     // If we have an active view, return the child component directly
     if (activeView) {
         return (
