@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowUpDown, Filter, Download, Loader } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 // Constante pour l'URL de l'API
 const API_URL = process.env.REACT_APP_API_URL || 'https://tetris-forms.azurewebsites.net';
@@ -220,8 +221,8 @@ const ComparatifForms = ({ onBack, availableForms }) => {
     form.name.toLowerCase().includes(filterValue.toLowerCase())
   );
 
-  const handleExportCSV = () => {
-    // Créer les en-têtes du CSV
+  const handleExportExcel = () => {
+    // Créer les en-têtes du fichier Excel
     const headers = [
       'Nom du formulaire', 
       'Nombre de questions', 
@@ -234,26 +235,46 @@ const ComparatifForms = ({ onBack, availableForms }) => {
       'Dernière mise à jour'
     ];
     
-    // Transformer les données en format CSV avec séparation correcte
-    // Utiliser le point-virgule comme séparateur pour une meilleure compatibilité avec Excel
-    const csvData = [
-      headers.join(';'),
-      ...filteredData.map(form => {
-        // S'assurer que les données avec virgules sont correctement échappées
-        const formattedName = `"${form.name.replace(/"/g, '""')}"`;
-        return [
-          formattedName,
-          form.questionCount,
-          form.submissions,
-          form.unsatisfiedCount,
-          form.positiveResponses,
-          form.positiveRate.replace('.', ','), // Remplacer le point par une virgule pour Excel français
-          form.satisfactionRate.replace('.', ','),
-          form.averageSentiment.replace('.', ','),
-          formatDate(form.lastUpdated)
-        ].join(';');
-      })
-    ].join('\n');
+    // Transformer les données pour Excel
+    const excelData = [
+      headers,
+      ...filteredData.map(form => [
+        form.name,
+        form.questionCount,
+        form.submissions,
+        form.unsatisfiedCount,
+        form.positiveResponses,
+        parseFloat(form.positiveRate.replace(',', '.')), // Assurer que les nombres sont bien des nombres
+        parseFloat(form.satisfactionRate.replace(',', '.')),
+        parseFloat(form.averageSentiment.replace(',', '.')),
+        formatDate(form.lastUpdated)
+      ])
+    ];
+    
+    // Créer une nouvelle feuille de calcul
+    const worksheet = XLSX.utils.aoa_to_sheet(excelData);
+    
+    // Définir les largeurs de colonnes
+    const columnWidths = [
+      { wch: 30 }, // Nom du formulaire
+      { wch: 10 }, // Nombre de questions
+      { wch: 10 }, // Nombre de réponses
+      { wch: 10 }, // Clients insatisfaits
+      { wch: 10 }, // Réponses positives
+      { wch: 15 }, // Taux de réponses positives
+      { wch: 15 }, // Taux de satisfaction
+      { wch: 10 }, // Sentiment moyen
+      { wch: 15 }  // Dernière mise à jour
+    ];
+    worksheet['!cols'] = columnWidths;
+    
+    // Appliquer un style pour les en-têtes (gras et centré)
+    // SheetJS community edition ne prend pas en charge le style directement, 
+    // mais nous pouvons définir des propriétés de base
+    
+    // Créer un nouveau classeur
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Comparaison Formulaires");
     
     // Créer un nom de fichier avec la date et l'heure actuelles
     const today = new Date();
@@ -262,19 +283,10 @@ const ComparatifForms = ({ onBack, availableForms }) => {
     const minutes = today.getMinutes().toString().padStart(2, '0');
     const seconds = today.getSeconds().toString().padStart(2, '0');
     const time = `${hours}h${minutes}m${seconds}`;
-    const fileName = `Comparaison_formulaires_${date}_${time}.csv`;
+    const fileName = `Comparaison_formulaires_${date}_${time}.xlsx`;
     
-    // Créer un objet blob avec encodage UTF-8 et BOM pour Excel
-    const BOM = '\uFEFF'; // Marque d'ordre d'octet pour UTF-8
-    const blob = new Blob([BOM + csvData], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', fileName);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // Générer et télécharger le fichier Excel
+    XLSX.writeFile(workbook, fileName);
   };
 
   return (
@@ -297,12 +309,12 @@ const ComparatifForms = ({ onBack, availableForms }) => {
           </div>
           
           <button
-            onClick={handleExportCSV}
+            onClick={handleExportExcel}
             className="flex items-center gap-2 px-4 py-2 bg-tetris-blue text-white rounded-lg hover:bg-blue-700 transition-colors"
             disabled={isLoading || filteredData.length === 0}
           >
             <Download className="h-5 w-5" />
-            Exporter CSV
+            Exporter Excel
           </button>
         </div>
         
