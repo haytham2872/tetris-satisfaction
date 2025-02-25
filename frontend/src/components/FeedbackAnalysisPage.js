@@ -215,7 +215,7 @@ const FeedbackCard = ({ feedback, questions }) => {
     );
 };
 
-const FeedbackAnalysisPage = ({ formId, onBack }) => {
+const FeedbackAnalysisPage = ({ formId, onBack, onFeedbackDataLoaded }) => {
     const [feedbackData, setFeedbackData] = useState([]);
     const [questions, setQuestions] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -258,11 +258,29 @@ const FeedbackAnalysisPage = ({ formId, onBack }) => {
                     responses.map(response => response.json())
                 );
 
-                setFeedbackData(feedbackData);
+                // Process the feedback data to ensure analysis is properly parsed
+                const processedFeedbackData = feedbackData.map(feedback => {
+                    if (typeof feedback.analysis === 'string') {
+                        try {
+                            feedback.analysis = JSON.parse(feedback.analysis);
+                        } catch (e) {
+                            console.error('Error parsing analysis:', e);
+                        }
+                    }
+                    return feedback;
+                });
+
+                setFeedbackData(processedFeedbackData);
                 setQuestions(questionsData);
                 if (formData) {
                     setFormInfo(formData);
                 }
+                
+                // Call the callback with the processed feedback data
+                if (onFeedbackDataLoaded && typeof onFeedbackDataLoaded === 'function') {
+                    onFeedbackDataLoaded(processedFeedbackData);
+                }
+                
                 setLoading(false);
             } catch (error) {
                 console.error('Error fetching data:', error);
@@ -271,7 +289,7 @@ const FeedbackAnalysisPage = ({ formId, onBack }) => {
         };
 
         fetchData();
-    }, [formId]);
+    }, [formId, onFeedbackDataLoaded]);
 
     const filteredFeedback = feedbackData.filter(feedback => {
         // Vérifier que feedback n'est pas null ou undefined
