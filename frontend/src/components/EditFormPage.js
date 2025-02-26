@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState,useCallback,useEffect, useRef } from 'react';
 import { Save, AlertCircle, Plus, Trash2, HelpCircle } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_API_URL;
@@ -149,11 +149,9 @@ const EditFormPage = ({ formId ,onBack }) => {
     fetchFormInfo();
   }, [formId]);
 
-  useEffect(() => {
-    fetchQuestions();
-  }, []);
+  
 
-  const fetchQuestions = async () => {
+  const fetchQuestions = useCallback(async () => {
     try {
       console.log('Fetching questions...');
       const url = formId 
@@ -192,7 +190,11 @@ const EditFormPage = ({ formId ,onBack }) => {
       setError(err.message || 'Error fetching questions');
       setLoading(false);
     }
-  };
+  },[formId]);
+
+  useEffect(() => {
+    fetchQuestions();
+  }, [fetchQuestions]);
 
   const handleOptionsChange = (questionIndex, optionIndex, value) => {
     const updatedQuestions = [...questions];

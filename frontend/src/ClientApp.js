@@ -13,7 +13,6 @@ import NavigationButtons from './components/survey/NavigationButtons';
 import ThankYouScreen from './components/ThankYouScreen';
 import ContactDetails from './components/ContactDetails';
 import { ChatConversation } from './components/MessageBubble';
-import VercelAnalytics from './components/VercelAnalytics';
 
 function ClientApp() {
   const { formId } = useParams(); // Récupération de l'ID du formulaire depuis l'URL
@@ -166,7 +165,6 @@ function ClientApp() {
 
   return (
     <>
-      <VercelAnalytics />
       <div className="min-h-screen bg-tetris-blue">
         {messageHistory.length > 0 && (
           <ChatConversation

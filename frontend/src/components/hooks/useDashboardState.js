@@ -39,7 +39,7 @@ const useDashboardState = () => {
         };
 
         loadForms();
-    }, []);
+    }, [selectedFormId]);
 
     // Fonction pour changer de formulaire
     const handleFormChange = (formId) => {

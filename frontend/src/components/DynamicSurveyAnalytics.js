@@ -4,9 +4,9 @@ import {
   Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell
 } from 'recharts';
 import { 
-  Users, AlertTriangle, ThumbsUp, MessageSquare, BarChart2,
-  Star, PieChart as PieChartIcon, FileText, CheckCircle2,
-  ChevronDown, ChevronRight, MoreHorizontal
+   AlertTriangle, ThumbsUp, MessageSquare, BarChart2,
+   FileText, CheckCircle2,
+  ChevronDown, ChevronRight,
 } from 'lucide-react';
 
 // Color schemes
@@ -36,18 +36,7 @@ const CustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, valu
   );
 };
 
-// Improved getSentimentDisplay function
-const getSentimentDisplay = (sentiment) => {
-  // Check if sentiment is undefined, null, or not a number
-  if (sentiment === undefined || sentiment === null || isNaN(Number(sentiment))) {
-    return "N/A";
-  }
-  
-  // Convert to number explicitly and format to 2 decimal places
-  return Number(sentiment).toFixed(2);
-};
 
-// Simple Text Question Card
 // Improved Text Question Card with more nuanced sentiment display
 const TextQuestionCard = ({ data }) => {
   const [expanded, setExpanded] = useState(false);

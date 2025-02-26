@@ -10,7 +10,6 @@ import {
   Heart,
   AlertTriangle,
   Flag,
-  SlidersHorizontal
 } from 'lucide-react';
 import { analyzeFeedback } from '../services/nlpService';
 const API_URL = process.env.REACT_APP_API_URL;

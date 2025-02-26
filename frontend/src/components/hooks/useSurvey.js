@@ -16,7 +16,7 @@ export const useSurvey = (formId) => {
   const [isAnimating, setIsAnimating] = useState(false);
   const [lastResponse, setLastResponse] = useState(null);
   const [contactFormSkipped, setContactFormSkipped] = useState(false);
-  const [contactDetailsSubmitted, setContactDetailsSubmitted] = useState(false);
+  const [setContactDetailsSubmitted] = useState(false);
   const [contactVisibility, setContactVisibility] = useState(false);
 
 
@@ -148,7 +148,7 @@ export const useSurvey = (formId) => {
     return () => {
       isSubscribed = false;
     };
-  }, [formId]); 
+  }, [formId,surveyId]); 
 
   // handleResponse : l'utilisateur répond à une question
   const handleResponse = (questionId, value) => {

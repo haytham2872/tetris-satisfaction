@@ -18,6 +18,7 @@ CREATE TABLE questions (
     id INT NOT NULL AUTO_INCREMENT,
     question_text TEXT NOT NULL,
     question_type ENUM('rating','stars','choice','text') NOT NULL,
+    importance DECIMAL(5,2) DEFAULT NULL,
     max_value INT DEFAULT NULL,
     class VARCHAR(50) DEFAULT NULL,
     options JSON NULL,
@@ -25,6 +26,7 @@ CREATE TABLE questions (
     PRIMARY KEY (id),
     CONSTRAINT FK_Questions_Forms FOREIGN KEY (form_id) REFERENCES forms(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 
 -- Create surveys table
 CREATE TABLE surveys (
@@ -70,25 +72,3 @@ CREATE TABLE low_satisfaction_responses (
     CONSTRAINT low_satisfaction_responses_ibfk_1 FOREIGN KEY (survey_id) REFERENCES surveys (id) ON DELETE CASCADE,
     CONSTRAINT FK_LowSatisfaction_Forms FOREIGN KEY (form_id) REFERENCES forms(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- Insert questions
-INSERT INTO questions (id, question_text, question_type, max_value, class) VALUES
-(1, "Recommanderiez-vous notre service à d'autres courtiers ?", 'rating', 10, 'satisfaction'),
-(2, "Quel est votre niveau de satisfaction globale concernant nos services ?", 'stars', 5, 'satisfaction'),
-(3, "Comment évaluez-vous la rapidité de nos réponses à vos demandes ?", 'choice', NULL, 'performance'),
-(4, "Les solutions d'assurance proposées correspondent-elles à vos besoins ?", 'choice', NULL, 'adequacy'),
-(5, "Comment jugez-vous la clarté des informations fournies ?", 'choice', NULL, 'clarity'),
-(6, "Le processus de soumission des dossiers est-il simple à utiliser ?", 'choice', NULL, 'usability'),
-(7, "Les délais de traitement des dossiers sont-ils respectés ?", 'choice', NULL, 'performance'),
-(8, "Comment évaluez-vous le support technique fourni ?", 'choice', NULL, 'support'),
-(9, "La tarification proposée est-elle compétitive ?", 'choice', NULL, 'pricing'),
-(10, "Avez-vous des suggestions d'amélioration ou des commentaires ?", 'text', NULL, 'feedback');
-
--- Update question options
-UPDATE questions SET options = JSON_ARRAY("Excellent", "Bon", "Moyen", "Insuffisant") WHERE id = 3;
-UPDATE questions SET options = JSON_ARRAY("Toujours", "Souvent", "Parfois", "Rarement") WHERE id = 4;
-UPDATE questions SET options = JSON_ARRAY("Très clair", "Clair", "Peu clair", "Pas clair du tout") WHERE id = 5;
-UPDATE questions SET options = JSON_ARRAY("Oui, très simple", "Plutôt simple", "Plutôt compliqué", "Très compliqué") WHERE id = 6;
-UPDATE questions SET options = JSON_ARRAY("Toujours", "Souvent", "Parfois", "Rarement") WHERE id = 7;
-UPDATE questions SET options = JSON_ARRAY("Excellent", "Bon", "Moyen", "Insuffisant") WHERE id = 8;
-UPDATE questions SET options = JSON_ARRAY("Très compétitive", "Assez compétitive", "Peu compétitive", "Pas du tout compétitive") WHERE id = 9;

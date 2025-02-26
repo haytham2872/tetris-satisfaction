@@ -8,7 +8,6 @@ import EditFormPage from './components/EditFormPage';
 import CommentsAnalysis from './components/CommentsAnalysis';
 import ContactDetailsView from './components/ContactDetailsView';
 import ComparatifForms from './components/ComparatifForms';
-import VercelAnalytics from './components/VercelAnalytics';
 
 function AdminApp() {
   const [selectedFormId, setSelectedFormId] = useState(null);
@@ -59,7 +58,7 @@ function AdminApp() {
     };
 
     fetchForms();
-  }, []);
+  }, [selectedFormId]);
 
   // NEW: Add effect to fetch feedback data when form changes
   useEffect(() => {
@@ -177,7 +176,6 @@ function AdminApp() {
 
   return (
     <>
-      <VercelAnalytics />
       <div className="min-h-screen bg-tetris-blue">
         {/* Only show form controls on main dashboard */}
         {isMainDashboard && (
