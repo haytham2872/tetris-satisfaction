@@ -52,15 +52,31 @@ const ComparatifForms = ({ onBack, availableForms }) => {
             let totalSentimentResponses = 0;
             let totalSentimentScore = 0;
             
+            // Nouveau: tracker les displayPercentages
+            let totalDisplayPercentage = 0;
+            let displayPercentageCount = 0;
+            
             feedbackData.forEach(feedback => {
               try {
                 const analysis = feedback.analysis;
-                if (analysis?.overall?.sentiment?.score !== undefined) {
-                  const score = analysis.overall.sentiment.score;
-                  totalSentimentScore += score;
-                  totalSentimentResponses++;
-                  if (score >= 0.5) {
-                    positiveResponses++;
+                if (analysis?.overall?.sentiment) {
+                  // Traiter le score brut
+                  if (analysis.overall.sentiment.score !== undefined) {
+                    const score = Number(analysis.overall.sentiment.score);
+                    totalSentimentScore += score;
+                    totalSentimentResponses++;
+                    if (score >= 0.5) {
+                      positiveResponses++;
+                    }
+                  }
+                  
+                  // Nouveau: extraire le displayPercentage si disponible
+                  if (analysis.overall.sentiment.displayPercentage !== undefined) {
+                    const displayPercentage = Number(analysis.overall.sentiment.displayPercentage);
+                    if (!isNaN(displayPercentage)) {
+                      totalDisplayPercentage += displayPercentage;
+                      displayPercentageCount++;
+                    }
                   }
                 }
               } catch (e) {
@@ -71,6 +87,10 @@ const ComparatifForms = ({ onBack, availableForms }) => {
             const averageSentiment = totalSentimentResponses > 0 ? totalSentimentScore / totalSentimentResponses : 0;
             const positiveRate = totalSentimentResponses > 0 ? ((positiveResponses / totalSentimentResponses) * 100) : 0;
             const satisfactionRate = totalResponses > 0 ? ((totalResponses - unsatisfiedCount) / totalResponses * 100) : 0;
+            
+            // Nouveau: calculer le displayPercentage moyen
+            const averageDisplayPercentage = displayPercentageCount > 0 ? 
+              (totalDisplayPercentage / displayPercentageCount) : 0;
             
             return {
               id: form.id,
@@ -84,6 +104,8 @@ const ComparatifForms = ({ onBack, availableForms }) => {
               positiveRate: positiveRate.toFixed(1),
               satisfactionRate: satisfactionRate.toFixed(1),
               averageSentiment: averageSentiment.toFixed(2),
+              // Nouveau: ajouter le displayPercentage moyen
+              averageDisplayPercentage: averageDisplayPercentage.toFixed(1),
               lastUpdated: form.updated_at || form.created_at || new Date()
             };
           } catch (error) {
@@ -102,6 +124,7 @@ const ComparatifForms = ({ onBack, availableForms }) => {
               positiveRate: '0.0',
               satisfactionRate: '0.0',
               averageSentiment: '0.00',
+              averageDisplayPercentage: '0.0',
               lastUpdated: form.updated_at || form.created_at || new Date()
             };
           }
@@ -133,6 +156,7 @@ const ComparatifForms = ({ onBack, availableForms }) => {
           positiveRate: '76.5',
           satisfactionRate: '93.6',
           averageSentiment: '0.82',
+          averageDisplayPercentage: '78.0',
           lastUpdated: new Date() 
         },
         { 
@@ -147,6 +171,7 @@ const ComparatifForms = ({ onBack, availableForms }) => {
           positiveRate: '68.6',
           satisfactionRate: '82.2',
           averageSentiment: '0.65',
+          averageDisplayPercentage: '65.0',
           lastUpdated: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000) 
         },
         { 
@@ -161,6 +186,7 @@ const ComparatifForms = ({ onBack, availableForms }) => {
           positiveRate: '84.2',
           satisfactionRate: '90.0',
           averageSentiment: '0.78',
+          averageDisplayPercentage: '73.0',
           lastUpdated: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000) 
         }
       ];
@@ -204,7 +230,7 @@ const ComparatifForms = ({ onBack, availableForms }) => {
       return sortDirection === 'asc' 
         ? dateA - dateB
         : dateB - dateA;
-    } else if (['positiveRate', 'satisfactionRate', 'averageSentiment'].includes(sortField)) {
+    } else if (['positiveRate', 'satisfactionRate', 'averageSentiment', 'averageDisplayPercentage'].includes(sortField)) {
       const valA = parseFloat(a[sortField] || 0);
       const valB = parseFloat(b[sortField] || 0);
       return sortDirection === 'asc'
@@ -231,7 +257,7 @@ const ComparatifForms = ({ onBack, availableForms }) => {
       'Réponses positives',
       'Taux de réponses positives (%)',
       'Taux de satisfaction (%)',
-      'Sentiment moyen',
+      'Sentiment moyen (%)',
       'Dernière mise à jour'
     ];
     
@@ -246,7 +272,8 @@ const ComparatifForms = ({ onBack, availableForms }) => {
         form.positiveResponses,
         parseFloat(form.positiveRate.replace(',', '.')), // Assurer que les nombres sont bien des nombres
         parseFloat(form.satisfactionRate.replace(',', '.')),
-        parseFloat(form.averageSentiment.replace(',', '.')),
+        // Utiliser averageDisplayPercentage au lieu de averageSentiment
+        parseFloat(form.averageDisplayPercentage.replace(',', '.')),
         formatDate(form.lastUpdated)
       ])
     ];
@@ -263,7 +290,7 @@ const ComparatifForms = ({ onBack, availableForms }) => {
       { wch: 10 }, // Réponses positives
       { wch: 15 }, // Taux de réponses positives
       { wch: 15 }, // Taux de satisfaction
-      { wch: 10 }, // Sentiment moyen
+      { wch: 15 }, // Sentiment moyen (%)
       { wch: 15 }  // Dernière mise à jour
     ];
     worksheet['!cols'] = columnWidths;
@@ -391,7 +418,7 @@ const ComparatifForms = ({ onBack, availableForms }) => {
                   <th 
                     scope="col" 
                     className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                    onClick={() => handleSort('averageSentiment')}
+                    onClick={() => handleSort('averageDisplayPercentage')}
                   >
                     <div className="flex items-center gap-2">
                       Sentiment
@@ -440,10 +467,10 @@ const ComparatifForms = ({ onBack, availableForms }) => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         <div className={`text-sm ${
-                          parseFloat(form.averageSentiment) > 0.5 ? 'text-green-600' : 
-                          parseFloat(form.averageSentiment) < 0 ? 'text-red-600' : 'text-gray-500'
+                          parseFloat(form.averageDisplayPercentage) > 70 ? 'text-green-600' : 
+                          parseFloat(form.averageDisplayPercentage) < 30 ? 'text-red-600' : 'text-gray-500'
                         }`}>
-                          {form.averageSentiment}
+                          {form.averageDisplayPercentage}%
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
