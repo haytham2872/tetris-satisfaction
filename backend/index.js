@@ -1,5 +1,5 @@
 import express from 'express';
-import sql from 'mssql';
+import mysql from 'mysql2/promise'; // Using mysql2 with promise support for MariaDB
 import cors from 'cors';
 import dotenv from 'dotenv';
 
@@ -18,26 +18,24 @@ process.on('uncaughtException', (error) => {
 });
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: '*',  // Allow all origins - for development only
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+  }));
+
+
 app.use(express.json());
 
 // Database configuration
-const config = {
-    user: 'tetrisadmin',
-    password: 'tetris123.',
-    server: 'tetris.database.windows.net',
-    database: 'statisfaction_db',
-    options: {
-        encrypt: true,
-        trustServerCertificate: true,
-        connectionTimeout: 30000,
-        requestTimeout: 30000
-    },
-    pool: {
-        max: 10,
-        min: 0,
-        idleTimeoutMillis: 30000
-    }
+const dbConfig = {
+    host: process.env.DB_HOST ,
+    user: process.env.DB_USER ,
+    password: process.env.DB_PASSWORD ,
+    database: process.env.DB_NAME ,
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
 };
 
 // Global pool variable
@@ -47,7 +45,7 @@ let pool;
 const connectToDatabase = async () => {
     try {
         console.log('Attempting database connection...');
-        pool = await sql.connect(config);
+        pool = await mysql.createPool(dbConfig);
         console.log('Database connected successfully');
         return true;
     } catch (err) {
@@ -55,6 +53,7 @@ const connectToDatabase = async () => {
         return false;
     }
 };
+
 // Health check endpoints
 app.get('/', (req, res) => {
     res.json({ status: 'Server is running' });
@@ -64,86 +63,99 @@ app.get('/health', (req, res) => {
     res.json({ status: 'healthy' });
 });
 
+app.get('/api/debug/db-status', async (req, res) => {
+    try {
+        if (!pool) {
+            return res.status(500).json({ status: 'No pool connection' });
+        }
+        
+        const [result] = await pool.query('SELECT 1 as connection_test');
+        res.json({ 
+            status: 'Database connected', 
+            test_result: result,
+            pool_status: {
+                connectionLimit: pool.config.connectionLimit,
+                waitForConnections: pool.config.waitForConnections
+            }
+        });
+    } catch (err) {
+        console.error('Database status check error:', err);
+        res.status(500).json({ status: 'Database error', error: err.message });
+    }
+});
+
 // Forms Management Routes
 app.post('/api/forms', async (req, res) => {
     try {
         const { name, description } = req.body;
         
-        const result = await pool.request()
-            .input('name', sql.NVarChar, name)
-            .input('description', sql.NVarChar, description || null)
-            .query`
-                INSERT INTO forms (name, description)
-                OUTPUT INSERTED.id
-                VALUES (@name, @description)
-            `;
+        // Debug log to inspect what's being received
+        console.log("Creating form with:", { name, description });
+        
+        // Ensure the pool is initialized
+        if (!pool) {
+            console.error("Database pool not initialized");
+            return res.status(500).json({ error: 'Database connection not available' });
+        }
+        
+        // Validate input
+        if (!name) {
+            return res.status(400).json({ error: 'Form name is required' });
+        }
+        
+        const [result] = await pool.execute(
+            'INSERT INTO forms (name, description) VALUES (?, ?)',
+            [name, description || null]
+        );
             
+        console.log("Form creation result:", result);
+        
+        // Return success response with the new ID
         res.status(201).json({ 
-            id: result.recordset[0].id,
+            id: result.insertId,
             message: 'Form created successfully' 
         });
     } catch (err) {
         console.error('Error creating form:', err);
-        res.status(500).json({ error: 'Server error', details: err.message });
+        
+        // Send a more detailed error for debugging
+        res.status(500).json({ 
+            error: 'Server error', 
+            details: err.message,
+            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        });
     }
 });
 
-app.get('/api/forms', async (req, res) => {
-    try {
-        const result = await pool.request().query`
-            SELECT id, name, description, created_at, updated_at, is_active
-            FROM forms
-            ORDER BY created_at DESC
-        `;
-        
-        res.json(result.recordset);
-    } catch (err) {
-        console.error('Error fetching forms:', err);
-        res.status(500).json({ error: 'Server error', details: err.message });
-    }
-});
-// Route pour obtenir les détails d'un formulaire spécifique
 app.get('/api/forms/:id', async (req, res) => {
     try {
         const { id } = req.params;
         
-        const result = await pool.request()
-            .input('id', sql.Int, id)
-            .query`
-                SELECT id, name, description, created_at, updated_at, is_active
-                FROM forms
-                WHERE id = @id
-            `;
+        const [rows] = await pool.execute(
+            'SELECT id, name, description, created_at, updated_at, is_active FROM forms WHERE id = ?',
+            [id]
+        );
         
-        if (result.recordset.length === 0) {
+        if (rows.length === 0) {
             return res.status(404).json({ error: 'Form not found' });
         }
         
-        res.json(result.recordset[0]);
+        res.json(rows[0]);
     } catch (err) {
         console.error('Error fetching form details:', err);
         res.status(500).json({ error: 'Server error', details: err.message });
     }
 });
+
 app.put('/api/forms/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const { name, description, is_active } = req.body;
         
-        await pool.request()
-            .input('id', sql.Int, id)
-            .input('name', sql.NVarChar, name)
-            .input('description', sql.NVarChar, description)
-            .input('is_active', sql.Bit, is_active)
-            .input('updated_at', sql.DateTime, new Date())
-            .query`
-                UPDATE forms 
-                SET name = @name,
-                    description = @description,
-                    is_active = @is_active,
-                    updated_at = @updated_at
-                WHERE id = @id
-            `;
+        await pool.execute(
+            'UPDATE forms SET name = ?, description = ?, is_active = ?, updated_at = ? WHERE id = ?',
+            [name, description, is_active, new Date(), id]
+        );
             
         res.json({ message: 'Form updated successfully' });
     } catch (err) {
@@ -151,51 +163,47 @@ app.put('/api/forms/:id', async (req, res) => {
         res.status(500).json({ error: 'Server error', details: err.message });
     }
 });
+
 // Questions Management Routes
 app.post('/api/questions', async (req, res) => {
     try {
         const { form_id, questions } = req.body;
         
-        const transaction = new sql.Transaction(pool);
-        await transaction.begin();
+        const connection = await pool.getConnection();
         
         try {
+            await connection.beginTransaction();
+            
             for (const question of questions) {
-                await transaction.request()
-                    .input('formId', sql.Int, form_id)
-                    .input('text', sql.NVarChar, question.question_text)
-                    .input('type', sql.VarChar, question.question_type)
-                    .input('maxValue', sql.Int, question.max_value)
-                    .input('class', sql.VarChar, question.class)
-                    .input('importance', sql.Decimal(5,2), question.importance)
-                    .input('options', sql.NVarChar, JSON.stringify(question.options))
-                    .query`
-                        INSERT INTO questions (
-                            form_id,
-                            question_text,
-                            question_type,
-                            max_value,
-                            class,
-                            importance,
-                            options
-                        )
-                        VALUES (
-                            @formId,
-                            @text,
-                            @type,
-                            @maxValue,
-                            @class,
-                            @importance,
-                            @options
-                        )
-                    `;
+                await connection.execute(
+                    `INSERT INTO questions (
+                        form_id,
+                        question_text,
+                        question_type,
+                        max_value,
+                        class,
+                        importance,
+                        options
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                    [
+                        form_id,
+                        question.question_text,
+                        question.question_type,
+                        question.max_value,
+                        question.class,
+                        question.importance,
+                        JSON.stringify(question.options)
+                    ]
+                );
             }
             
-            await transaction.commit();
+            await connection.commit();
             res.status(201).json({ message: 'Questions created successfully' });
         } catch (err) {
-            await transaction.rollback();
+            await connection.rollback();
             throw err;
+        } finally {
+            connection.release();
         }
     } catch (err) {
         console.error('Error creating questions:', err);
@@ -207,16 +215,12 @@ app.get('/api/forms/:formId/questions', async (req, res) => {
     try {
         const { formId } = req.params;
         
-        const result = await pool.request()
-            .input('formId', sql.Int, formId)
-            .query`
-                SELECT *
-                FROM questions
-                WHERE form_id = @formId
-                ORDER BY id
-            `;
+        const [rows] = await pool.execute(
+            'SELECT * FROM questions WHERE form_id = ? ORDER BY id',
+            [formId]
+        );
 
-        const formattedQuestions = result.recordset.map(q => ({
+        const formattedQuestions = rows.map(q => ({
             id: q.id,
             form_id: q.form_id,
             question_text: q.question_text,
@@ -233,6 +237,7 @@ app.get('/api/forms/:formId/questions', async (req, res) => {
         res.status(500).json({ error: 'Server error', details: err.message });
     }
 });
+
 app.post('/api/questions/update', async (req, res) => {
     try {
         const { form_id, questions } = req.body;
@@ -241,10 +246,11 @@ app.post('/api/questions/update', async (req, res) => {
             return res.status(400).json({ error: 'form_id is required' });
         }
 
-        const transaction = new sql.Transaction(pool);
-        await transaction.begin();
+        const connection = await pool.getConnection();
         
         try {
+            await connection.beginTransaction();
+            
             // Track created questions to return their IDs
             const newQuestionIds = [];
             
@@ -254,60 +260,51 @@ app.post('/api/questions/update', async (req, res) => {
                 // Check if this is an existing question (positive ID) or new question (negative ID)
                 if (question.id && question.id > 0) {
                     // Update existing question
-                    await transaction.request()
-                        .input('id', sql.Int, question.id)
-                        .input('formId', sql.Int, form_id)
-                        .input('text', sql.NVarChar, question.question_text)
-                        .input('type', sql.VarChar, question.question_type)
-                        .input('maxValue', sql.Int, question.max_value)
-                        .input('class', sql.VarChar, question.class)
-                        .input('importance', sql.Decimal(5,2), question.importance)
-                        .input('options', sql.NVarChar, JSON.stringify(question.options || []))
-                        .query`
-                            UPDATE questions 
-                            SET 
-                                question_text = @text,
-                                question_type = @type,
-                                max_value = @maxValue,
-                                class = @class,
-                                importance = @importance,
-                                options = @options,
-                                form_id = @formId
-                            WHERE id = @id
-                        `;
+                    await connection.execute(
+                        `UPDATE questions SET
+                            question_text = ?,
+                            question_type = ?,
+                            max_value = ?,
+                            class = ?,
+                            importance = ?,
+                            options = ?,
+                            form_id = ?
+                        WHERE id = ?`,
+                        [
+                            question.question_text,
+                            question.question_type,
+                            question.max_value,
+                            question.class,
+                            question.importance,
+                            JSON.stringify(question.options || []),
+                            form_id,
+                            question.id
+                        ]
+                    );
                 } else {
                     // Insert new question (negative or null ID)
-                    const insertResult = await transaction.request()
-                        .input('formId', sql.Int, form_id)
-                        .input('text', sql.NVarChar, question.question_text)
-                        .input('type', sql.VarChar, question.question_type)
-                        .input('maxValue', sql.Int, question.max_value)
-                        .input('class', sql.VarChar, question.class)
-                        .input('importance', sql.Decimal(5,2), question.importance)
-                        .input('options', sql.NVarChar, JSON.stringify(question.options || []))
-                        .query`
-                            INSERT INTO questions (
-                                form_id,
-                                question_text,
-                                question_type,
-                                max_value,
-                                class,
-                                importance,
-                                options
-                            )
-                            OUTPUT INSERTED.id
-                            VALUES (
-                                @formId,
-                                @text,
-                                @type,
-                                @maxValue,
-                                @class,
-                                @importance,
-                                @options
-                            )
-                        `;
+                    const [result] = await connection.execute(
+                        `INSERT INTO questions (
+                            form_id,
+                            question_text,
+                            question_type,
+                            max_value,
+                            class,
+                            importance,
+                            options
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                        [
+                            form_id,
+                            question.question_text,
+                            question.question_type,
+                            question.max_value,
+                            question.class,
+                            question.importance,
+                            JSON.stringify(question.options || [])
+                        ]
+                    );
                     
-                    const newId = insertResult.recordset[0].id;
+                    const newId = result.insertId;
                     console.log('New question inserted with ID:', newId);
                     
                     // Track the mapping from temporary ID to new database ID
@@ -318,7 +315,7 @@ app.post('/api/questions/update', async (req, res) => {
                 }
             }
             
-            await transaction.commit();
+            await connection.commit();
             
             // Return success with the mapping of temporary to new IDs
             res.status(200).json({ 
@@ -327,8 +324,10 @@ app.post('/api/questions/update', async (req, res) => {
             });
             
         } catch (err) {
-            await transaction.rollback();
+            await connection.rollback();
             throw err;
+        } finally {
+            connection.release();
         }
     } catch (err) {
         console.error('Error updating questions:', err);
@@ -344,11 +343,9 @@ app.delete('/api/questions/delete', async (req, res) => {
             return res.status(400).json({ error: 'Question ID is required' });
         }
 
-        const result = await pool.request()
-            .input('id', sql.Int, id)
-            .query`DELETE FROM questions WHERE id = @id`;
+        const [result] = await pool.execute('DELETE FROM questions WHERE id = ?', [id]);
 
-        if (result.rowsAffected[0] === 0) {
+        if (result.affectedRows === 0) {
             return res.status(404).json({ error: 'Question not found' });
         }
 
@@ -358,15 +355,17 @@ app.delete('/api/questions/delete', async (req, res) => {
         res.status(500).json({ error: 'Server error', details: err.message });
     }
 });
+
 // Response Management Routes
 app.post('/api/responses', async (req, res) => {
     try {
         const { form_id, survey_id, responses } = req.body;
         
-        const transaction = new sql.Transaction(pool);
-        await transaction.begin();
+        const connection = await pool.getConnection();
         
         try {
+            await connection.beginTransaction();
+            
             for (const response of responses) {
                 let nlpAnalysis = null;
                 if (response.answer && typeof response.answer === 'string' && response.answer.trim() !== '') {
@@ -377,69 +376,65 @@ app.post('/api/responses', async (req, res) => {
                     }
                 }
 
-                await transaction.request()
-                    .input('formId', sql.Int, form_id)
-                    .input('surveyId', sql.Int, survey_id)
-                    .input('questionId', sql.Int, response.question_id)
-                    .input('answer', sql.NVarChar, response.answer.toString())
-                    .input('optionalAnswer', sql.NVarChar, response.optional_answer || null)
-                    .input('nlpAnalysis', sql.NVarChar(sql.MAX), nlpAnalysis ? JSON.stringify(nlpAnalysis) : null)
-                    .query`
-                        INSERT INTO responses (
-                            form_id,
-                            survey_id, 
-                            question_id, 
-                            answer, 
-                            optional_answer, 
-                            nlp_analysis
-                        )
-                        VALUES (
-                            @formId,
-                            @surveyId,
-                            @questionId,
-                            @answer,
-                            @optionalAnswer,
-                            @nlpAnalysis
-                        )
-                    `;
+                await connection.execute(
+                    `INSERT INTO responses (
+                        form_id,
+                        survey_id, 
+                        question_id, 
+                        answer, 
+                        optional_answer, 
+                        nlp_analysis
+                    ) VALUES (?, ?, ?, ?, ?, ?)`,
+                    [
+                        form_id,
+                        survey_id,
+                        response.question_id,
+                        response.answer.toString(),
+                        response.optional_answer || null,
+                        nlpAnalysis ? JSON.stringify(nlpAnalysis) : null
+                    ]
+                );
             }
             
-            await transaction.commit();
+            await connection.commit();
             res.status(200).json({ message: 'Responses recorded successfully' });
         } catch (err) {
-            await transaction.rollback();
+            await connection.rollback();
             throw err;
+        } finally {
+            connection.release();
         }
     } catch (err) {
         console.error('Error storing responses:', err);
         res.status(500).json({ error: 'Server error', details: err.message });
     }
 });
+
 // Analytics Routes
 app.get('/api/analytics/responses', async (req, res) => {
     try {
         const { form_id } = req.query;
-        const query = form_id 
-            ? `
+        let query, params = [];
+        
+        if (form_id) {
+            query = `
                 SELECT form_id, survey_id, question_id, answer, responded_at
                 FROM responses
-                WHERE form_id = @formId
+                WHERE form_id = ?
                 ORDER BY survey_id, question_id
-            `
-            : `
+            `;
+            params = [form_id];
+        } else {
+            query = `
                 SELECT form_id, survey_id, question_id, answer, responded_at
                 FROM responses
                 ORDER BY survey_id, question_id
             `;
-
-        const request = pool.request();
-        if (form_id) {
-            request.input('formId', sql.Int, form_id);
         }
 
-        const result = await request.query(query);
+        const [rows] = await pool.execute(query, params);
 
-        const groupedData = result.recordset.reduce((acc, row) => {
+        const groupedData = rows.reduce((acc, row) => {
             const key = `${row.form_id}_${row.survey_id}`;
             if (!acc[key]) {
                 acc[key] = {
@@ -466,28 +461,28 @@ app.get('/api/analytics/responses', async (req, res) => {
 app.get('/api/analytics/additional', async (req, res) => {
     try {
         const { form_id } = req.query;
-        const query = form_id 
-            ? `
+        let query, params = [];
+        
+        if (form_id) {
+            query = `
                 SELECT form_id, survey_id, question_id, answer, responded_at
                 FROM responses
-                WHERE form_id = @formId AND question_id IN (5, 6, 7, 8, 9)
+                WHERE form_id = ? AND question_id IN (5, 6, 7, 8, 9)
                 ORDER BY survey_id, question_id
-            `
-            : `
+            `;
+            params = [form_id];
+        } else {
+            query = `
                 SELECT form_id, survey_id, question_id, answer, responded_at
                 FROM responses
                 WHERE question_id IN (5, 6, 7, 8, 9)
                 ORDER BY survey_id, question_id
             `;
-
-        const request = pool.request();
-        if (form_id) {
-            request.input('formId', sql.Int, form_id);
         }
 
-        const result = await request.query(query);
+        const [rows] = await pool.execute(query, params);
 
-        const groupedData = result.recordset.reduce((acc, row) => {
+        const groupedData = rows.reduce((acc, row) => {
             const key = `${row.form_id}_${row.survey_id}`;
             if (!acc[key]) {
                 acc[key] = {
@@ -510,32 +505,32 @@ app.get('/api/analytics/additional', async (req, res) => {
         res.status(500).json({ error: 'Server error', details: err.message });
     }
 });
+
 // Start survey route
 app.post('/api/start-survey', async (req, res) => {
     try {
         const { name, form_id } = req.body;
         
-        const result = await pool.request()
-            .input('name', sql.NVarChar, name || 'Nouveau survey')
-            .input('formId', sql.Int, form_id)
-            .query`
-                INSERT INTO surveys (name, form_id)
-                OUTPUT INSERTED.id
-                VALUES (@name, @formId)
-            `;
+        const [result] = await pool.execute(
+            'INSERT INTO surveys (name, form_id) VALUES (?, ?)',
+            [name || 'Nouveau survey', form_id]
+        );
             
-        res.status(201).json({ id: result.recordset[0].id });
+        res.status(201).json({ id: result.insertId });
     } catch (err) {
         console.error('Error creating survey:', err);
         res.status(500).json({ error: 'Server error', details: err.message });
     }
 });
-// Route modifiée pour obtenir des statistiques par période
+
+// Route for period analytics
 app.get('/api/analytics/period', async (req, res) => {
     try {
         const { form_id, start_date, end_date } = req.query;
-        const query = form_id 
-            ? `
+        let query, params = [];
+        
+        if (form_id) {
+            query = `
                 SELECT 
                     form_id,
                     survey_id,
@@ -543,34 +538,38 @@ app.get('/api/analytics/period', async (req, res) => {
                     answer,
                     responded_at
                 FROM responses
-                WHERE form_id = @formId
-                    AND responded_at >= @startDate
-                    AND responded_at <= @endDate
-                ORDER BY responded_at
-            `
-            : `
-                SELECT 
-                    form_id,
-                    survey_id,
-                    question_id,
-                    answer,
-                    responded_at
-                FROM responses
-                WHERE responded_at >= @startDate
-                    AND responded_at <= @endDate
+                WHERE form_id = ?
+                    AND responded_at >= ?
+                    AND responded_at <= ?
                 ORDER BY responded_at
             `;
-
-        const request = pool.request();
-        if (form_id) {
-            request.input('formId', sql.Int, form_id);
+            params = [
+                form_id, 
+                new Date(start_date || '2000-01-01'), 
+                new Date(end_date || new Date())
+            ];
+        } else {
+            query = `
+                SELECT 
+                    form_id,
+                    survey_id,
+                    question_id,
+                    answer,
+                    responded_at
+                FROM responses
+                WHERE responded_at >= ?
+                    AND responded_at <= ?
+                ORDER BY responded_at
+            `;
+            params = [
+                new Date(start_date || '2000-01-01'), 
+                new Date(end_date || new Date())
+            ];
         }
-        request.input('startDate', sql.DateTime, new Date(start_date || '2000-01-01'));
-        request.input('endDate', sql.DateTime, new Date(end_date || new Date()));
 
-        const result = await request.query(query);
+        const [rows] = await pool.execute(query, params);
 
-        const groupedData = result.recordset.reduce((acc, row) => {
+        const groupedData = rows.reduce((acc, row) => {
             const date = new Date(row.responded_at).toISOString().split('T')[0];
             if (!acc[date]) {
                 acc[date] = {
@@ -596,45 +595,45 @@ app.get('/api/analytics/period', async (req, res) => {
     }
 });
 
-// Route pour obtenir des statistiques aggrégées
+// Route for summary analytics
 app.get('/api/analytics/summary', async (req, res) => {
     try {
         const { form_id } = req.query;
-        const query = form_id 
-            ? `
+        let query, params = [];
+        
+        if (form_id) {
+            query = `
                 SELECT 
                     q.id as question_id,
                     q.question_text,
                     q.question_type,
                     COUNT(r.id) as response_count,
-                    AVG(CASE WHEN ISNUMERIC(r.answer) = 1 THEN CAST(r.answer AS FLOAT) ELSE NULL END) as average_score
+                    AVG(CASE WHEN r.answer REGEXP '^[0-9]+(\.[0-9]+)?$' THEN r.answer ELSE NULL END) as average_score
                 FROM questions q
-                LEFT JOIN responses r ON q.id = r.question_id AND r.form_id = @formId
-                WHERE q.form_id = @formId
+                LEFT JOIN responses r ON q.id = r.question_id AND r.form_id = ?
+                WHERE q.form_id = ?
                 GROUP BY q.id, q.question_text, q.question_type
                 ORDER BY q.id
-            `
-            : `
+            `;
+            params = [form_id, form_id];
+        } else {
+            query = `
                 SELECT 
                     q.id as question_id,
                     q.question_text,
                     q.question_type,
                     COUNT(r.id) as response_count,
-                    AVG(CASE WHEN ISNUMERIC(r.answer) = 1 THEN CAST(r.answer AS FLOAT) ELSE NULL END) as average_score
+                    AVG(CASE WHEN r.answer REGEXP '^[0-9]+(\.[0-9]+)?$' THEN r.answer ELSE NULL END) as average_score
                 FROM questions q
                 LEFT JOIN responses r ON q.id = r.question_id
                 GROUP BY q.id, q.question_text, q.question_type
                 ORDER BY q.id
             `;
-
-        const request = pool.request();
-        if (form_id) {
-            request.input('formId', sql.Int, form_id);
         }
 
-        const result = await request.query(query);
+        const [rows] = await pool.execute(query, params);
 
-        const summary = result.recordset.map(row => ({
+        const summary = rows.map(row => ({
             question_id: row.question_id,
             question_text: row.question_text,
             question_type: row.question_type,
@@ -649,48 +648,52 @@ app.get('/api/analytics/summary', async (req, res) => {
     }
 });
 
-// Route pour obtenir des statistiques détaillées par question
+// Route for question analytics
 app.get('/api/analytics/question/:questionId', async (req, res) => {
     try {
         const { questionId } = req.params;
         const { form_id } = req.query;
+        let query, params = [];
 
-        const query = form_id
-            ? `
+        if (form_id) {
+            query = `
                 SELECT 
                     r.answer,
                     COUNT(*) as count,
-                    (COUNT(*) * 100.0 / (SELECT COUNT(*) FROM responses WHERE question_id = @questionId AND form_id = @formId)) as percentage
+                    (COUNT(*) * 100.0 / (
+                        SELECT COUNT(*) FROM responses 
+                        WHERE question_id = ? AND form_id = ?
+                    )) as percentage
                 FROM responses r
-                WHERE r.question_id = @questionId 
-                    AND r.form_id = @formId
-                GROUP BY r.answer
-                ORDER BY r.answer
-            `
-            : `
-                SELECT 
-                    r.answer,
-                    COUNT(*) as count,
-                    (COUNT(*) * 100.0 / (SELECT COUNT(*) FROM responses WHERE question_id = @questionId)) as percentage
-                FROM responses r
-                WHERE r.question_id = @questionId
+                WHERE r.question_id = ? 
+                    AND r.form_id = ?
                 GROUP BY r.answer
                 ORDER BY r.answer
             `;
-
-        const request = pool.request()
-            .input('questionId', sql.Int, questionId);
-            
-        if (form_id) {
-            request.input('formId', sql.Int, form_id);
+            params = [questionId, form_id, questionId, form_id];
+        } else {
+            query = `
+                SELECT 
+                    r.answer,
+                    COUNT(*) as count,
+                    (COUNT(*) * 100.0 / (
+                        SELECT COUNT(*) FROM responses 
+                        WHERE question_id = ?
+                    )) as percentage
+                FROM responses r
+                WHERE r.question_id = ?
+                GROUP BY r.answer
+                ORDER BY r.answer
+            `;
+            params = [questionId, questionId];
         }
 
-        const result = await request.query(query);
+        const [rows] = await pool.execute(query, params);
 
         const analysis = {
             question_id: parseInt(questionId),
-            total_responses: result.recordset.reduce((sum, row) => sum + row.count, 0),
-            distribution: result.recordset.map(row => ({
+            total_responses: rows.reduce((sum, row) => sum + row.count, 0),
+            distribution: rows.map(row => ({
                 answer: row.answer,
                 count: row.count,
                 percentage: Number(row.percentage).toFixed(2)
@@ -703,12 +706,15 @@ app.get('/api/analytics/question/:questionId', async (req, res) => {
         res.status(500).json({ error: 'Server error', details: err.message });
     }
 });
+
 // Feedback Analysis Routes
 app.get('/api/feedback/analysis', async (req, res) => {
     try {
         const { form_id } = req.query;
-        const query = form_id 
-            ? `
+        let query, params = [];
+        
+        if (form_id) {
+            query = `
                 SELECT 
                     r.id,
                     r.form_id,
@@ -721,13 +727,15 @@ app.get('/api/feedback/analysis', async (req, res) => {
                     q.question_type
                 FROM responses r
                 INNER JOIN questions q ON r.question_id = q.id
-                WHERE r.form_id = @formId 
+                WHERE r.form_id = ? 
                     AND r.answer IS NOT NULL 
                     AND r.answer != ''
                     AND r.nlp_analysis IS NOT NULL
                 ORDER BY r.responded_at DESC
-            `
-            : `
+            `;
+            params = [form_id];
+        } else {
+            query = `
                 SELECT 
                     r.id,
                     r.form_id,
@@ -745,15 +753,11 @@ app.get('/api/feedback/analysis', async (req, res) => {
                     AND r.nlp_analysis IS NOT NULL
                 ORDER BY r.responded_at DESC
             `;
-
-        const request = pool.request();
-        if (form_id) {
-            request.input('formId', sql.Int, form_id);
         }
 
-        const result = await request.query(query);
+        const [rows] = await pool.execute(query, params);
 
-        const formattedResult = result.recordset.map(row => {
+        const formattedResult = rows.map(row => {
             let analysis;
             try {
                 analysis = typeof row.nlp_analysis === 'string' ? 
@@ -791,30 +795,34 @@ app.post('/api/feedback/analyze', async (req, res) => {
             return res.status(400).json({ error: 'Missing required data' });
         }
 
-        const transaction = new sql.Transaction(pool);
-        await transaction.begin();
-
+        const connection = await pool.getConnection();
+        
         try {
+            await connection.beginTransaction();
+
             for (const analysis of analyses) {
-                await transaction.request()
-                    .input('formId', sql.Int, form_id)
-                    .input('surveyId', sql.Int, survey_id)
-                    .input('questionId', sql.Int, analysis.questionId)
-                    .input('analysis', sql.NVarChar, JSON.stringify(analysis.analysis))
-                    .query`
-                        UPDATE responses
-                        SET nlp_analysis = @analysis
-                        WHERE form_id = @formId
-                        AND survey_id = @surveyId
-                        AND question_id = @questionId
-                    `;
+                await connection.execute(
+                    `UPDATE responses
+                    SET nlp_analysis = ?
+                    WHERE form_id = ?
+                    AND survey_id = ?
+                    AND question_id = ?`,
+                    [
+                        JSON.stringify(analysis.analysis),
+                        form_id,
+                        survey_id,
+                        analysis.questionId
+                    ]
+                );
             }
 
-            await transaction.commit();
+            await connection.commit();
             res.status(200).json({ message: 'Analyses updated successfully' });
         } catch (err) {
-            await transaction.rollback();
+            await connection.rollback();
             throw err;
+        } finally {
+            connection.release();
         }
     } catch (err) {
         console.error('Error updating analyses:', err);
@@ -825,32 +833,32 @@ app.post('/api/feedback/analyze', async (req, res) => {
 app.get('/api/feedback/sentiment-summary', async (req, res) => {
     try {
         const { form_id } = req.query;
-        const query = form_id 
-            ? `
+        let query, params = [];
+        
+        if (form_id) {
+            query = `
                 SELECT r.nlp_analysis
                 FROM responses r
                 INNER JOIN questions q ON r.question_id = q.id
-                WHERE r.form_id = @formId 
+                WHERE r.form_id = ? 
                     AND q.question_type = 'text'
                     AND r.nlp_analysis IS NOT NULL
-            `
-            : `
+            `;
+            params = [form_id];
+        } else {
+            query = `
                 SELECT r.nlp_analysis
                 FROM responses r
                 INNER JOIN questions q ON r.question_id = q.id
                 WHERE q.question_type = 'text'
                     AND r.nlp_analysis IS NOT NULL
             `;
-
-        const request = pool.request();
-        if (form_id) {
-            request.input('formId', sql.Int, form_id);
         }
 
-        const result = await request.query(query);
+        const [rows] = await pool.execute(query, params);
 
         const summary = {
-            total_feedback: result.recordset.length,
+            total_feedback: rows.length,
             positive_count: 0,
             neutral_count: 0,
             negative_count: 0,
@@ -858,7 +866,7 @@ app.get('/api/feedback/sentiment-summary', async (req, res) => {
         };
 
         let totalSentiment = 0;
-        result.recordset.forEach(row => {
+        rows.forEach(row => {
             const analysis = typeof row.nlp_analysis === 'string' ? 
                 JSON.parse(row.nlp_analysis) : row.nlp_analysis;
             const score = analysis?.overall?.sentiment?.score || 0;
@@ -869,8 +877,8 @@ app.get('/api/feedback/sentiment-summary', async (req, res) => {
             else summary.neutral_count++;
         });
 
-        summary.avg_sentiment = result.recordset.length > 0 ? 
-            totalSentiment / result.recordset.length : 0;
+        summary.avg_sentiment = rows.length > 0 ? 
+            totalSentiment / rows.length : 0;
 
         res.json(summary);
     } catch (err) {
@@ -878,21 +886,26 @@ app.get('/api/feedback/sentiment-summary', async (req, res) => {
         res.status(500).json({ error: 'Server error', details: err.message });
     }
 });
+
 // Comments and Satisfaction Routes
 app.get('/api/comments', async (req, res) => {
     try {
         const { form_id } = req.query;
-        const query = form_id 
-            ? `
+        let query, params = [];
+        
+        if (form_id) {
+            query = `
                 SELECT form_id, survey_id, question_id, answer, optional_answer
                 FROM responses
-                WHERE form_id = @formId 
+                WHERE form_id = ? 
                     AND optional_answer IS NOT NULL
                     AND optional_answer <> ''
                     AND question_id <> 10
                 ORDER BY survey_id, question_id
-            `
-            : `
+            `;
+            params = [form_id];
+        } else {
+            query = `
                 SELECT form_id, survey_id, question_id, answer, optional_answer
                 FROM responses
                 WHERE optional_answer IS NOT NULL
@@ -900,14 +913,10 @@ app.get('/api/comments', async (req, res) => {
                     AND question_id <> 10
                 ORDER BY survey_id, question_id
             `;
-
-        const request = pool.request();
-        if (form_id) {
-            request.input('formId', sql.Int, form_id);
         }
 
-        const result = await request.query(query);
-        res.json(result.recordset);
+        const [rows] = await pool.execute(query, params);
+        res.json(rows);
     } catch (err) {
         console.error('Error fetching comments:', err);
         res.status(500).json({ error: 'Server error', details: err.message });
@@ -922,18 +931,12 @@ app.post('/api/low-satisfaction', async (req, res) => {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
-        await pool.request()
-            .input('formId', sql.Int, form_id)
-            .input('surveyId', sql.Int, survey_id)
-            .input('name', sql.NVarChar, name)
-            .input('phone', sql.NVarChar, phone)
-            .input('email', sql.NVarChar, email)
-            .input('commentaire', sql.NVarChar(sql.MAX), commentaire || null)
-            .query`
-                INSERT INTO low_satisfaction_responses 
-                (form_id, survey_id, name, phone, email, commentaire)
-                VALUES (@formId, @surveyId, @name, @phone, @email, @commentaire)
-            `;
+        await pool.execute(
+            `INSERT INTO low_satisfaction_responses 
+            (form_id, survey_id, name, phone, email, commentaire)
+            VALUES (?, ?, ?, ?, ?, ?)`,
+            [form_id, survey_id, name, phone, email, commentaire || null]
+        );
 
         res.status(201).json({ message: 'Response recorded successfully' });
     } catch (err) {
@@ -945,8 +948,10 @@ app.post('/api/low-satisfaction', async (req, res) => {
 app.get('/api/low-satisfaction', async (req, res) => {
     try {
         const { form_id } = req.query;
-        const query = form_id 
-            ? `
+        let query, params = [];
+        
+        if (form_id) {
+            query = `
                 SELECT 
                     id,
                     form_id,
@@ -957,10 +962,12 @@ app.get('/api/low-satisfaction', async (req, res) => {
                     commentaire,
                     created_at
                 FROM low_satisfaction_responses
-                WHERE form_id = @formId
+                WHERE form_id = ?
                 ORDER BY created_at DESC
-            `
-            : `
+            `;
+            params = [form_id];
+        } else {
+            query = `
                 SELECT 
                     id,
                     form_id,
@@ -973,19 +980,15 @@ app.get('/api/low-satisfaction', async (req, res) => {
                 FROM low_satisfaction_responses
                 ORDER BY created_at DESC
             `;
-
-        const request = pool.request();
-        if (form_id) {
-            request.input('formId', sql.Int, form_id);
         }
 
-        const result = await request.query(query);
+        const [rows] = await pool.execute(query, params);
 
-        if (!result.recordset || result.recordset.length === 0) {
+        if (!rows || rows.length === 0) {
             return res.status(404).json({ error: 'No responses found' });
         }
 
-        const formattedResults = result.recordset.map(result => ({
+        const formattedResults = rows.map(result => ({
             id: result.id,
             form_id: result.form_id,
             survey_id: result.survey_id,
@@ -1002,6 +1005,7 @@ app.get('/api/low-satisfaction', async (req, res) => {
         res.status(500).json({ error: 'Server error', details: err.message });
     }
 });
+
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error(err.stack);

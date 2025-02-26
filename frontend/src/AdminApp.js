@@ -106,6 +106,15 @@ function AdminApp() {
 
   const createNewForm = async () => {
     try {
+      console.log('Creating form with:', { name: newFormName, description: newFormDescription });
+      console.log('API URL:', process.env.REACT_APP_API_URL);
+      
+      // First check if backend is responding
+      const healthCheck = await fetch(`${process.env.REACT_APP_API_URL}/health`);
+      if (!healthCheck.ok) {
+        throw new Error(`Health check failed with status: ${healthCheck.status}`);
+      }
+      
       const response = await fetch(`${process.env.REACT_APP_API_URL}/api/forms`, {
         method: 'POST',
         headers: {
@@ -116,10 +125,16 @@ function AdminApp() {
           description: newFormDescription
         })
       });
-
-      if (!response.ok) throw new Error('Erreur lors de la création du formulaire');
-
+  
+      if (!response.ok) {
+        const errorData = await response.json().catch(e => null);
+        throw new Error(`Status: ${response.status}, Details: ${JSON.stringify(errorData)}`);
+      }
+  
       const newForm = await response.json();
+      
+      console.log('Form created successfully:', newForm);
+      
       setAvailableForms(prevForms => [...prevForms, { 
         id: newForm.id, 
         name: newFormName, 
@@ -130,8 +145,8 @@ function AdminApp() {
       setNewFormName('');
       setNewFormDescription('');
     } catch (error) {
-      console.error('Erreur:', error);
-      alert('Impossible de créer le formulaire. Veuillez réessayer.');
+      console.error('Error creating form:', error);
+      alert(`Impossible de créer le formulaire: ${error.message}`);
     }
   };
 
