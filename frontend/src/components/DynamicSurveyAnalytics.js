@@ -451,7 +451,7 @@ const EnhancedSurveyAnalytics = ({ formId, externalFeedbackData = [] }) => {
       try {
         setLoading(true);
         setError(null);
-
+  
         const questionsUrl = `${API_URL}/api/forms/${formId}/questions`;
         const responsesUrl = `${API_URL}/api/analytics/responses?form_id=${formId}`;
         const formUrl = `${API_URL}/api/forms/${formId}`;
@@ -468,16 +468,16 @@ const EnhancedSurveyAnalytics = ({ formId, externalFeedbackData = [] }) => {
           fetch(formUrl, fetchOptions),
           fetch(lowSatisfactionUrl, fetchOptions)
         ]);
-
+  
         if (!questionsRes.ok || !responsesRes.ok || !formRes.ok) {
           throw new Error('Failed to fetch data');
         }
-
+  
         const questionsData = await questionsRes.json();
         const responsesData = await responsesRes.json();
         const formData = await formRes.json();
         const lowSatisfactionData = await lowSatisfactionRes.json();
-
+  
         const processedQuestions = questionsData.map(q => ({
           ...q,
           options: Array.isArray(q.options) 
@@ -486,20 +486,24 @@ const EnhancedSurveyAnalytics = ({ formId, externalFeedbackData = [] }) => {
               ? JSON.parse(q.options || '[]') 
               : [])
         }));
-
+  
         // Using externalFeedbackData instead of making a separate API call
         const feedbackAnalysisData = externalFeedbackData;
-
+  
         // Calculate sentiment statistics
         let totalSentimentScore = 0;
         let totalSentimentResponses = 0;
         let positiveResponses = 0;
         let totalFormSubmissions = responsesData.length;
         
+        // NEW: Track display percentages for averaging
+        let totalDisplayPercentage = 0;
+        let displayPercentageCount = 0;
+        
         // Count unique survey_ids to get actual form submissions
         const uniqueSurveyIds = new Set(responsesData.map(response => response.survey_id));
         const actualFormSubmissions = uniqueSurveyIds.size;
-
+  
         // Process feedback data from external source
         feedbackAnalysisData.forEach(feedback => {
           try {
@@ -510,17 +514,28 @@ const EnhancedSurveyAnalytics = ({ formId, externalFeedbackData = [] }) => {
             
             // Extract sentiment data
             const analysis = feedback.analysis;
-            if (analysis && analysis.overall && analysis.overall.sentiment && 
-                analysis.overall.sentiment.score !== undefined) {
-              
-              const score = Number(analysis.overall.sentiment.score);
-              
-              if (!isNaN(score)) {
-                totalSentimentScore += score;
-                totalSentimentResponses++;
+            if (analysis && analysis.overall && analysis.overall.sentiment) {
+              // Process raw sentiment score
+              if (analysis.overall.sentiment.score !== undefined) {
+                const score = Number(analysis.overall.sentiment.score);
                 
-                if (score >= 0.2) {
-                  positiveResponses++;
+                if (!isNaN(score)) {
+                  totalSentimentScore += score;
+                  totalSentimentResponses++;
+                  
+                  if (score >= 0.2) {
+                    positiveResponses++;
+                  }
+                }
+              }
+              
+              // NEW: Process display percentage if available
+              if (analysis.overall.sentiment.displayPercentage !== undefined) {
+                const displayPercentage = Number(analysis.overall.sentiment.displayPercentage);
+                
+                if (!isNaN(displayPercentage)) {
+                  totalDisplayPercentage += displayPercentage;
+                  displayPercentageCount++;
                 }
               }
             }
@@ -528,7 +543,7 @@ const EnhancedSurveyAnalytics = ({ formId, externalFeedbackData = [] }) => {
             console.error('Error processing feedback analysis:', e);
           }
         });
-
+  
         setQuestions(processedQuestions);
         setResponses(responsesData);
         setFormName(formData.name || 'Formulaire sans nom');
@@ -546,6 +561,11 @@ const EnhancedSurveyAnalytics = ({ formId, externalFeedbackData = [] }) => {
         
         setTextQuestionsData(textQuestionsStats.questions);
         
+        // NEW: Calculate average display percentage
+        const avgDisplayPercentage = displayPercentageCount > 0 
+          ? totalDisplayPercentage / displayPercentageCount 
+          : 0;
+        
         setStats({
           totalFormSubmissions: actualFormSubmissions || totalFormSubmissions,
           totalResponses: responsesData.length,
@@ -553,6 +573,8 @@ const EnhancedSurveyAnalytics = ({ formId, externalFeedbackData = [] }) => {
           positiveResponses: positiveResponses,
           totalAnalyzed: totalSentimentResponses,
           averageSentiment: totalSentimentResponses > 0 ? totalSentimentScore / totalSentimentResponses : 0,
+          // NEW: Add the average display percentage to stats
+          averageDisplayPercentage: avgDisplayPercentage,
           totalSentimentResponses: totalSentimentResponses,
           totalTextResponses: textQuestionsStats.totalResponses,
           averageWords: textQuestionsStats.averageWords
@@ -564,7 +586,7 @@ const EnhancedSurveyAnalytics = ({ formId, externalFeedbackData = [] }) => {
         setLoading(false);
       }
     };
-
+  
     if (formId) {
       fetchData();
     }
@@ -902,50 +924,50 @@ const processResponseData = (questionId) => {
         </div>
 
         {/* Statistics Summary Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-12">
-          <StatCard
-            icon={CheckCircle2}
-            title="Formulaires soumis"
-            value={stats.totalFormSubmissions}
-            description="Nombre de soumissions complètes"
-            colorClass="bg-blue-600"
-          />
-          <StatCard
-            icon={AlertTriangle}
-            title="Utilisateurs insatisfaits"
-            value={stats.unsatisfiedUsers}
-            description="Nécessitant une attention particulière"
-            colorClass="bg-red-500"
-          />
-          <StatCard
-            icon={ThumbsUp}
-            title="Réponses textuelles positives"
-            value={`${positiveRate}%`}
-            description={`${stats.positiveResponses} sur ${stats.totalAnalyzed} analysées`}
-            colorClass="bg-green-500"
-          />
-          <StatCard
-            icon={MessageSquare}
-            title="Taux de satisfaction"
-            value={`${satisfactionRate}%`}
-            description="Basé sur les retours clients"
-            colorClass="bg-indigo-500"
-          />
-          <StatCard
-            icon={BarChart2}
-            title="Sentiment moyen"
-            value={averageSentimentFormatted}
-            description={`Basé sur ${stats.totalSentimentResponses} réponses analysées`}
-            colorClass="bg-purple-500"
-          />
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-12">
+        <StatCard
+          icon={CheckCircle2}
+          title="Formulaires soumis"
+          value={stats.totalFormSubmissions}
+          description="Nombre de soumissions complètes"
+          colorClass="bg-blue-600"
+        />
+        <StatCard
+          icon={AlertTriangle}
+          title="Utilisateurs insatisfaits"
+          value={stats.unsatisfiedUsers}
+          description="Nécessitant une attention particulière"
+          colorClass="bg-red-500"
+        />
+        <StatCard
+          icon={ThumbsUp}
+          title="Réponses textuelles positives"
+          value={`${positiveRate}%`}
+          description={`${stats.positiveResponses} sur ${stats.totalAnalyzed} analysées`}
+          colorClass="bg-green-500"
+        />
+        <StatCard
+          icon={MessageSquare}
+          title="Taux de satisfaction"
+          value={`${satisfactionRate}%`}
+          description="Basé sur les retours clients"
+          colorClass="bg-indigo-500"
+        />
+        <StatCard
+          icon={BarChart2}
+          title="Sentiment moyen"
+          value={stats.averageDisplayPercentage ? `${Math.round(stats.averageDisplayPercentage)}%` : averageSentimentFormatted}
+          description={`Basé sur ${stats.totalSentimentResponses} réponses analysées`}
+          colorClass="bg-purple-500"
+        />
+      </div>
         
         {/* Simplified Text Analysis Section */}
         <SimpleTextAnalysisSection 
           textQuestions={textQuestionsData} 
           stats={{ 
             totalTextResponses: stats.totalTextResponses,
-            averageSentiment: stats.averageSentiment,
+            averageSentiment: stats.averageDisplayPercentage,
             averageWords: stats.averageWords
           }} 
         />
