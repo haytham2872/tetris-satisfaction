@@ -147,6 +147,28 @@ app.get('/api/forms/:id', async (req, res) => {
     }
 });
 
+app.get('/api/forms', async (req, res) => {
+    try {
+        // Ensure pool is initialized
+        if (!pool) {
+            console.error("Database pool not initialized");
+            return res.status(500).json({ error: 'Database connection not available' });
+        }
+        
+        console.log("Executing query to fetch all forms");
+        const [rows] = await pool.execute(
+            'SELECT id, name, description, created_at, updated_at, is_active FROM forms ORDER BY id'
+        );
+        
+        console.log(`Retrieved ${rows.length} forms from database`);
+        
+        res.json(rows);
+    } catch (err) {
+        console.error('Error fetching forms:', err);
+        res.status(500).json({ error: 'Server error', details: err.message });
+    }
+});
+
 app.put('/api/forms/:id', async (req, res) => {
     try {
         const { id } = req.params;
