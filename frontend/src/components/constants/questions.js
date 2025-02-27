@@ -1,4 +1,3 @@
-// src/components/constants/questions.js
 
 // Function to transform database questions to the format needed by components
 const transformDatabaseQuestion = (dbQuestion) => ({

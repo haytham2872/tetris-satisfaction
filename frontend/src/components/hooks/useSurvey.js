@@ -16,7 +16,7 @@ export const useSurvey = (formId) => {
   const [isAnimating, setIsAnimating] = useState(false);
   const [lastResponse, setLastResponse] = useState(null);
   const [contactFormSkipped, setContactFormSkipped] = useState(false);
-  const [setContactDetailsSubmitted] = useState(false);
+  const [ContactDetailsSubmitted,setContactDetailsSubmitted] = useState(false);
   const [contactVisibility, setContactVisibility] = useState(false);
 
 
