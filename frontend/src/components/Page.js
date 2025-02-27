@@ -8,6 +8,7 @@ import {
     ArrowLeft,
     Loader
 } from 'lucide-react';
+import logo from '../assets/logo.png'; // Import the logo
 
 // Constante pour l'URL de l'API
 const API_URL = process.env.REACT_APP_API_URL;
@@ -31,67 +32,6 @@ const MenuButton = ({ icon: Icon, title, description, onClick, isActive }) => (
     </button>
 );
 
-// Custom hook to handle form selection with improved synchronization
-const useSelectedFormId = (availableForms = [], selectedFormIdProp = null) => {
-    const [formId, setFormId] = useState(null);
-
-    // Sync with prop from AdminApp if available
-    useEffect(() => {
-        if (selectedFormIdProp !== null) {
-            setFormId(selectedFormIdProp.toString());
-            localStorage.setItem('selectedFormId', selectedFormIdProp.toString());
-        }
-    }, [selectedFormIdProp]);
-
-    useEffect(() => {
-        // Try to load from localStorage on initial mount
-        const storedFormId = localStorage.getItem('selectedFormId');
-        if (storedFormId && !formId) {
-            console.log('Retrieved formId from localStorage:', storedFormId);
-
-            // Check if the stored formId exists in availableForms (once they're loaded)
-            if (availableForms.length > 0 && !availableForms.some(form => form.id.toString() === storedFormId)) {
-                console.log('Stored formId not found in available forms, clearing localStorage');
-                localStorage.removeItem('selectedFormId');
-                setFormId(null);
-            } else {
-                setFormId(storedFormId);
-            }
-        }
-
-        // Handle form selection events
-        const handleFormSelected = (event) => {
-            const selectedId = event.detail?.formId;
-            console.log('Form selected via custom event:', selectedId);
-            if (selectedId) {
-                setFormId(selectedId);
-                // Store in localStorage
-                localStorage.setItem('selectedFormId', selectedId);
-            }
-        };
-
-        // Listen for custom form selection events
-        window.addEventListener('formSelected', handleFormSelected);
-
-        // Listen for localStorage changes (if multiple tabs)
-        const handleStorageChange = (e) => {
-            if (e.key === 'selectedFormId' && e.newValue) {
-                console.log('LocalStorage updated with new formId:', e.newValue);
-                setFormId(e.newValue);
-            }
-        };
-
-        window.addEventListener('storage', handleStorageChange);
-
-        return () => {
-            window.removeEventListener('formSelected', handleFormSelected);
-            window.removeEventListener('storage', handleStorageChange);
-        };
-    }, [availableForms, formId]); // Added formId as dependency for more reactive updates
-
-    return formId;
-};
-
 const Page = ({
     selectedFormId, // Accept selectedFormId from AdminApp.js
     availableForms: propAvailableForms = [], // Accept availableForms from AdminApp.js
@@ -111,63 +51,16 @@ const Page = ({
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [availableForms, setAvailableForms] = useState(propAvailableForms || []);
-    const [formsLoading, setFormsLoading] = useState(true);
-
-    // Get formId using the custom hook that listens for form selection events
-    // Pass selectedFormId from props to synchronize with AdminApp.js
-    const formId = useSelectedFormId(availableForms, selectedFormId);
-
-    // Debug the current formId value
-    useEffect(() => {
-        console.log('Current formId in Page component:', formId);
-    }, [formId]);
-
-    // If propAvailableForms changes, update local state
-    useEffect(() => {
-        if (propAvailableForms && propAvailableForms.length > 0) {
-            setAvailableForms(propAvailableForms);
-            setFormsLoading(false);
-        }
-    }, [propAvailableForms]);
-
-    // Fetch available forms for selection (only if not provided via props)
-    useEffect(() => {
-        if (propAvailableForms && propAvailableForms.length > 0) {
-            return; // Skip API call if forms are provided via props
-        }
-
-        const fetchAvailableForms = async () => {
-            setFormsLoading(true);
-            try {
-                const response = await fetch(`${API_URL || 'http://localhost:5000'}/api/forms`);
-
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch forms. Status: ${response.status}`);
-                }
-
-                const data = await response.json();
-                console.log('Available forms:', data);
-                setAvailableForms(data);
-            } catch (error) {
-                console.error('Error fetching available forms:', error);
-                setAvailableForms([]);
-            } finally {
-                setFormsLoading(false);
-            }
-        };
-
-        fetchAvailableForms();
-    }, [propAvailableForms]);
 
     // Find the current form name from availableForms when possible
     const getCurrentFormName = () => {
-        if (!formId || !availableForms || availableForms.length === 0) return null;
+        if (!selectedFormId || !availableForms || availableForms.length === 0) return null;
 
-        const currentForm = availableForms.find(form => form.id.toString() === formId.toString());
+        const currentForm = availableForms.find(form => form.id.toString() === selectedFormId.toString());
         return currentForm ? currentForm.name : null;
     };
 
-    // Fetch form information when formId changes
+    // Fetch form information when selectedFormId changes
     useEffect(() => {
         let isMounted = true; // Flag to prevent state updates after unmount
 
@@ -175,7 +68,7 @@ const Page = ({
             if (!isMounted) return;
 
             // Try to get form info from availableForms first to reduce API calls
-            const existingFormInfo = availableForms.find(form => form.id.toString() === formId?.toString());
+            const existingFormInfo = availableForms.find(form => form.id.toString() === selectedFormId?.toString());
             if (existingFormInfo) {
                 console.log('Using cached form info:', existingFormInfo);
                 setFormInfo(existingFormInfo);
@@ -187,16 +80,16 @@ const Page = ({
             setError(null);
 
             try {
-                if (!formId) {
-                    console.warn('formId is missing - skipping API call');
+                if (!selectedFormId) {
+                    console.warn('selectedFormId is missing - skipping API call');
                     setError('Form ID not available');
                     setLoading(false);
                     return;
                 }
 
-                console.log('Fetching form with ID:', formId);
+                console.log('Fetching form with ID:', selectedFormId);
 
-                const response = await fetch(`${API_URL || 'http://localhost:5000'}/api/forms/${formId}`);
+                const response = await fetch(`${API_URL || 'http://localhost:5000'}/api/forms/${selectedFormId}`);
 
                 if (!response.ok) {
                     throw new Error(`Failed to fetch form information. Status: ${response.status}`);
@@ -230,7 +123,7 @@ const Page = ({
 
         // Using the same pattern of timer as in ComparatifForms
         let timer;
-        if (formId) {
+        if (selectedFormId) {
             timer = setTimeout(() => {
                 fetchFormInfo();
             }, 300);
@@ -242,30 +135,28 @@ const Page = ({
             isMounted = false;
             clearTimeout(timer);
         };
-    }, [formId, availableForms]); // Added availableForms as dependency for more reactive updates
+    }, [selectedFormId, availableForms]);
 
     // Debug formInfo state changes
     useEffect(() => {
         console.log('Current formInfo state:', formInfo);
     }, [formInfo]);
 
-    // When user selects a form from the dropdown
-    const handleFormSelection = (formId) => {
-        // Convert formId to string for consistent comparison
-        const formIdStr = formId.toString();
+    // Improved form name display - checks multiple sources
+    const getFormName = () => {
+        // First try to get from formInfo
+        if (formInfo?.name) {
+            return formInfo.name;
+        }
 
-        console.log('Form selection requested for ID:', formIdStr);
+        // Then try from availableForms
+        const formName = getCurrentFormName();
+        if (formName) {
+            return formName;
+        }
 
-        // Clear previous form info to show loading state
-        setFormInfo(null);
-
-        // Dispatch custom event with the selected form ID
-        window.dispatchEvent(new CustomEvent('formSelected', {
-            detail: { formId: formIdStr }
-        }));
-
-        // Also save to localStorage for persistence
-        localStorage.setItem('selectedFormId', formIdStr);
+        // Fallback
+        return 'Formulaire sans nom';
     };
 
     const menuItems = [
@@ -374,45 +265,6 @@ const Page = ({
         onBack && onBack();
     };
 
-    // Improved form name display - checks multiple sources
-    const getFormName = () => {
-        // First try to get from formInfo
-        if (formInfo?.name) {
-            return formInfo.name;
-        }
-
-        // Then try from availableForms
-        const formName = getCurrentFormName();
-        if (formName) {
-            return formName;
-        }
-
-        // Fallback
-        return 'Formulaire sans nom';
-    };
-
-    // Always render form selection buttons at the top
-    const renderFormSelector = () => (
-        <div className="mb-4">
-            {!formsLoading && availableForms.length > 0 && (
-                <div className="flex flex-wrap gap-2 justify-center">
-                    {availableForms.map(form => (
-                        <button
-                            key={form.id}
-                            onClick={() => handleFormSelection(form.id)}
-                            className={`px-4 py-2 rounded transition-colors ${formId && form.id.toString() === formId.toString()
-                                ? 'bg-tetris-blue text-white'
-                                : 'bg-white border border-tetris-blue text-tetris-blue hover:bg-tetris-blue/10'
-                                }`}
-                        >
-                            {form.name || 'Sans nom'}
-                        </button>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-
     if (activeView) {
         return (
             <div className="min-h-screen bg-gray-50">
@@ -426,23 +278,13 @@ const Page = ({
                         <span>Retour</span>
                     </button>
 
-                    {/* Add form selector here too for consistency */}
-                    {renderFormSelector()}
-
                     {/* Display form name in the header when viewing a specific section */}
                     {loading ? (
                         <div className="mt-4 flex items-center text-gray-500">
                             <Loader className="animate-spin h-5 w-5 mr-2" />
                             <span>Chargement du formulaire...</span>
                         </div>
-                    ) : formId ? (
-                        <div className="mt-4 text-xl font-medium text-tetris-blue">
-                            {getFormName()}
-                        </div>
-                    ) : error ? (
-                        <div className="mt-4 text-red-500">
-                            Erreur: {error}
-                        </div>
+
                     ) : null}
                 </div>
                 <div className="animate-fadeIn">
@@ -456,26 +298,33 @@ const Page = ({
         <div className="min-h-screen bg-gray-50 px-6 py-8">
             <div className="max-w-7xl mx-auto">
                 <div className="mb-12">
+                    {/* Display the logo above the title */}
+                    <div className="flex justify-center">
+                        <img src={logo} alt="Tetris Assurance" className="h-12 w-auto mb-4" />
+                    </div>
+
+                    {/* Display the title "Tableau de bord" */}
                     <h1 className="text-5xl font-bold text-tetris-blue text-center mb-4">
                         Tableau de bord
-                        {loading && formId && <span> <Loader className="inline animate-spin h-8 w-8 ml-2" /></span>}
                     </h1>
 
-                    {/* Improved form name display with better reliability */}
-                    {formId && (
-                        <h2 className="text-2xl text-center text-gray-700 mb-6">
+                    {/* Display the form name below the title */}
+                    {selectedFormId && (
+                        <div className="text-center">
                             {loading ? (
-                                <span className="flex items-center justify-center">
+                                <div className="flex items-center justify-center text-gray-500">
                                     <Loader className="animate-spin h-5 w-5 mr-2" />
                                     <span>Chargement...</span>
-                                </span>
+                                </div>
                             ) : (
-                                getFormName()
+                                <h2 className="text-3xl font-bold text-black text-center mb-4">
+                                    {getFormName()}
+                                </h2>
                             )}
-                        </h2>
+                        </div>
                     )}
 
-                    {error && formId && <p className="text-red-500 text-center">{error}</p>}
+                    {error && selectedFormId && <p className="text-red-500 text-center">{error}</p>}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-fadeIn max-w-6xl mx-auto">
@@ -485,7 +334,7 @@ const Page = ({
                             icon={item.icon}
                             title={item.title}
                             description={item.description}
-                            onClick={formId ? item.onClick : () => alert('Veuillez sélectionner un formulaire d\'abord')}
+                            onClick={selectedFormId ? item.onClick : () => alert('Veuillez sélectionner un formulaire d\'abord')}
                             isActive={activeView === item.id}
                         />
                     ))}
