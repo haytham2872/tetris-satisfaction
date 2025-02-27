@@ -22,19 +22,19 @@ app.use(cors({
     origin: '*',  // Allow all origins - for development only
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
-  }));
+}));
 
 
 app.use(express.json());
 
 // Database configuration
 const dbConfig = {
-    host: process.env.DB_HOST ,
-    user: process.env.DB_USER ,
-    password: process.env.DB_PASSWORD ,
-    database: process.env.DB_NAME ,
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
     waitForConnections: true,
-    connectionLimit: 10,
+
     queueLimit: 0
 };
 
@@ -68,10 +68,10 @@ app.get('/api/debug/db-status', async (req, res) => {
         if (!pool) {
             return res.status(500).json({ status: 'No pool connection' });
         }
-        
+
         const [result] = await pool.query('SELECT 1 as connection_test');
-        res.json({ 
-            status: 'Database connected', 
+        res.json({
+            status: 'Database connected',
             test_result: result,
             pool_status: {
                 connectionLimit: pool.config.connectionLimit,
@@ -88,39 +88,39 @@ app.get('/api/debug/db-status', async (req, res) => {
 app.post('/api/forms', async (req, res) => {
     try {
         const { name, description } = req.body;
-        
+
         // Debug log to inspect what's being received
         console.log("Creating form with:", { name, description });
-        
+
         // Ensure the pool is initialized
         if (!pool) {
             console.error("Database pool not initialized");
             return res.status(500).json({ error: 'Database connection not available' });
         }
-        
+
         // Validate input
         if (!name) {
             return res.status(400).json({ error: 'Form name is required' });
         }
-        
+
         const [result] = await pool.execute(
             'INSERT INTO forms (name, description) VALUES (?, ?)',
             [name, description || null]
         );
-            
+
         console.log("Form creation result:", result);
-        
+
         // Return success response with the new ID
-        res.status(201).json({ 
+        res.status(201).json({
             id: result.insertId,
-            message: 'Form created successfully' 
+            message: 'Form created successfully'
         });
     } catch (err) {
         console.error('Error creating form:', err);
-        
+
         // Send a more detailed error for debugging
-        res.status(500).json({ 
-            error: 'Server error', 
+        res.status(500).json({
+            error: 'Server error',
             details: err.message,
             stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
         });
@@ -130,16 +130,16 @@ app.post('/api/forms', async (req, res) => {
 app.get('/api/forms/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        
+
         const [rows] = await pool.execute(
             'SELECT id, name, description, created_at, updated_at, is_active FROM forms WHERE id = ?',
             [id]
         );
-        
+
         if (rows.length === 0) {
             return res.status(404).json({ error: 'Form not found' });
         }
-        
+
         res.json(rows[0]);
     } catch (err) {
         console.error('Error fetching form details:', err);
@@ -154,14 +154,14 @@ app.get('/api/forms', async (req, res) => {
             console.error("Database pool not initialized");
             return res.status(500).json({ error: 'Database connection not available' });
         }
-        
+
         console.log("Executing query to fetch all forms");
         const [rows] = await pool.execute(
             'SELECT id, name, description, created_at, updated_at, is_active FROM forms ORDER BY id'
         );
-        
+
         console.log(`Retrieved ${rows.length} forms from database`);
-        
+
         res.json(rows);
     } catch (err) {
         console.error('Error fetching forms:', err);
@@ -173,12 +173,12 @@ app.put('/api/forms/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const { name, description, is_active } = req.body;
-        
+
         await pool.execute(
             'UPDATE forms SET name = ?, description = ?, is_active = ?, updated_at = ? WHERE id = ?',
             [name, description, is_active, new Date(), id]
         );
-            
+
         res.json({ message: 'Form updated successfully' });
     } catch (err) {
         console.error('Error updating form:', err);
@@ -190,12 +190,12 @@ app.put('/api/forms/:id', async (req, res) => {
 app.post('/api/questions', async (req, res) => {
     try {
         const { form_id, questions } = req.body;
-        
+
         const connection = await pool.getConnection();
-        
+
         try {
             await connection.beginTransaction();
-            
+
             for (const question of questions) {
                 await connection.execute(
                     `INSERT INTO questions (
@@ -218,7 +218,7 @@ app.post('/api/questions', async (req, res) => {
                     ]
                 );
             }
-            
+
             await connection.commit();
             res.status(201).json({ message: 'Questions created successfully' });
         } catch (err) {
@@ -236,7 +236,7 @@ app.post('/api/questions', async (req, res) => {
 app.get('/api/forms/:formId/questions', async (req, res) => {
     try {
         const { formId } = req.params;
-        
+
         const [rows] = await pool.execute(
             'SELECT * FROM questions WHERE form_id = ? ORDER BY id',
             [formId]
@@ -263,19 +263,19 @@ app.get('/api/forms/:formId/questions', async (req, res) => {
 app.post('/api/questions/update', async (req, res) => {
     try {
         const { form_id, questions } = req.body;
-        
+
         if (!form_id) {
             return res.status(400).json({ error: 'form_id is required' });
         }
 
         const connection = await pool.getConnection();
-        
+
         try {
             await connection.beginTransaction();
-            
+
             // Track created questions to return their IDs
             const newQuestionIds = [];
-            
+
             for (const question of questions) {
                 console.log('Processing question:', question);
 
@@ -325,10 +325,10 @@ app.post('/api/questions/update', async (req, res) => {
                             JSON.stringify(question.options || [])
                         ]
                     );
-                    
+
                     const newId = result.insertId;
                     console.log('New question inserted with ID:', newId);
-                    
+
                     // Track the mapping from temporary ID to new database ID
                     newQuestionIds.push({
                         tempId: question.id, // The negative ID
@@ -336,15 +336,15 @@ app.post('/api/questions/update', async (req, res) => {
                     });
                 }
             }
-            
+
             await connection.commit();
-            
+
             // Return success with the mapping of temporary to new IDs
-            res.status(200).json({ 
+            res.status(200).json({
                 message: 'Questions updated successfully',
                 newQuestionIds: newQuestionIds
             });
-            
+
         } catch (err) {
             await connection.rollback();
             throw err;
@@ -360,7 +360,7 @@ app.post('/api/questions/update', async (req, res) => {
 app.delete('/api/questions/delete', async (req, res) => {
     try {
         const { id } = req.body;
-        
+
         if (!id) {
             return res.status(400).json({ error: 'Question ID is required' });
         }
@@ -382,12 +382,12 @@ app.delete('/api/questions/delete', async (req, res) => {
 app.post('/api/responses', async (req, res) => {
     try {
         const { form_id, survey_id, responses } = req.body;
-        
+
         const connection = await pool.getConnection();
-        
+
         try {
             await connection.beginTransaction();
-            
+
             for (const response of responses) {
                 let nlpAnalysis = null;
                 if (response.answer && typeof response.answer === 'string' && response.answer.trim() !== '') {
@@ -417,7 +417,7 @@ app.post('/api/responses', async (req, res) => {
                     ]
                 );
             }
-            
+
             await connection.commit();
             res.status(200).json({ message: 'Responses recorded successfully' });
         } catch (err) {
@@ -437,7 +437,7 @@ app.get('/api/analytics/responses', async (req, res) => {
     try {
         const { form_id } = req.query;
         let query, params = [];
-        
+
         if (form_id) {
             query = `
                 SELECT form_id, survey_id, question_id, answer, responded_at
@@ -484,7 +484,7 @@ app.get('/api/analytics/additional', async (req, res) => {
     try {
         const { form_id } = req.query;
         let query, params = [];
-        
+
         if (form_id) {
             query = `
                 SELECT form_id, survey_id, question_id, answer, responded_at
@@ -532,12 +532,12 @@ app.get('/api/analytics/additional', async (req, res) => {
 app.post('/api/start-survey', async (req, res) => {
     try {
         const { name, form_id } = req.body;
-        
+
         const [result] = await pool.execute(
             'INSERT INTO surveys (name, form_id) VALUES (?, ?)',
             [name || 'Nouveau survey', form_id]
         );
-            
+
         res.status(201).json({ id: result.insertId });
     } catch (err) {
         console.error('Error creating survey:', err);
@@ -550,7 +550,7 @@ app.get('/api/analytics/period', async (req, res) => {
     try {
         const { form_id, start_date, end_date } = req.query;
         let query, params = [];
-        
+
         if (form_id) {
             query = `
                 SELECT 
@@ -566,8 +566,8 @@ app.get('/api/analytics/period', async (req, res) => {
                 ORDER BY responded_at
             `;
             params = [
-                form_id, 
-                new Date(start_date || '2000-01-01'), 
+                form_id,
+                new Date(start_date || '2000-01-01'),
                 new Date(end_date || new Date())
             ];
         } else {
@@ -584,7 +584,7 @@ app.get('/api/analytics/period', async (req, res) => {
                 ORDER BY responded_at
             `;
             params = [
-                new Date(start_date || '2000-01-01'), 
+                new Date(start_date || '2000-01-01'),
                 new Date(end_date || new Date())
             ];
         }
@@ -622,7 +622,7 @@ app.get('/api/analytics/summary', async (req, res) => {
     try {
         const { form_id } = req.query;
         let query, params = [];
-        
+
         if (form_id) {
             query = `
                 SELECT 
@@ -734,7 +734,7 @@ app.get('/api/feedback/analysis', async (req, res) => {
     try {
         const { form_id } = req.query;
         let query, params = [];
-        
+
         if (form_id) {
             query = `
                 SELECT 
@@ -782,7 +782,7 @@ app.get('/api/feedback/analysis', async (req, res) => {
         const formattedResult = rows.map(row => {
             let analysis;
             try {
-                analysis = typeof row.nlp_analysis === 'string' ? 
+                analysis = typeof row.nlp_analysis === 'string' ?
                     JSON.parse(row.nlp_analysis) : row.nlp_analysis;
             } catch (e) {
                 console.error('Error parsing NLP analysis:', e);
@@ -818,7 +818,7 @@ app.post('/api/feedback/analyze', async (req, res) => {
         }
 
         const connection = await pool.getConnection();
-        
+
         try {
             await connection.beginTransaction();
 
@@ -856,7 +856,7 @@ app.get('/api/feedback/sentiment-summary', async (req, res) => {
     try {
         const { form_id } = req.query;
         let query, params = [];
-        
+
         if (form_id) {
             query = `
                 SELECT r.nlp_analysis
@@ -889,7 +889,7 @@ app.get('/api/feedback/sentiment-summary', async (req, res) => {
 
         let totalSentiment = 0;
         rows.forEach(row => {
-            const analysis = typeof row.nlp_analysis === 'string' ? 
+            const analysis = typeof row.nlp_analysis === 'string' ?
                 JSON.parse(row.nlp_analysis) : row.nlp_analysis;
             const score = analysis?.overall?.sentiment?.score || 0;
             totalSentiment += score;
@@ -899,7 +899,7 @@ app.get('/api/feedback/sentiment-summary', async (req, res) => {
             else summary.neutral_count++;
         });
 
-        summary.avg_sentiment = rows.length > 0 ? 
+        summary.avg_sentiment = rows.length > 0 ?
             totalSentiment / rows.length : 0;
 
         res.json(summary);
@@ -914,7 +914,7 @@ app.get('/api/comments', async (req, res) => {
     try {
         const { form_id } = req.query;
         let query, params = [];
-        
+
         if (form_id) {
             query = `
                 SELECT form_id, survey_id, question_id, answer, optional_answer
@@ -971,7 +971,7 @@ app.get('/api/low-satisfaction', async (req, res) => {
     try {
         const { form_id } = req.query;
         let query, params = [];
-        
+
         if (form_id) {
             query = `
                 SELECT 
@@ -1038,7 +1038,7 @@ app.use((err, req, res, next) => {
 const startServer = async () => {
     try {
         await connectToDatabase();
-        
+
         app.listen(PORT, () => {
             console.log(`Server listening on port ${PORT}`);
         }).on('error', (err) => {
