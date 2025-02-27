@@ -299,7 +299,7 @@ const Page = ({
             <div className="max-w-7xl mx-auto">
                 <div className="mb-12">
                     {/* Display the logo above the title */}
-                    <div className="flex justify-center">
+                    <div className="flex justify-left">
                         <img src={logo} alt="Tetris Assurance" className="h-12 w-auto mb-4" />
                     </div>
 
