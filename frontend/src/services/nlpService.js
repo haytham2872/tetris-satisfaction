@@ -73,6 +73,7 @@ const FRENCH_SENTIMENT_LEXICON = {
     'professionnels': 2,
     'professionnelles': 2,
     'satisfaction': 3,
+    'satisfait': 3,
     'satisfaite': 3,
     'disponibilité': 3,
     'professionnalisme': 3,
@@ -91,6 +92,7 @@ const FRENCH_SENTIMENT_LEXICON = {
     'compétent': 3,
     'compétente': 3,
     'attentif': 2,
+    'attentive': 2,
     'disponible': 2,
     'réactif': 3,
     'réactive': 3,
@@ -244,6 +246,8 @@ const FRENCH_SENTIMENT_LEXICON = {
     'inadaptée': -2,
     'insuffisant': -2,
     'insuffisante': -2,
+    'amélioration': -1, // Subtle negative as it implies current state needs improvement
+    'améliorations': -1,
     'améliorer': -1,
     'néanmoins': -1, // Signal for criticism following positive statement
     'cependant': -1,
@@ -333,6 +337,7 @@ const FRENCH_SENTIMENT_LEXICON = {
     'irrégulière': -2,
     'superficiel': -2,
     'superficielle': -2,
+    'médiocre': -2,
     'monotone': -1,
     'rigide': -2,
     'inflexible': -2,
@@ -370,6 +375,18 @@ const DOWNTONER_WORDS = [
     'presque', 'passablement', 'approximativement', 'sensiblement'
 ];
 
+// French words that indicate descriptive context rather than actual urgency
+const DESCRIPTIVE_CONTEXT = [
+    'mentionner', 'mentionné', 'parler de', 'parlé de', 'décrire', 'décrit',
+    'situation', 'situations', 'cas', 'exemple', 'exemples', 'face aux',
+    'face à', 'en cas de', 'lors de', 'apprécier', 'apprécié', 'apprécie',
+    'j\'apprécie', 'nous apprécions', 'valoriser', 'valorisé', 'valorise',
+    'j\'aime', 'nous aimons', 'reconnaître', 'reconnais', 'reconnaissons',
+    'aimer', 'préférer', 'préfère', 'préférons', 'souligner', 'souligné',
+    'mettre en avant', 'mis en avant', 'noter', 'noté', 'remarquer', 'remarqué',
+    'constater', 'constaté', 'observer', 'observé', 'était', 'étaient',
+    'fut', 'furent', 'a été', 'ont été', 'avait été', 'avaient été'
+];
 
 // Split text into sentences for more accurate analysis
 const splitIntoSentences = (text) => {
@@ -377,12 +394,53 @@ const splitIntoSentences = (text) => {
   return text.replace(/([.!?])\s*(?=[A-Za-zÀ-ÖØ-öø-ÿ])/g, "$1|").split("|").filter(s => s.trim().length > 0);
 };
 
+// Check if a word is within n words of another word
+const isWithinProximity = (words, targetIndex, searchWord, proximity) => {
+  const lowerBound = Math.max(0, targetIndex - proximity);
+  const upperBound = Math.min(words.length - 1, targetIndex + proximity);
+  
+  for (let i = lowerBound; i <= upperBound; i++) {
+    if (i !== targetIndex && words[i] === searchWord) {
+      return true;
+    }
+  }
+  return false;
+};
 
 // Improved sentiment analysis function with contextual awareness
 const analyzeSentiment = (text) => {
   try {
     // Basic text preprocessing
     const lowercaseText = text.toLowerCase();
+    
+    // Check for strong negative phrases that should dominate the sentiment
+    const strongNegativeIndicators = [
+      'absolument pas', 'pas du tout', 'jamais satisfait', 'nullement satisfait',
+      'pas satisfait', 'pas content', 'difficile d\'identifier des éléments positifs',
+      'difficile de trouver des points positifs', 'n\'ont pas été tenues',
+      'en-deçà de nos attentes', 'tarifs excessifs', 'source de problèmes',
+      'pas considérés comme', 'médiocre', 'désintéressé', 'rarement disponible',
+      'ne résolvent jamais', 'ne répond pas', 'ne répond jamais', 'manque clairement'
+    ];
+    
+    // Check if any strong negative indicators are present
+    const hasStrongNegative = strongNegativeIndicators.some(phrase => lowercaseText.includes(phrase));
+    
+    // Direct opening negative statements have extremely high weight
+    const openingNegativeIndicators = [
+      'absolument pas', 'pas du tout', 'honnêtement', 'franchement', 'non', 
+      'je ne suis pas', 'nous ne sommes pas', 'difficile d\'identifier', 
+      'difficile de trouver', 'aucunement'
+    ];
+    
+    // Check if text opens with a negative indicator
+    const startsWithNegative = openingNegativeIndicators.some(phrase => 
+      lowercaseText.startsWith(phrase) || 
+      lowercaseText.split(' ').slice(0, 3).join(' ').includes(phrase)
+    );
+    
+    // Special handling for questions vs. answers
+    const isQuestion = text.includes('?');
     
     // Check for explicit satisfaction statements that should override other sentiment
     const explicitPositivePhrases = [
@@ -394,8 +452,34 @@ const analyzeSentiment = (text) => {
     const explicitNegativePhrases = [
       'je ne suis pas satisfait', 'nous ne sommes pas satisfaits', 'je suis mécontent',
       'nous sommes mécontents', 'je suis déçu', 'nous sommes déçus',
-      'je suis très déçu', 'globalement insatisfait', 'globalement, je suis déçu'
+      'je suis très déçu', 'globalement insatisfait', 'globalement, je suis déçu',
+      'absolument pas', 'pas du tout'
     ];
+    
+    // Define contrast markers that introduce opposing viewpoints
+    const contrastMarkers = [
+      'néanmoins', 'cependant', 'toutefois', 'pourtant', 'mais', 'par contre',
+      'en revanche', 'malgré', 'bien que', 'quoique', 'alors que', 
+      'tandis que', 'or', 'sauf que', 'excepté que', 'hormis que', 
+      'nonobstant', 'quand même', 'tout de même'
+    ];
+    
+    // Check if text contains contrast markers
+    const containsContrastMarker = contrastMarkers.some(marker => lowercaseText.includes(marker));
+    
+    // Find the positions of contrast markers
+    let contrastPositions = [];
+    if (containsContrastMarker) {
+      contrastMarkers.forEach(marker => {
+        const position = lowercaseText.indexOf(marker);
+        if (position !== -1) {
+          contrastPositions.push({
+            marker: marker,
+            position: position
+          });
+        }
+      });
+    }
     
     let hasExplicitPositive = explicitPositivePhrases.some(phrase => lowercaseText.includes(phrase));
     let hasExplicitNegative = explicitNegativePhrases.some(phrase => lowercaseText.includes(phrase));
@@ -406,6 +490,15 @@ const analyzeSentiment = (text) => {
     let totalWordHits = 0;
     let sentenceScores = [];
     
+    // Quick check for negative content in response to positive question
+    if (isQuestion && lowercaseText.includes('appréciez') && 
+        (hasStrongNegative || startsWithNegative)) {
+      // This is likely a very negative response to a positive question
+      // Immediately apply strong negative bias
+      overallScore -= 10;
+      totalWordHits += 5;
+    }
+    
     // Detect if this is an improvement suggestion question vs a satisfaction question
     const isImprovementQuestion = lowercaseText.includes('améliorer') || 
                                lowercaseText.includes('points à améliorer') ||
@@ -413,10 +506,19 @@ const analyzeSentiment = (text) => {
                                lowercaseText.includes('suggestions d\'amélioration');
     
     // Process each sentence separately
-    sentences.forEach(sentence => {
+    sentences.forEach((sentence, sentenceIndex) => {
       const words = sentence.split(/\s+/).filter(word => word.length > 0);
       let sentenceScore = 0;
       let sentenceWordHits = 0;
+      
+      // Check if this sentence contains a contrast marker
+      const hasContrastMarker = contrastMarkers.some(marker => sentence.includes(marker));
+      
+      // If this is a sentence after a contrast marker in a previous sentence, 
+      // it likely contains criticism after positive statements
+      const isPreviousSentenceContrastive = sentenceIndex > 0 && 
+                                           contrastMarkers.some(marker => 
+                                             sentences[sentenceIndex-1].includes(marker));
       
       // Identify negation spans in this sentence
       const negationSpans = [];
@@ -426,6 +528,14 @@ const analyzeSentiment = (text) => {
           negationSpans.push({start: i, end: i + 4});
         }
       }
+      
+      // Identify contrast marker locations
+      const contrastPositions = [];
+      words.forEach((word, index) => {
+        if (contrastMarkers.some(marker => word.includes(marker))) {
+          contrastPositions.push(index);
+        }
+      });
       
       // Identify intensifier locations
       const intensifierPositions = [];
@@ -463,6 +573,9 @@ const analyzeSentiment = (text) => {
             }
           }
           
+          // Check if this word is after a contrast marker in the same sentence
+          const isAfterContrastMarker = contrastPositions.some(pos => i > pos);
+          
           // Check if this word is affected by an intensifier (word that comes before)
           const isIntensified = intensifierPositions.some(pos => Math.abs(pos - i) === 1);
           if (isIntensified) {
@@ -479,6 +592,13 @@ const analyzeSentiment = (text) => {
           if (isNegated) {
             sentenceScore -= wordSentiment * sentimentMultiplier;
           } else {
+            // Words after contrast markers are more important for the overall sentiment
+            // They typically indicate criticism after positive statements or vice versa
+            if (isAfterContrastMarker || hasContrastMarker || isPreviousSentenceContrastive) {
+              // For words after contrast markers, increase their impact
+              sentimentMultiplier *= 1.8;
+            }
+            
             sentenceScore += wordSentiment * sentimentMultiplier;
           }
           
@@ -486,12 +606,13 @@ const analyzeSentiment = (text) => {
         }
       }
       
-      // Handle common phrases in this sentence
+      // Handle phrases in this sentence
       const phrases = [
         { pattern: /pas (bien|bon)/, score: -2 },
         { pattern: /très (bien|bon)/, score: 3 },
         { pattern: /vraiment (génial|super|excellent)/, score: 4 },
-        { pattern: /pas du tout/, score: -2 },
+        { pattern: /pas du tout/, score: -5 },
+        { pattern: /absolument pas/, score: -5 },
         { pattern: /tout à fait/, score: 2 },
         { pattern: /pas (mal|mauvais)/, score: 1 },
         { pattern: /très (mauvais|mal)/, score: -3 },
@@ -503,7 +624,7 @@ const analyzeSentiment = (text) => {
         { pattern: /capacité à comprendre/, score: 3 },
         { pattern: /solutions adaptées/, score: 3 },
         { pattern: /réelle valeur/, score: 3 },
-        { pattern: /qualité des/, score: 2 },
+        { pattern: /qualité des/, score: 0 }, // Neutral due to potential negative context
         { pattern: /j'apprécie/, score: 3 },
         { pattern: /nous apprécions/, score: 3 },
         { pattern: /particulièrement (apprécié|satisfait)/, score: 3 },
@@ -518,44 +639,33 @@ const analyzeSentiment = (text) => {
         { pattern: /grand merci/, score: 3 },
         { pattern: /très satisfait/, score: 4 },
         { pattern: /pas satisfait/, score: -3 },
+        // Strong negative phrases
+        { pattern: /difficile d'identifier des éléments positifs/, score: -5 },
+        { pattern: /difficile de trouver des points positifs/, score: -5 },
+        { pattern: /promesses.*?pas été tenues/, score: -4 },
+        { pattern: /qualité.*?en-deçà de nos attentes/, score: -4 },
+        { pattern: /tarifs.*?excessifs/, score: -4 },
+        { pattern: /source de problèmes/, score: -5 },
+        { pattern: /pas considérés comme/, score: -4 },
+        { pattern: /ne résol(vent|vent pas|ve pas)/, score: -4 },
+        { pattern: /rarement disponible/, score: -3 },
+        { pattern: /semble désintéressé/, score: -4 },
+        { pattern: /réponses.*?tardives/, score: -3 },
+        { pattern: /réponses.*?superficielles/, score: -4 },
+        { pattern: /manque.*?connaissances/, score: -4 },
+        { pattern: /qualité médiocre/, score: -5 },
+        // Additional negative feedback phrases
         { pattern: /ne fonctionne pas/, score: -3 },
         { pattern: /ne marche pas/, score: -3 },
         { pattern: /ne répond pas/, score: -3 },
-        { pattern: /temps de réponse/, score: 0 }, // Neutral unless modified
-        { pattern: /rapidité de/, score: 2 },
+        { pattern: /temps de réponse/, score: -1 }, // Often negative context
+        { pattern: /rapidité de/, score: 1 }, // Can be negative context
         { pattern: /lenteur de/, score: -2 },
-        { pattern: /manque de/, score: -2 },
-        { pattern: /absence de/, score: -2 },
+        { pattern: /manque de/, score: -3 },
+        { pattern: /absence de/, score: -3 },
         { pattern: /défaut de/, score: -2 },
-        { pattern: /avantages de/, score: 2 },
-        { pattern: /bénéfices de/, score: 2 },
-        { pattern: /points forts/, score: 2 },
-        { pattern: /points faibles/, score: -2 },
-        { pattern: /forces de/, score: 2 },
-        { pattern: /faiblesses de/, score: -2 },
-        { pattern: /atouts de/, score: 2 },
-        { pattern: /problèmes de/, score: -2 },
-        { pattern: /difficultés avec/, score: -2 },
-        { pattern: /facilité d'utilisation/, score: 3 },
-        { pattern: /difficulté d'utilisation/, score: -3 },
-        { pattern: /simple à utiliser/, score: 3 },
-        { pattern: /compliqué à utiliser/, score: -3 },
-        { pattern: /rapport qualité(-| )prix/, score: 1 }, // Neutral unless modified
-        { pattern: /bon rapport qualité(-| )prix/, score: 3 },
-        { pattern: /mauvais rapport qualité(-| )prix/, score: -3 },
-        { pattern: /excellent rapport qualité(-| )prix/, score: 4 },
-        { pattern: /service client/, score: 0 }, // Neutral unless modified
-        { pattern: /excellent service client/, score: 4 },
-        { pattern: /bon service client/, score: 3 },
-        { pattern: /mauvais service client/, score: -3 },
-        { pattern: /service après(-| )vente/, score: 0 }, // Neutral unless modified
-        { pattern: /à améliorer/, score: -1 },
-        { pattern: /peut mieux faire/, score: -1 },
-        { pattern: /laisse à désirer/, score: -2 },
-        { pattern: /s'est amélioré/, score: 2 },
-        { pattern: /s'est dégradé/, score: -2 },
-        { pattern: /a progressé/, score: 2 },
-        { pattern: /a régressé/, score: -2 },
+        { pattern: /problèmes/, score: -3 },
+        { pattern: /difficultés avec/, score: -2 }
       ];
       
       for (const phrase of phrases) {
@@ -567,14 +677,26 @@ const analyzeSentiment = (text) => {
       
       // Store this sentence's score if it had sentiment words
       if (sentenceWordHits > 0) {
+        // If this sentence contains a contrast marker or follows one, it's likely more important
+        // for the overall sentiment (typically contains the "but..." part)
+        let importanceMultiplier = 1;
+        if (hasContrastMarker || isPreviousSentenceContrastive) {
+          // Increased weight for contrast sentences
+          importanceMultiplier = 2;
+        }
+        
         sentenceScores.push({
           score: sentenceScore,
           hits: sentenceWordHits,
-          text: sentence
+          text: sentence,
+          hasContrast: hasContrastMarker,
+          followsContrast: isPreviousSentenceContrastive,
+          importanceMultiplier: importanceMultiplier
         });
         
-        overallScore += sentenceScore;
-        totalWordHits += sentenceWordHits;
+        // Apply the importance multiplier to both the score and hit count
+        overallScore += sentenceScore * importanceMultiplier;
+        totalWordHits += sentenceWordHits * importanceMultiplier;
       }
     });
     
@@ -589,10 +711,58 @@ const analyzeSentiment = (text) => {
         totalWordHits += lastSentenceWithSentiment.hits * 0.5;
       }
       
-      // Handle explicit satisfaction statements - they should strongly influence the result
+      // Check if there are any contrast markers in the text
+      if (containsContrastMarker) {
+        // Find sentiment scores before and after contrast markers
+        let beforeContrastScore = 0;
+        let beforeContrastHits = 0;
+        let afterContrastScore = 0;
+        let afterContrastHits = 0;
+        
+        // Sort contrast positions by position in text
+        contrastPositions.sort((a, b) => a.position - b.position);
+        const firstContrastPosition = contrastPositions.length > 0 ? contrastPositions[0].position : -1;
+        
+        if (firstContrastPosition > 0) {
+          // Process sentences that appear before and after the first contrast marker
+          sentenceScores.forEach(sentenceData => {
+            // Determine if this sentence appears before or after the contrast marker
+            const sentenceStart = lowercaseText.indexOf(sentenceData.text);
+            if (sentenceStart < firstContrastPosition) {
+              beforeContrastScore += sentenceData.score;
+              beforeContrastHits += sentenceData.hits;
+            } else {
+              afterContrastScore += sentenceData.score;
+              afterContrastHits += sentenceData.hits;
+            }
+          });
+          
+          // If there's both positive sentiment before contrast and negative after
+          // (typical case: "I'm satisfied... nevertheless, improvement needed")
+          if (beforeContrastScore > 0 && afterContrastScore < 0) {
+            // Balance the sentiment - the criticism after "but" is important
+            // but shouldn't completely negate the positive sentiment before it
+            overallScore = (beforeContrastScore * 0.7) + (afterContrastScore * 1.5);
+            totalWordHits = (beforeContrastHits * 0.7) + (afterContrastHits * 1.5);
+          }
+          // Handle reverse case (criticism followed by positive statement)
+          else if (beforeContrastScore < 0 && afterContrastScore > 0) {
+            overallScore = (beforeContrastScore * 0.7) + (afterContrastScore * 1.5);
+            totalWordHits = (beforeContrastHits * 0.7) + (afterContrastHits * 1.5);
+          }
+        }
+      }
+      
+      // Handle explicit satisfaction statements - they should influence but not override context
       if (hasExplicitPositive && !hasExplicitNegative) {
-        // Boost the positive score, but still allow for some negativity
-        overallScore = Math.max(overallScore, totalWordHits * 0.5);
+        if (containsContrastMarker) {
+          // With contrast markers, explicit positive statements should be weighted but not dominate
+          // This prevents a sentence like "Je suis satisfait mais..." from being 100% positive
+          overallScore = (overallScore * 0.8) + (totalWordHits * 0.3);
+        } else {
+          // Without contrast markers, explicit positive statements can boost the score more
+          overallScore = Math.max(overallScore, totalWordHits * 0.5);
+        }
       } else if (hasExplicitNegative && !hasExplicitPositive) {
         // Boost the negative score, but still allow for some positivity
         overallScore = Math.min(overallScore, -totalWordHits * 0.5);
@@ -608,6 +778,12 @@ const analyzeSentiment = (text) => {
       // Normalize based on sentence length - longer texts shouldn't get extreme scores as easily
       const normalizationFactor = Math.log10(totalWordHits + 1) * 2;
       finalScore = Math.tanh(overallScore / normalizationFactor);
+      
+      // If text contains contrast markers after positive statements and score is very high,
+      // cap the maximum positivity to reflect the mixed sentiment
+      if (containsContrastMarker && hasExplicitPositive && finalScore > 0.7) {
+        finalScore = Math.min(finalScore, 0.8); // Cap at 90% positive when there are contrast markers
+      }
     } else {
       // If no sentiment words found, try to estimate based on punctuation
       if (text.includes('!') && !text.includes('?')) {
@@ -619,8 +795,8 @@ const analyzeSentiment = (text) => {
       }
     }
     
-    // Apply minimum thresholds for explicit satisfaction statements
-    if (hasExplicitPositive && !hasExplicitNegative && finalScore < 0.3) {
+    // Apply minimum thresholds for explicit satisfaction statements, but respect contrast markers
+    if (hasExplicitPositive && !hasExplicitNegative && finalScore < 0.3 && !containsContrastMarker) {
       finalScore = Math.max(finalScore, 0.3); // Ensure minimum positivity with explicit satisfaction
     } else if (hasExplicitNegative && !hasExplicitPositive && finalScore > -0.3) {
       finalScore = Math.min(finalScore, -0.3); // Ensure minimum negativity with explicit dissatisfaction
@@ -1304,7 +1480,7 @@ const extractEntities = (text) => {
   }
 };
 
-// Main analysis function (improved with all enhancements)
+// Main analysis function (maintains original structure for compatibility)
 export const analyzeFeedback = async (text) => {
   try {
     console.log('Starting analyzeFeedback for text:', text);
@@ -1319,28 +1495,20 @@ export const analyzeFeedback = async (text) => {
     const emotionsAnalysis = detectEmotions(text);
     const urgencyAnalysis = detectUrgency(text);
     
-    // Analyze the type of feedback (question, statement, request)
-    const feedbackType = determineFeedbackType(text);
-    
-    // Prepare analysis result with more detailed structure
+    // Prepare analysis result with the original structure
     const result = {
       overall: {
         sentiment: {
           score: sentimentResult.score,
-          displayPercentage: sentimentResult.displayPercentage,
-          intensity: Math.abs(sentimentResult.score) > 0.7 ? 'HIGH' : 
-                    Math.abs(sentimentResult.score) > 0.3 ? 'MEDIUM' : 'LOW'
+          displayPercentage: sentimentResult.displayPercentage
         },
         emotions: emotionsAnalysis,
-        urgency: urgencyAnalysis,
-        feedbackType: feedbackType
+        urgency: urgencyAnalysis
       },
       metadata: {
         timestamp: new Date().toISOString(),
         wordCount: getWordCount(text),
-        language: 'fr',
-        textLength: text.length,
-        sentences: splitIntoSentences(text).length
+        language: 'fr'
       },
       entities: entities
     };
@@ -1355,26 +1523,22 @@ export const analyzeFeedback = async (text) => {
       overall: {
         sentiment: {
           score: 0,
-          displayPercentage: 50,
-          intensity: 'LOW'
+          displayPercentage: 50
         },
         emotions: { emotions: {}, dominant: null },
-        urgency: { level: 'NORMAL' },
-        feedbackType: 'STATEMENT'
+        urgency: { level: 'NORMAL' }
       },
       metadata: {
         timestamp: new Date().toISOString(),
         wordCount: getWordCount(text) || 0,
-        language: 'fr',
-        textLength: text ? text.length : 0,
-        sentences: text ? splitIntoSentences(text).length : 0
+        language: 'fr'
       },
       entities: []
     };
   }
 };
 
-// Determine the type of feedback
+// Determine the type of feedback - keep for internal use but don't add to output
 const determineFeedbackType = (text) => {
   try {
     const lowercaseText = text.toLowerCase();
