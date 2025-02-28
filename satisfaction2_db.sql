@@ -35,9 +35,12 @@ CREATE TABLE surveys (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     score_negatif FLOAT DEFAULT NULL,
     form_id INT NULL,
+    status ENUM('in_progress', 'completed', 'abandoned') DEFAULT 'in_progress',
+    last_question_id INT NULL,
     PRIMARY KEY (id),
     CONSTRAINT FK_Surveys_Forms FOREIGN KEY (form_id) REFERENCES forms(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 
 -- Create responses table
 CREATE TABLE responses (

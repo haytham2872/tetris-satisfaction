@@ -1,9 +1,10 @@
 // hooks/useSurvey.js
 import { useState, useEffect, useRef } from 'react';
-import { startSurvey, submitResponses, updateLastQuestion, updateSurveyStatus } from '../../API';
+import { startSurvey, submitResponses, updateLastQuestion, updateSurveyStatus,submitSingleResponse } from '../../API';
 import { analyzeFeedback } from '../../services/nlpService';
 import { SURVEY_CONFIG } from './../constants/config';
 import { useQuestions } from './useQuestions';
+
 
 let surveyCreationInProgress = false;
 const API_URL = process.env.REACT_APP_API_URL;
@@ -196,6 +197,39 @@ export const useSurvey = (formId) => {
     console.log(`[handleResponse] Le formulaire de contact doit être affiché=${contactVisibility}`);
     setShowContactButton(contactVisibility);
     setContactVisibility(contactVisibility);
+  };
+  const saveCurrentResponse = async () => {
+    if (!surveyId || !formId || currentStep >= questions.length) {
+      console.log('[saveCurrentResponse] Cannot save: missing surveyId, formId, or invalid step');
+      return;
+    }
+    
+    const currentQuestion = questions[currentStep];
+    if (!currentQuestion) {
+      console.log('[saveCurrentResponse] Cannot save: question not found for step', currentStep);
+      return;
+    }
+    
+    const currentQuestionId = currentQuestion.id;
+    const currentResponse = responses[currentQuestionId];
+    
+    if (currentResponse && (currentResponse.answer || currentResponse.optionalAnswer)) {
+      try {
+        console.log(`[saveCurrentResponse] Saving response for question ${currentQuestionId}`);
+        await submitSingleResponse(
+          surveyId,
+          currentQuestionId,
+          currentResponse.answer,
+          currentResponse.optionalAnswer,
+          formId
+        );
+        console.log(`[saveCurrentResponse] Saved response for question ${currentQuestionId}`);
+      } catch (error) {
+        console.error(`[saveCurrentResponse] Error saving response for question ${currentQuestionId}:`, error);
+      }
+    } else {
+      console.log(`[saveCurrentResponse] No response to save for question ${currentQuestionId}`);
+    }
   };
 
   const handleOptionalAnswer = (questionId, value) => {
@@ -488,6 +522,7 @@ export const useSurvey = (formId) => {
     handleContactSubmit,
     setShowContactForm,
     contactFormSkipped,
-    setContactFormSkipped
+    setContactFormSkipped,
+    saveCurrentResponse
   };
 };

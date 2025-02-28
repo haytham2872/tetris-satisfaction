@@ -254,3 +254,49 @@ export const updateLastQuestion = async (surveyId, questionId) => {
         return null;
     }
 };
+
+export const submitSingleResponse = async (surveyId, questionId, answer, optionalAnswer, formId) => {
+    try {
+      if (!surveyId || !formId || !questionId) {
+        throw new Error('Missing required fields for single response submission');
+      }
+  
+      console.log('[submitSingleResponse] Starting submission', {
+        surveyId,
+        formId,
+        questionId,
+        answer
+      });
+  
+      const formattedAnswer = formatAnswer(answer);
+      const formattedOptionalAnswer = optionalAnswer ? formatAnswer(optionalAnswer) : null;
+  
+      const response = await fetch(`${API_URL}/api/responses/single`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          form_id: Number(formId),
+          survey_id: Number(surveyId),
+          question_id: Number(questionId),
+          answer: formattedAnswer,
+          optional_answer: formattedOptionalAnswer
+        }),
+      });
+  
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('[submitSingleResponse] HTTP error:', errorData);
+        throw new Error(errorData.error || 'Failed to submit single response');
+      }
+  
+      const responseData = await response.json();
+      console.log('[submitSingleResponse] Submission successful:', responseData);
+      return responseData;
+    } catch (error) {
+      console.error('[submitSingleResponse] Error:', error);
+      return null;
+    }
+  };

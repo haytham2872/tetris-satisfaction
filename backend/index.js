@@ -381,14 +381,21 @@ app.delete('/api/questions/delete', async (req, res) => {
 // Response Management Routes
 app.post('/api/responses', async (req, res) => {
     try {
-        const { form_id, survey_id, responses } = req.body;
+        const { form_id, survey_id, responses, negativeScore } = req.body;
 
         const connection = await pool.getConnection();
 
         try {
             await connection.beginTransaction();
 
+            // Process each response using upsert approach (update if exists, insert if not)
             for (const response of responses) {
+                // Check if this response already exists
+                const [existing] = await connection.execute(
+                    'SELECT id FROM responses WHERE form_id = ? AND survey_id = ? AND question_id = ?',
+                    [form_id, survey_id, response.question_id]
+                );
+
                 let nlpAnalysis = null;
                 if (response.answer && typeof response.answer === 'string' && response.answer.trim() !== '') {
                     try {
@@ -398,25 +405,52 @@ app.post('/api/responses', async (req, res) => {
                     }
                 }
 
-                await connection.execute(
-                    `INSERT INTO responses (
-                        form_id,
-                        survey_id, 
-                        question_id, 
-                        answer, 
-                        optional_answer, 
-                        nlp_analysis
-                    ) VALUES (?, ?, ?, ?, ?, ?)`,
-                    [
-                        form_id,
-                        survey_id,
-                        response.question_id,
-                        response.answer.toString(),
-                        response.optional_answer || null,
-                        nlpAnalysis ? JSON.stringify(nlpAnalysis) : null
-                    ]
-                );
+                if (existing.length > 0) {
+                    // Update existing response
+                    console.log(`[/api/responses] Updating existing response for question ${response.question_id}`);
+                    
+                    await connection.execute(
+                        `UPDATE responses SET 
+                            answer = ?, 
+                            optional_answer = ?, 
+                            nlp_analysis = ?,
+                            responded_at = NOW() 
+                         WHERE form_id = ? AND survey_id = ? AND question_id = ?`,
+                        [
+                            response.answer.toString(),
+                            response.optional_answer || null,
+                            nlpAnalysis ? JSON.stringify(nlpAnalysis) : null,
+                            form_id,
+                            survey_id,
+                            response.question_id
+                        ]
+                    );
+                } else {
+                    // Insert new response
+                    console.log(`[/api/responses] Creating new response for question ${response.question_id}`);
+                    
+                    await connection.execute(
+                        `INSERT INTO responses (
+                            form_id,
+                            survey_id, 
+                            question_id, 
+                            answer, 
+                            optional_answer, 
+                            nlp_analysis
+                        ) VALUES (?, ?, ?, ?, ?, ?)`,
+                        [
+                            form_id,
+                            survey_id,
+                            response.question_id,
+                            response.answer.toString(),
+                            response.optional_answer || null,
+                            nlpAnalysis ? JSON.stringify(nlpAnalysis) : null
+                        ]
+                    );
+                }
             }
+            
+            // Update survey status to completed
             await connection.execute(
                 'UPDATE surveys SET status = ? WHERE id = ?',
                 ['completed', survey_id]
@@ -435,6 +469,78 @@ app.post('/api/responses', async (req, res) => {
         res.status(500).json({ error: 'Server error', details: err.message });
     }
 });
+
+// Add this new endpoint to index.js, somewhere near the existing /api/responses endpoint
+
+app.post('/api/responses/single', async (req, res) => {
+    try {
+      const { form_id, survey_id, question_id, answer, optional_answer } = req.body;
+  
+      if (!form_id || !survey_id || !question_id) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+  
+      console.log(`[/api/responses/single] Processing response for survey ${survey_id}, question ${question_id}`);
+  
+      // Check if this response already exists in the database
+      const [existing] = await pool.execute(
+        'SELECT id FROM responses WHERE form_id = ? AND survey_id = ? AND question_id = ?',
+        [form_id, survey_id, question_id]
+      );
+  
+      if (existing.length > 0) {
+        // Update existing response
+        console.log(`[/api/responses/single] Updating existing response for question ${question_id}`);
+        
+        await pool.execute(
+          `UPDATE responses 
+           SET answer = ?, optional_answer = ?, responded_at = NOW()
+           WHERE form_id = ? AND survey_id = ? AND question_id = ?`,
+          [
+            answer,
+            optional_answer || null,
+            form_id,
+            survey_id,
+            question_id
+          ]
+        );
+      } else {
+        // Insert new response
+        console.log(`[/api/responses/single] Creating new response for question ${question_id}`);
+        
+        await pool.execute(
+          `INSERT INTO responses (
+            form_id,
+            survey_id, 
+            question_id, 
+            answer, 
+            optional_answer
+          ) VALUES (?, ?, ?, ?, ?)`,
+          [
+            form_id,
+            survey_id,
+            question_id,
+            answer,
+            optional_answer || null
+          ]
+        );
+      }
+  
+      // Also update the last_question_id in the surveys table
+      await pool.execute(
+        'UPDATE surveys SET last_question_id = ? WHERE id = ?',
+        [question_id, survey_id]
+      );
+  
+      res.status(200).json({ 
+        message: 'Response saved successfully',
+        question_id: question_id
+      });
+    } catch (err) {
+      console.error('Error storing single response:', err);
+      res.status(500).json({ error: 'Server error', details: err.message });
+    }
+  });
 
 // Analytics Routes
 app.get('/api/analytics/responses', async (req, res) => {
@@ -1140,31 +1246,28 @@ app.get('/api/analytics/survey-completion', async (req, res) => {
         if (form_id) {
             abandonmentQuery = `
                 SELECT 
-                    q.id as question_id,
-                    q.question_text,
+                    s.last_question_id as step_number,
                     COUNT(s.id) as abandonment_count
                 FROM surveys s
-                JOIN questions q ON s.last_question_id = q.id
                 WHERE s.status = 'abandoned'
                     AND s.form_id = ?
-                GROUP BY q.id, q.question_text
-                ORDER BY abandonment_count DESC
+                GROUP BY s.last_question_id
+                ORDER BY s.last_question_id
             `;
             abandonmentParams = [form_id];
         } else {
             abandonmentQuery = `
                 SELECT 
-                    q.id as question_id,
-                    q.question_text,
+                    s.form_id,
+                    s.last_question_id as step_number,
                     COUNT(s.id) as abandonment_count
                 FROM surveys s
-                JOIN questions q ON s.last_question_id = q.id
                 WHERE s.status = 'abandoned'
-                GROUP BY q.id, q.question_text
-                ORDER BY abandonment_count DESC
+                GROUP BY s.form_id, s.last_question_id
+                ORDER BY s.form_id, s.last_question_id
             `;
         }
-
+        
         const [abandonmentRows] = await pool.execute(abandonmentQuery, abandonmentParams);
 
         const stats = {

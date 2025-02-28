@@ -42,8 +42,9 @@ function ClientApp() {
     handleSubmit,
     handleContactSubmit,
     contactFormSkipped,
-    setContactFormSkipped
-  } = useSurvey(formId); // Passage du formId au hook useSurvey
+    setContactFormSkipped,
+    saveCurrentResponse
+  } = useSurvey(formId); 
 
   const { messageHistory } = useChat(
     currentStep,
@@ -135,6 +136,7 @@ function ClientApp() {
 
   const handleNextStep = () => {
     setIsNextClicked(true);
+    saveCurrentResponse();
     setTimeout(() => {
       setCurrentStep(prev => prev + 1);
       setIsNextClicked(false);

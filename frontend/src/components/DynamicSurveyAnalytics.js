@@ -428,15 +428,46 @@ const AbandonmentAnalysisSection = ({ completionData, formQuestions }) => {
   if (!completionData) return null;
 
   const statusData = completionData.status_breakdown || [];
-  const abandonmentByQuestion = completionData.abandonment_by_question || [];
-
-  // Filter abandonment data to only include questions that belong to this form
-  const formQuestionIds = formQuestions.map(q => q.id);
-  const filteredAbandonmentData = abandonmentByQuestion.filter(item => 
-    formQuestionIds.includes(parseInt(item.question_id))
-  );
+  const abandonmentByStep = completionData.abandonment_by_question || [];
   
-  // Prepare data for charts
+  console.log('Abandonment by step data:', abandonmentByStep);
+  console.log('Form questions:', formQuestions);
+  
+  // Sort questions by ID (assuming lower IDs come first in the survey)
+  const sortedQuestions = [...formQuestions].sort((a, b) => a.id - b.id);
+  
+  // Create a mapping from step number to question
+  const stepToQuestionMap = {};
+  sortedQuestions.forEach((question, index) => {
+    // Steps are 1-indexed in the database
+    const stepNumber = index + 1;
+    stepToQuestionMap[stepNumber] = question;
+  });
+  
+  console.log('Step to question mapping:', stepToQuestionMap);
+  
+  // Map abandonment data to include question information
+  const abandonmentWithQuestions = abandonmentByStep.map(item => {
+    const stepNumber = parseInt(item.step_number);
+    const question = stepToQuestionMap[stepNumber];
+    return {
+      ...item,
+      question_id: question ? question.id : null,
+      question_text: question ? question.question_text : `Question ${stepNumber} (non disponible)`,
+      question_number: stepNumber,
+      abandonment_count: parseInt(item.abandonment_count)
+    };
+  });
+  
+  console.log('Abandonment with questions:', abandonmentWithQuestions);
+  
+  // Sort data by step number
+  const sortedAbandonmentData = [...abandonmentWithQuestions]
+    .sort((a, b) => a.question_number - b.question_number);
+    
+  console.log('Sorted abandonment data:', sortedAbandonmentData);
+  
+  // Prepare data for status pie chart
   const statusChartData = statusData.map(item => ({
     name: item.status === 'completed' ? 'Complétés' : 
           item.status === 'abandoned' ? 'Abandonnés' : 'En cours',
@@ -444,64 +475,148 @@ const AbandonmentAnalysisSection = ({ completionData, formQuestions }) => {
     percentage: parseFloat(item.percentage),
     originalStatus: item.status
   }));
-
   // Map sequence numbers (1, 2, 3...) to question database IDs
   const questionNumberMap = formQuestions.reduce((map, q, index) => {
     map[q.id] = index + 1; // 1-based numbering
     return map;
   }, {});
   
-  // Sort abandonment data by the sequential question number in the form
-  const sortedAbandonmentData = [...filteredAbandonmentData]
-    .map(item => ({
-      ...item,
-      question_number: questionNumberMap[parseInt(item.question_id)] || parseInt(item.question_id),
-      question_id: parseInt(item.question_id),
-      abandonment_count: parseInt(item.abandonment_count)
-    }))
-    .sort((a, b) => a.question_number - b.question_number);
 
   return (
     <div className="mb-12">
-      {/* Rest of the component remains the same */}
-      
-      {/* Modified table section */}
-      {filteredAbandonmentData.length > 0 && (
-        <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 mt-6">
-          <h3 className="text-lg font-semibold mb-4">Détail des abandons par question</h3>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Question #
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Texte de la question
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Nombre d'abandons
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {sortedAbandonmentData.map((item) => (
-                  <tr key={item.question_id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {questionNumberMap[item.question_id] || item.question_id}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {item.question_text}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.abandonment_count}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <div 
+        className="flex items-center justify-between cursor-pointer"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <h2 className="text-xl font-semibold text-gray-800">
+          <div className="flex items-center">
+            <AlertTriangle className="w-6 h-6 mr-2 text-orange-500" />
+            Analyse des abandons
+            <span className="ml-2 text-sm text-gray-500 font-normal">
+              ({completionData.total_surveys} formulaires)
+            </span>
           </div>
+        </h2>
+        <div>
+          <ChevronDown className={`h-5 w-5 text-gray-500 transition-transform ${expanded ? 'rotate-180' : ''}`} />
         </div>
+      </div>
+
+      {expanded && (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+            {/* Status breakdown pie chart */}
+            <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+              <h3 className="text-lg font-semibold mb-4">État des formulaires</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={statusChartData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={100}
+                    label={CustomLabel}
+                    labelLine={false}
+                  >
+                    {statusChartData.map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={entry.originalStatus === 'completed' ? '#4CAF50' : 
+                             entry.originalStatus === 'abandoned' ? '#F44336' : '#FFC107'} 
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    formatter={(value, name, props) => [
+                      `${value} formulaires (${props.payload.percentage.toFixed(1)}%)`,
+                      props.payload.name
+                    ]}
+                  />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            
+            {/* Abandonment by question bar chart */}
+            <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+              <h3 className="text-lg font-semibold mb-4">Abandons par question</h3>
+              {sortedAbandonmentData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={sortedAbandonmentData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis 
+                      dataKey="question_number" 
+                      label={{ value: 'Numéro de question', position: 'insideBottom', offset: -10 }}
+                    />
+                    <YAxis 
+                      label={{ value: 'Nombre d\'abandons', angle: -90, position: 'insideLeft' }}
+                    />
+                    <Tooltip 
+                      formatter={(value) => [`${value} abandons`]}
+                      labelFormatter={(label) => `Question ${label}`}
+                    />
+                    <Bar 
+                      dataKey="abandonment_count" 
+                      name="Abandons" 
+                      fill="#F44336" 
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-64 text-gray-500">
+                  Aucune donnée d'abandon disponible
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Detailed table of abandonment by question */}
+          {sortedAbandonmentData.length > 0 && (
+            <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 mt-6">
+              <h3 className="text-lg font-semibold mb-4">Détail des abandons par question</h3>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Question #
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Texte de la question
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Nombre d'abandons
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {sortedAbandonmentData.map((item) => (
+                      <tr key={item.question_id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {questionNumberMap[item.question_id] || item.question_id}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500">
+                          {item.question_text}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {item.abandonment_count}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+          
+          {sortedAbandonmentData.length === 0 && (
+            <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 mt-6 text-center text-gray-500">
+              Aucune donnée d'abandon n'est disponible pour ce formulaire.
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -567,6 +682,24 @@ const EnhancedSurveyAnalytics = ({ formId, externalFeedbackData = [] }) => {
           const surveyCompletionRes = await fetch(surveyCompletionUrl, fetchOptions);
           if (surveyCompletionRes.ok) {
             const completionData = await surveyCompletionRes.json();
+            
+            console.log('Raw survey completion data:', completionData);
+            
+            // If the backend is still using the old format, we need to rename the fields
+            if (completionData.abandonment_by_question) {
+              completionData.abandonment_by_question = completionData.abandonment_by_question.map(item => {
+                // Check if we're dealing with the old format (having question_id field)
+                if (item.question_id && !item.step_number) {
+                  return {
+                    ...item,
+                    step_number: item.question_id,
+                    // Keep the question_id for backward compatibility
+                  };
+                }
+                return item;
+              });
+            }
+            
             setSurveyCompletionData(completionData);
           }
         } catch (err) {
@@ -1060,7 +1193,7 @@ const processResponseData = (questionId) => {
         {surveyCompletionData && (
           <AbandonmentAnalysisSection 
             completionData={surveyCompletionData}
-            formQuestions={questions} // Pass the form questions to filter properly
+            formQuestions={questions} 
           />
         )}
         {/* Simplified Text Analysis Section */}
