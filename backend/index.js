@@ -1241,7 +1241,7 @@ app.get('/api/analytics/survey-completion', async (req, res) => {
 
         const [statusRows] = await pool.execute(query, params);
 
-        // Get abandonment by question data
+        // Get abandonment by question data - MODIFIED: Ensure consistent field names
         let abandonmentQuery, abandonmentParams = [];
         if (form_id) {
             abandonmentQuery = `
@@ -1270,6 +1270,7 @@ app.get('/api/analytics/survey-completion', async (req, res) => {
         
         const [abandonmentRows] = await pool.execute(abandonmentQuery, abandonmentParams);
 
+        // MODIFIED: Output consistent field names for abandonment data
         const stats = {
             total_surveys: statusRows.reduce((sum, row) => sum + row.count, 0),
             status_breakdown: statusRows.map(row => ({
@@ -1278,8 +1279,7 @@ app.get('/api/analytics/survey-completion', async (req, res) => {
                 percentage: Number(row.percentage).toFixed(2)
             })),
             abandonment_by_question: abandonmentRows.map(row => ({
-                question_id: row.question_id,
-                question_text: row.question_text,
+                step_number: row.step_number,
                 abandonment_count: row.abandonment_count
             }))
         };

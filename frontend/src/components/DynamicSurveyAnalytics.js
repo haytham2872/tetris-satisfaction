@@ -430,9 +430,6 @@ const AbandonmentAnalysisSection = ({ completionData, formQuestions }) => {
   const statusData = completionData.status_breakdown || [];
   const abandonmentByStep = completionData.abandonment_by_question || [];
   
-  console.log('Abandonment by step data:', abandonmentByStep);
-  console.log('Form questions:', formQuestions);
-  
   // Sort questions by ID (assuming lower IDs come first in the survey)
   const sortedQuestions = [...formQuestions].sort((a, b) => a.id - b.id);
   
@@ -443,8 +440,6 @@ const AbandonmentAnalysisSection = ({ completionData, formQuestions }) => {
     const stepNumber = index + 1;
     stepToQuestionMap[stepNumber] = question;
   });
-  
-  console.log('Step to question mapping:', stepToQuestionMap);
   
   // Map abandonment data to include question information
   const abandonmentWithQuestions = abandonmentByStep.map(item => {
@@ -459,13 +454,15 @@ const AbandonmentAnalysisSection = ({ completionData, formQuestions }) => {
     };
   });
   
-  console.log('Abandonment with questions:', abandonmentWithQuestions);
-  
   // Sort data by step number
   const sortedAbandonmentData = [...abandonmentWithQuestions]
     .sort((a, b) => a.question_number - b.question_number);
     
-  console.log('Sorted abandonment data:', sortedAbandonmentData);
+  // Map sequence numbers (1, 2, 3...) to question database IDs
+  const questionNumberMap = {};
+  sortedQuestions.forEach((q, index) => {
+    questionNumberMap[q.id] = index + 1; // 1-based numbering
+  });
   
   // Prepare data for status pie chart
   const statusChartData = statusData.map(item => ({
@@ -475,12 +472,6 @@ const AbandonmentAnalysisSection = ({ completionData, formQuestions }) => {
     percentage: parseFloat(item.percentage),
     originalStatus: item.status
   }));
-  // Map sequence numbers (1, 2, 3...) to question database IDs
-  const questionNumberMap = formQuestions.reduce((map, q, index) => {
-    map[q.id] = index + 1; // 1-based numbering
-    return map;
-  }, {});
-  
 
   return (
     <div className="mb-12">
@@ -508,35 +499,41 @@ const AbandonmentAnalysisSection = ({ completionData, formQuestions }) => {
             {/* Status breakdown pie chart */}
             <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
               <h3 className="text-lg font-semibold mb-4">État des formulaires</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={statusChartData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={100}
-                    label={CustomLabel}
-                    labelLine={false}
-                  >
-                    {statusChartData.map((entry, index) => (
-                      <Cell 
-                        key={`cell-${index}`} 
-                        fill={entry.originalStatus === 'completed' ? '#4CAF50' : 
-                             entry.originalStatus === 'abandoned' ? '#F44336' : '#FFC107'} 
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    formatter={(value, name, props) => [
-                      `${value} formulaires (${props.payload.percentage.toFixed(1)}%)`,
-                      props.payload.name
-                    ]}
-                  />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
+              {statusChartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={statusChartData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={100}
+                      label={CustomLabel}
+                      labelLine={false}
+                    >
+                      {statusChartData.map((entry, index) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={entry.originalStatus === 'completed' ? '#4CAF50' : 
+                               entry.originalStatus === 'abandoned' ? '#F44336' : '#FFC107'} 
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      formatter={(value, name, props) => [
+                        `${value} formulaires (${props.payload.percentage.toFixed(1)}%)`,
+                        props.payload.name
+                      ]}
+                    />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-64 text-gray-500">
+                  Aucune donnée disponible sur l'état des formulaires
+                </div>
+              )}
             </div>
             
             {/* Abandonment by question bar chart */}
@@ -593,9 +590,9 @@ const AbandonmentAnalysisSection = ({ completionData, formQuestions }) => {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {sortedAbandonmentData.map((item) => (
-                      <tr key={item.question_id}>
+                      <tr key={item.question_id || item.question_number}>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {questionNumberMap[item.question_id] || item.question_id}
+                          {questionNumberMap[item.question_id] || item.question_number}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-500">
                           {item.question_text}
@@ -1180,13 +1177,6 @@ const processResponseData = (questionId) => {
           value={`${satisfactionRate}%`}
           description="Basé sur les retours clients"
           colorClass="bg-indigo-500"
-        />
-        <StatCard
-          icon={BarChart2}
-          title="Sentiment moyen"
-          value={stats.averageDisplayPercentage ? `${Math.round(stats.averageDisplayPercentage)}%` : averageSentimentFormatted}
-          description={`Basé sur ${stats.totalSentimentResponses} réponses analysées`}
-          colorClass="bg-purple-500"
         />
       </div>
         {/* Survey Completion Analysis Section */}
