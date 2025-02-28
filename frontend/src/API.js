@@ -206,3 +206,51 @@ export const updateForm = async (formId, formData) => {
         throw error;
     }
 };
+export const updateSurveyStatus = async (surveyId, status, lastQuestionId) => {
+    try {
+        const response = await fetch(`${API_URL}/api/surveys/${surveyId}/status`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                status,
+                last_question_id: lastQuestionId
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Error updating survey status:', error);
+        return null;
+    }
+};
+
+export const updateLastQuestion = async (surveyId, questionId) => {
+    try {
+        const response = await fetch(`${API_URL}/api/surveys/${surveyId}/last-question`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                question_id: questionId
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Error updating last question:', error);
+        return null;
+    }
+};

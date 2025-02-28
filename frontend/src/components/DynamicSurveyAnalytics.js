@@ -422,6 +422,90 @@ const StatCard = ({ icon: Icon, title, value, description, colorClass }) => (
     </div>
   </div>
 );
+const AbandonmentAnalysisSection = ({ completionData, formQuestions }) => {
+  const [expanded, setExpanded] = useState(true);
+
+  if (!completionData) return null;
+
+  const statusData = completionData.status_breakdown || [];
+  const abandonmentByQuestion = completionData.abandonment_by_question || [];
+
+  // Filter abandonment data to only include questions that belong to this form
+  const formQuestionIds = formQuestions.map(q => q.id);
+  const filteredAbandonmentData = abandonmentByQuestion.filter(item => 
+    formQuestionIds.includes(parseInt(item.question_id))
+  );
+  
+  // Prepare data for charts
+  const statusChartData = statusData.map(item => ({
+    name: item.status === 'completed' ? 'Complétés' : 
+          item.status === 'abandoned' ? 'Abandonnés' : 'En cours',
+    value: parseInt(item.count),
+    percentage: parseFloat(item.percentage),
+    originalStatus: item.status
+  }));
+
+  // Map sequence numbers (1, 2, 3...) to question database IDs
+  const questionNumberMap = formQuestions.reduce((map, q, index) => {
+    map[q.id] = index + 1; // 1-based numbering
+    return map;
+  }, {});
+  
+  // Sort abandonment data by the sequential question number in the form
+  const sortedAbandonmentData = [...filteredAbandonmentData]
+    .map(item => ({
+      ...item,
+      question_number: questionNumberMap[parseInt(item.question_id)] || parseInt(item.question_id),
+      question_id: parseInt(item.question_id),
+      abandonment_count: parseInt(item.abandonment_count)
+    }))
+    .sort((a, b) => a.question_number - b.question_number);
+
+  return (
+    <div className="mb-12">
+      {/* Rest of the component remains the same */}
+      
+      {/* Modified table section */}
+      {filteredAbandonmentData.length > 0 && (
+        <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 mt-6">
+          <h3 className="text-lg font-semibold mb-4">Détail des abandons par question</h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Question #
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Texte de la question
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Nombre d'abandons
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {sortedAbandonmentData.map((item) => (
+                  <tr key={item.question_id}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {questionNumberMap[item.question_id] || item.question_id}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500">
+                      {item.question_text}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {item.abandonment_count}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 // Main component
 // Add externalFeedbackData as a new prop
@@ -432,6 +516,7 @@ const EnhancedSurveyAnalytics = ({ formId, externalFeedbackData = [] }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [formName, setFormName] = useState('');
+  const [surveyCompletionData, setSurveyCompletionData] = useState(null);
   const [stats, setStats] = useState({
     totalFormSubmissions: 0,
     totalResponses: 0,
@@ -477,6 +562,16 @@ const EnhancedSurveyAnalytics = ({ formId, externalFeedbackData = [] }) => {
         const responsesData = await responsesRes.json();
         const formData = await formRes.json();
         const lowSatisfactionData = await lowSatisfactionRes.json();
+        const surveyCompletionUrl = `${API_URL}/api/analytics/survey-completion?form_id=${formId}`;
+        try {
+          const surveyCompletionRes = await fetch(surveyCompletionUrl, fetchOptions);
+          if (surveyCompletionRes.ok) {
+            const completionData = await surveyCompletionRes.json();
+            setSurveyCompletionData(completionData);
+          }
+        } catch (err) {
+          console.error('Error fetching survey completion data:', err);
+        }
   
         const processedQuestions = questionsData.map(q => ({
           ...q,
@@ -961,7 +1056,13 @@ const processResponseData = (questionId) => {
           colorClass="bg-purple-500"
         />
       </div>
-        
+        {/* Survey Completion Analysis Section */}
+        {surveyCompletionData && (
+          <AbandonmentAnalysisSection 
+            completionData={surveyCompletionData}
+            formQuestions={questions} // Pass the form questions to filter properly
+          />
+        )}
         {/* Simplified Text Analysis Section */}
         <SimpleTextAnalysisSection 
           textQuestions={textQuestionsData} 

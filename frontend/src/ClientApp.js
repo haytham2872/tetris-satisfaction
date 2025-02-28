@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import './index.css';
 import { useSurvey } from './components/hooks/useSurvey';
 import { useChat } from './components/hooks/usechat';
 import { useFormValidation } from './components/hooks/useFormValidation';
 import { SURVEY_CONFIG } from './components/constants/config';
+import { updateSurveyStatus } from './API';
 
 // Components
 import Header from './components/Header';
@@ -21,6 +22,8 @@ function ClientApp() {
   const [showContactScreen, setShowContactScreen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [formError, setFormError] = useState(null);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const {
     currentStep,
@@ -33,6 +36,7 @@ function ClientApp() {
     questionsLoading,
     contactVisibility,
     questions,
+    surveyId,
     handleResponse: surveyHandleResponse,
     handleOptionalAnswer,
     handleSubmit,
@@ -80,6 +84,49 @@ function ClientApp() {
   useEffect(() => {
     setOptionClicked(false);
   }, [currentStep]);
+
+  // Add cleanup effect to mark survey as abandoned if user navigates away
+  useEffect(() => {
+    return () => {
+      if (surveyId && !showThankYou && questions.length > 0) {
+        // Use the human-friendly step number (1-based)
+        const stepNumber = currentStep + 1;
+        
+        console.log(`[ClientApp] Marking survey ${surveyId} as abandoned at step ${stepNumber}`);
+        updateSurveyStatus(surveyId, 'abandoned', stepNumber);
+      }
+    };
+  }, [surveyId, showThankYou, currentStep, questions]);
+
+  // Listen for navigation events
+  useEffect(() => {
+    const handleBeforeUnload = (event) => {
+      if (surveyId && !showThankYou) {
+        // Use the human-friendly step number (1-based)
+        const stepNumber = currentStep + 1;
+        
+        console.log(`[ClientApp] Marking survey ${surveyId} as abandoned at step ${stepNumber}`);
+        
+        // Use synchronous XHR for beforeunload
+        const xhr = new XMLHttpRequest();
+        xhr.open('PUT', `${process.env.REACT_APP_API_URL}/api/surveys/${surveyId}/status`, false);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.send(JSON.stringify({
+          status: 'abandoned',
+          last_question_id: stepNumber  // Use step number instead of question ID
+        }));
+        
+        event.preventDefault();
+        event.returnValue = '';
+      }
+    };
+  
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [surveyId, showThankYou, currentStep]);
 
   const handleResponse = (questionId, answer) => {
     setOptionClicked(true);

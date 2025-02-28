@@ -1,11 +1,14 @@
 // hooks/useSurvey.js
-import { useState, useEffect } from 'react';
-import { startSurvey, submitResponses } from '../../API';
+import { useState, useEffect, useRef } from 'react';
+import { startSurvey, submitResponses, updateLastQuestion, updateSurveyStatus } from '../../API';
 import { analyzeFeedback } from '../../services/nlpService';
 import { SURVEY_CONFIG } from './../constants/config';
 import { useQuestions } from './useQuestions';
 
+let surveyCreationInProgress = false;
 const API_URL = process.env.REACT_APP_API_URL;
+
+
 export const useSurvey = (formId) => {
   const [surveyId, setSurveyId] = useState(null);
   const [currentStep, setCurrentStep] = useState(0);
@@ -18,9 +21,17 @@ export const useSurvey = (formId) => {
   const [contactFormSkipped, setContactFormSkipped] = useState(false);
   const [ContactDetailsSubmitted,setContactDetailsSubmitted] = useState(false);
   const [contactVisibility, setContactVisibility] = useState(false);
+  const surveyCreationRef = useRef(false);
 
 
   const { questions, loading: questionsLoading } = useQuestions(formId);
+
+  const getCurrentQuestionId = () => {
+    if (!questions || questions.length === 0 || currentStep >= questions.length) {
+      return null;
+    }
+    return questions[currentStep].id;
+  };
 
   const getNegativeWeight = (question, response) => {
     if (question.question_type === 'rating' || question.question_type === 'stars') {
@@ -122,33 +133,38 @@ export const useSurvey = (formId) => {
 
   // Lance un nouveau survey
   useEffect(() => {
-    // Add flag to prevent double initialization
-    let isSubscribed = true;
-
-    const initializeSurvey = async () => {
-      if (surveyId || !formId) return;
-    
+    // Use an IIFE with async/await
+    (async () => {
+      // Skip if missing formId or creation is already in progress
+      if (!formId || surveyCreationRef.current) return;
+      
       try {
-        console.log('[useEffect] startSurvey with formId:', formId);
+        surveyCreationRef.current = true;
+        
+        // Check session storage first
+        const existingSurveyKey = `active_survey_${formId}`;
+        const existingSurveyId = sessionStorage.getItem(existingSurveyKey);
+        
+        if (existingSurveyId) {
+          console.log(`[useEffect] Using existing survey: ${existingSurveyId}`);
+          setSurveyId(parseInt(existingSurveyId));
+          return;
+        }
+        
+        // If we don't have a cached surveyId, call the API
+        console.log('[useEffect] Starting new survey with formId:', formId);
         const response = await startSurvey(formId);
-        if (response && response.id && isSubscribed) {
+        
+        if (response && response.id) {
+          console.log('[useEffect] New survey started. ID:', response.id);
           setSurveyId(response.id);
-          console.log('[useEffect] Nouveau survey démarré. ID:', response.id);
-        } else if (isSubscribed) {
-          console.error('[useEffect] Unable to start new survey: pas de response.id');
+          sessionStorage.setItem(existingSurveyKey, response.id.toString());
         }
       } catch (error) {
-        if (isSubscribed) {
-          console.error('[useEffect] Error initializing survey:', error);
-        }
+        console.error('[useEffect] Error starting survey:', error);
       }
-    };
-
-    initializeSurvey();
-    return () => {
-      isSubscribed = false;
-    };
-  }, [formId,surveyId]); 
+    })();
+  }, [formId]);
 
   // handleResponse : l'utilisateur répond à une question
   const handleResponse = (questionId, value) => {
@@ -193,6 +209,63 @@ export const useSurvey = (formId) => {
       }
     }));
   };
+  
+
+  useEffect(() => {
+    const updateQuestion = async () => {
+      if (!surveyId || questionsLoading) return;
+      
+      // Use human-friendly step number (1-based) instead of the question ID
+      const stepNumber = currentStep + 1;
+      
+      console.log(`[useSurvey] Updating last visited question: step ${stepNumber}`);
+      try {
+        // Save the step number instead of question ID
+        await updateLastQuestion(surveyId, stepNumber);
+      } catch (err) {
+        console.error('Error updating last question:', err);
+      }
+    };
+    
+    // Only run when questions are loaded
+    if (!questionsLoading && questions.length > 0) {
+      updateQuestion();
+    }
+  }, [currentStep, surveyId, questionsLoading, questions]);
+  
+  
+  // Add a function to handle page unload/abandon
+  useEffect(() => {
+    const handleBeforeUnload = (event) => {
+      if (surveyId && !showThankYou && questions.length > 0) {
+        // Use the human-friendly step number (1-based)
+        const stepNumber = currentStep + 1;
+        
+        try {
+          // Use navigator.sendBeacon for more reliable data sending during page unload
+          const url = `${process.env.REACT_APP_API_URL}/api/surveys/${surveyId}/status`;
+          const data = JSON.stringify({
+            status: 'abandoned',
+            last_question_id: stepNumber  // Use step number instead of question ID
+          });
+          
+          navigator.sendBeacon(url, new Blob([data], {type: 'application/json'}));
+          console.log(`[useSurvey] Sent abandonment beacon for step ${stepNumber}`);
+        } catch (e) {
+          console.error("Error sending abandonment data:", e);
+        }
+        
+        event.preventDefault();
+        event.returnValue = '';
+      }
+    };
+  
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [surveyId, showThankYou, questions, currentStep]);
 
   // Soumission finale
   const handleSubmit = async () => {
@@ -216,7 +289,7 @@ export const useSurvey = (formId) => {
       if (success) {
         // Find all text-type questions and their responses
         const textResponses = questions
-          .filter(q => q.question_type === 'text')  // Changed from q.type to q.question_type
+          .filter(q => q.question_type === 'text')
           .map(q => ({
             questionId: q.id,
             answer: responses[q.id]?.answer
@@ -224,63 +297,24 @@ export const useSurvey = (formId) => {
           .filter(r => r.answer && r.answer.trim() !== '');
         // Analyze each text response
   
-      if (textResponses.length > 0) {
-        console.log('[handleSubmit] Found text responses to analyze:', textResponses);
-        
-        try {
-          const analyses = await Promise.all(
-            textResponses.map(async (response) => {
-              console.log(`[handleSubmit] Analyzing response for question ${response.questionId}:`, response.answer);
-              const analysis = await analyzeFeedback(response.answer);
-              return {
-                questionId: response.questionId,
-                analysis: analysis
-              };
-            })
-          );
-
-          console.log('[handleSubmit] All analyses completed:', analyses);
+        if (textResponses.length > 0) {
+          console.log('[handleSubmit] Found text responses to analyze:', textResponses);
           
-          // Update the request body structure to match your backend expectation
-          const analysisResponse = await fetch(`${API_URL}/api/feedback/analyze`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              form_id: formId,
-              survey_id: surveyId,
-              analyses: analyses.map(item => ({
-                questionId: item.questionId,
-                analysis: item.analysis
-              }))
-            })
-          });
-
-          if (!analysisResponse.ok) {
-            const errMsg = await analysisResponse.text();
-            console.error('[handleSubmit] Failed to store analyses. Status:', analysisResponse.status, 'Error:', errMsg);
-            throw new Error(`Failed to store analyses: ${errMsg}`);
-          }
-
-          const responseData = await analysisResponse.json();
-          console.log('[handleSubmit] NLP analyses stored successfully:', responseData);
-
-        } catch (error) {
-          console.error('[handleSubmit] Error in feedback analysis:', error);
-          // Continue with submission even if analysis fails
-        }
-      } else {
-        console.log('[handleSubmit] No text responses found to analyze');
-      }
-
-      // Also check for optional answers that need analysis
-      Object.entries(responses).forEach(async ([questionId, response]) => {
-        if (response.optionalAnswer && response.optionalAnswer.trim() !== '') {
           try {
-            console.log(`[handleSubmit] Analyzing optional answer for question ${questionId}`);
-            const analysis = await analyzeFeedback(response.optionalAnswer);
+            const analyses = await Promise.all(
+              textResponses.map(async (response) => {
+                console.log(`[handleSubmit] Analyzing response for question ${response.questionId}:`, response.answer);
+                const analysis = await analyzeFeedback(response.answer);
+                return {
+                  questionId: response.questionId,
+                  analysis: analysis
+                };
+              })
+            );
+  
+            console.log('[handleSubmit] All analyses completed:', analyses);
             
+            // Update the request body structure to match your backend expectation
             const analysisResponse = await fetch(`${API_URL}/api/feedback/analyze`, {
               method: 'POST',
               headers: {
@@ -289,24 +323,64 @@ export const useSurvey = (formId) => {
               body: JSON.stringify({
                 form_id: formId,
                 survey_id: surveyId,
-                analyses: [{
-                  questionId: parseInt(questionId),
-                  analysis: analysis
-                }]
+                analyses: analyses.map(item => ({
+                  questionId: item.questionId,
+                  analysis: item.analysis
+                }))
               })
             });
-
+  
             if (!analysisResponse.ok) {
-              throw new Error('Failed to store optional answer analysis');
+              const errMsg = await analysisResponse.text();
+              console.error('[handleSubmit] Failed to store analyses. Status:', analysisResponse.status, 'Error:', errMsg);
+              throw new Error(`Failed to store analyses: ${errMsg}`);
             }
-            
-            console.log(`[handleSubmit] Optional answer analysis stored for question ${questionId}`);
+  
+            const responseData = await analysisResponse.json();
+            console.log('[handleSubmit] NLP analyses stored successfully:', responseData);
+  
           } catch (error) {
-            console.error(`[handleSubmit] Error analyzing optional answer for question ${questionId}:`, error);
+            console.error('[handleSubmit] Error in feedback analysis:', error);
+            // Continue with submission even if analysis fails
           }
+        } else {
+          console.log('[handleSubmit] No text responses found to analyze');
         }
-      });
-        
+  
+        // Also check for optional answers that need analysis
+        Object.entries(responses).forEach(async ([questionId, response]) => {
+          if (response.optionalAnswer && response.optionalAnswer.trim() !== '') {
+            try {
+              console.log(`[handleSubmit] Analyzing optional answer for question ${questionId}`);
+              const analysis = await analyzeFeedback(response.optionalAnswer);
+              
+              const analysisResponse = await fetch(`${API_URL}/api/feedback/analyze`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  form_id: formId,
+                  survey_id: surveyId,
+                  analyses: [{
+                    questionId: parseInt(questionId),
+                    analysis: analysis
+                  }]
+                })
+              });
+  
+              if (!analysisResponse.ok) {
+                throw new Error('Failed to store optional answer analysis');
+              }
+              
+              console.log(`[handleSubmit] Optional answer analysis stored for question ${questionId}`);
+            } catch (error) {
+              console.error(`[handleSubmit] Error analyzing optional answer for question ${questionId}:`, error);
+            }
+          }
+        });
+        await updateSurveyStatus(surveyId, 'completed', currentStep + 1);
+        console.log('[handleSubmit] Survey marked as completed');
         setShowThankYou(true);
         console.log('[handleSubmit] -> On affiche le Thank You');
       } else {
@@ -316,6 +390,21 @@ export const useSurvey = (formId) => {
       console.error('[handleSubmit] Exception:', error);
     }
   };
+
+  useEffect(() => {
+    const markSurveyCompleted = async () => {
+      if (showThankYou && surveyId) {
+        console.log('[useEffect] Thank you screen displayed, ensuring survey is marked as completed');
+        try {
+          await updateSurveyStatus(surveyId, 'completed', currentStep + 1);
+        } catch (err) {
+          console.error('Error marking survey completed:', err);
+        }
+      }
+    };
+    
+    markSurveyCompleted();
+  }, [showThankYou, surveyId, currentStep]);
   
 
   const handleNextStep = () => {
@@ -365,6 +454,8 @@ export const useSurvey = (formId) => {
         console.log('[handleContactSubmit] Contact + responses success?', success);
 
         if (success) {
+            await updateSurveyStatus(surveyId, 'completed', currentStep + 1);
+            console.log('[handleContactSubmit] Survey marked as completed');
             setContactDetailsSubmitted(true);
             setShowThankYou(true);
         } else {

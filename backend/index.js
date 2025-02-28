@@ -417,6 +417,10 @@ app.post('/api/responses', async (req, res) => {
                     ]
                 );
             }
+            await connection.execute(
+                'UPDATE surveys SET status = ? WHERE id = ?',
+                ['completed', survey_id]
+            );
 
             await connection.commit();
             res.status(200).json({ message: 'Responses recorded successfully' });
@@ -534,8 +538,8 @@ app.post('/api/start-survey', async (req, res) => {
         const { name, form_id } = req.body;
 
         const [result] = await pool.execute(
-            'INSERT INTO surveys (name, form_id) VALUES (?, ?)',
-            [name || 'Nouveau survey', form_id]
+            'INSERT INTO surveys (name, form_id, status) VALUES (?, ?, ?)',
+            [name || 'Nouveau survey', form_id, 'in_progress']
         );
 
         res.status(201).json({ id: result.insertId });
@@ -1027,6 +1031,163 @@ app.get('/api/low-satisfaction', async (req, res) => {
         res.status(500).json({ error: 'Server error', details: err.message });
     }
 });
+app.put('/api/surveys/:surveyId/status', async (req, res) => {
+    try {
+        const { surveyId } = req.params;
+        const { status, last_question_id } = req.body;
+        
+        // Validate status value
+        const validStatuses = ['in_progress', 'completed', 'abandoned'];
+        if (status && !validStatuses.includes(status)) {
+            return res.status(400).json({ error: 'Invalid status value' });
+        }
+        
+        // Build the query based on what fields are provided
+        let query = 'UPDATE surveys SET ';
+        const queryParams = [];
+        const updates = [];
+        
+        if (status) {
+            updates.push('status = ?');
+            queryParams.push(status);
+        }
+        
+        if (last_question_id) {
+            updates.push('last_question_id = ?');
+            queryParams.push(last_question_id);
+        }
+        
+        if (updates.length === 0) {
+            return res.status(400).json({ error: 'No update parameters provided' });
+        }
+        
+        query += updates.join(', ');
+        query += ' WHERE id = ?';
+        queryParams.push(surveyId);
+        
+        const [result] = await pool.execute(query, queryParams);
+        
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Survey not found' });
+        }
+        
+        res.json({ message: 'Survey status updated successfully' });
+    } catch (err) {
+        console.error('Error updating survey status:', err);
+        res.status(500).json({ error: 'Server error', details: err.message });
+    }
+});
+app.put('/api/surveys/:surveyId/last-question', async (req, res) => {
+    try {
+        const { surveyId } = req.params;
+        const { question_id } = req.body;
+        
+        if (!question_id) {
+            return res.status(400).json({ error: 'question_id is required' });
+        }
+        
+        const [result] = await pool.execute(
+            'UPDATE surveys SET last_question_id = ? WHERE id = ?',
+            [question_id, surveyId]
+        );
+        
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Survey not found' });
+        }
+        
+        res.json({ message: 'Last question updated successfully' });
+    } catch (err) {
+        console.error('Error updating last question:', err);
+        res.status(500).json({ error: 'Server error', details: err.message });
+    }
+});
+app.get('/api/analytics/survey-completion', async (req, res) => {
+    try {
+        const { form_id } = req.query;
+        let query, params = [];
+
+        if (form_id) {
+            query = `
+                SELECT 
+                    status,
+                    COUNT(*) as count,
+                    (COUNT(*) * 100.0 / (
+                        SELECT COUNT(*) FROM surveys 
+                        WHERE form_id = ?
+                    )) as percentage
+                FROM surveys
+                WHERE form_id = ?
+                GROUP BY status
+            `;
+            params = [form_id, form_id];
+        } else {
+            query = `
+                SELECT 
+                    status,
+                    COUNT(*) as count,
+                    (COUNT(*) * 100.0 / (
+                        SELECT COUNT(*) FROM surveys
+                    )) as percentage
+                FROM surveys
+                GROUP BY status
+            `;
+        }
+
+        const [statusRows] = await pool.execute(query, params);
+
+        // Get abandonment by question data
+        let abandonmentQuery, abandonmentParams = [];
+        if (form_id) {
+            abandonmentQuery = `
+                SELECT 
+                    q.id as question_id,
+                    q.question_text,
+                    COUNT(s.id) as abandonment_count
+                FROM surveys s
+                JOIN questions q ON s.last_question_id = q.id
+                WHERE s.status = 'abandoned'
+                    AND s.form_id = ?
+                GROUP BY q.id, q.question_text
+                ORDER BY abandonment_count DESC
+            `;
+            abandonmentParams = [form_id];
+        } else {
+            abandonmentQuery = `
+                SELECT 
+                    q.id as question_id,
+                    q.question_text,
+                    COUNT(s.id) as abandonment_count
+                FROM surveys s
+                JOIN questions q ON s.last_question_id = q.id
+                WHERE s.status = 'abandoned'
+                GROUP BY q.id, q.question_text
+                ORDER BY abandonment_count DESC
+            `;
+        }
+
+        const [abandonmentRows] = await pool.execute(abandonmentQuery, abandonmentParams);
+
+        const stats = {
+            total_surveys: statusRows.reduce((sum, row) => sum + row.count, 0),
+            status_breakdown: statusRows.map(row => ({
+                status: row.status || 'unknown',
+                count: row.count,
+                percentage: Number(row.percentage).toFixed(2)
+            })),
+            abandonment_by_question: abandonmentRows.map(row => ({
+                question_id: row.question_id,
+                question_text: row.question_text,
+                abandonment_count: row.abandonment_count
+            }))
+        };
+
+        res.json(stats);
+    } catch (err) {
+        console.error('Error fetching survey completion stats:', err);
+        res.status(500).json({ error: 'Server error', details: err.message });
+    }
+});
+
 
 // Error handling middleware
 app.use((err, req, res, next) => {
