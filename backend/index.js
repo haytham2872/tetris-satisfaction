@@ -32,6 +32,7 @@ const dbConfig = {
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
+    port: process.env.DB_PORT,
     database: process.env.DB_NAME,
     waitForConnections: true,
 
@@ -46,6 +47,10 @@ const connectToDatabase = async () => {
     try {
         console.log('Attempting database connection...');
         pool = await mysql.createPool(dbConfig);
+        
+        // Exécuter USE satisfaction_db pour s'assurer que la bonne base de données est sélectionnée
+        await pool.query('USE satisfaction_db');
+        
         console.log('Database connected successfully');
         return true;
     } catch (err) {
@@ -53,7 +58,6 @@ const connectToDatabase = async () => {
         return false;
     }
 };
-
 // Health check endpoints
 app.get('/', (req, res) => {
     res.json({ status: 'Server is running' });
@@ -143,6 +147,61 @@ app.get('/api/forms/:id', async (req, res) => {
         res.json(rows[0]);
     } catch (err) {
         console.error('Error fetching form details:', err);
+        res.status(500).json({ error: 'Server error', details: err.message });
+    }
+});
+
+// Route pour supprimer un formulaire
+app.delete('/api/forms/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Vérifier que le pool est initialisé
+        if (!pool) {
+            console.error("Database pool not initialized");
+            return res.status(500).json({ error: 'Database connection not available' });
+        }
+
+        const connection = await pool.getConnection();
+        
+        try {
+            await connection.beginTransaction();
+            
+            // Supprimer d'abord les réponses associées
+            console.log(`Deleting responses for form ID: ${id}`);
+            await connection.execute('DELETE FROM responses WHERE form_id = ?', [id]);
+            
+            // Supprimer les questions associées
+            console.log(`Deleting questions for form ID: ${id}`);
+            await connection.execute('DELETE FROM questions WHERE form_id = ?', [id]);
+            
+            // Supprimer les enquêtes associées
+            console.log(`Deleting surveys for form ID: ${id}`);
+            await connection.execute('DELETE FROM surveys WHERE form_id = ?', [id]);
+            
+            // Supprimer les contacts liés aux faibles satisfactions
+            console.log(`Deleting low satisfaction responses for form ID: ${id}`);
+            await connection.execute('DELETE FROM low_satisfaction_responses WHERE form_id = ?', [id]);
+            
+            // Enfin, supprimer le formulaire lui-même
+            console.log(`Deleting form with ID: ${id}`);
+            const [result] = await connection.execute('DELETE FROM forms WHERE id = ?', [id]);
+            
+            await connection.commit();
+            
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ error: 'Form not found' });
+            }
+            
+            res.json({ message: 'Form and all associated data deleted successfully' });
+        } catch (err) {
+            await connection.rollback();
+            throw err;
+        } finally {
+            connection.release();
+        }
+    } catch (err) {
+        console.error('Error deleting form:', err);
         res.status(500).json({ error: 'Server error', details: err.message });
     }
 });
