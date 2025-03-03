@@ -6,7 +6,9 @@ import {
     MessageCircle,
     Users,
     ArrowLeft,
-    Loader
+    Loader,
+    Trash2,
+    Settings
 } from 'lucide-react';
 import logo from '../assets/logo.png'; // Import the logo
 
@@ -44,6 +46,9 @@ const Page = ({
     setShowComparatif,
     onBack,
     setShowDashboard,
+    onFormDeleted, // Ajout de la prop onFormDeleted
+    showEditModal, // Nouveau prop pour contrôler la visibilité de la modale depuis AdminApp
+    setShowEditModal, // Nouveau prop pour modifier l'état de la modale
     children,
 }) => {
     const [activeView, setActiveView] = useState(null);
@@ -51,6 +56,12 @@ const Page = ({
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [availableForms, setAvailableForms] = useState(propAvailableForms || []);
+    
+    // État pour les modales - on garde showDeleteModal local mais pas showEditModal qui vient des props
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [editFormName, setEditFormName] = useState('');
+    const [editFormDescription, setEditFormDescription] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Find the current form name from availableForms when possible
     const getCurrentFormName = () => {
@@ -142,6 +153,22 @@ const Page = ({
         console.log('Current formInfo state:', formInfo);
     }, [formInfo]);
 
+    // Initialiser les valeurs d'édition avec les données du formulaire actuel
+    useEffect(() => {
+        if (formInfo) {
+            setEditFormName(formInfo.name || '');
+            setEditFormDescription(formInfo.description || '');
+        }
+    }, [formInfo]);
+    
+    // Initialiser les champs lors de l'ouverture de la modale
+    useEffect(() => {
+        if (showEditModal && formInfo) {
+            setEditFormName(formInfo.name || '');
+            setEditFormDescription(formInfo.description || '');
+        }
+    }, [showEditModal, formInfo]);
+
     // Improved form name display - checks multiple sources
     const getFormName = () => {
         // First try to get from formInfo
@@ -157,6 +184,84 @@ const Page = ({
 
         // Fallback
         return 'Formulaire sans nom';
+    };
+
+    // Fonction pour supprimer un formulaire
+    const handleDeleteForm = async () => {
+        if (!selectedFormId) return;
+        
+        setIsSubmitting(true);
+        
+        try {
+            const response = await fetch(`${API_URL || 'http://localhost:5000'}/api/forms/${selectedFormId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Échec de la suppression. Statut: ${response.status}`);
+            }
+
+            // Fermer la modale et rediriger vers la liste des formulaires
+            setShowDeleteModal(false);
+            
+            // Informer l'application parente qu'un formulaire a été supprimé
+            if (typeof onFormDeleted === 'function') {
+                onFormDeleted(selectedFormId);
+            } else {
+                // Si la fonction n'est pas disponible, recharger la page
+                window.location.reload();
+            }
+        } catch (error) {
+            console.error('Erreur lors de la suppression du formulaire:', error);
+            alert(`Erreur lors de la suppression: ${error.message}`);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    // Fonction pour mettre à jour un formulaire
+    const handleUpdateForm = async () => {
+        if (!selectedFormId) return;
+        
+        setIsSubmitting(true);
+        
+        try {
+            const response = await fetch(`${API_URL || 'http://localhost:5000'}/api/forms/${selectedFormId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: editFormName,
+                    description: editFormDescription,
+                    is_active: formInfo?.is_active ?? true
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Échec de la mise à jour. Statut: ${response.status}`);
+            }
+
+            // Mettre à jour les informations locales
+            setFormInfo({
+                ...formInfo,
+                name: editFormName,
+                description: editFormDescription
+            });
+            
+            // Fermer la modale
+            setShowEditModal(false);
+            
+
+        } catch (error) {
+            console.error('Erreur lors de la mise à jour du formulaire:', error);
+            alert(`Erreur lors de la mise à jour: ${error.message}`);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const menuItems = [
@@ -310,16 +415,25 @@ const Page = ({
 
                     {/* Display the form name below the title */}
                     {selectedFormId && (
-                        <div className="text-center">
+                        <div className="text-center relative">
                             {loading ? (
                                 <div className="flex items-center justify-center text-gray-500">
                                     <Loader className="animate-spin h-5 w-5 mr-2" />
                                     <span>Chargement...</span>
                                 </div>
                             ) : (
-                                <h2 className="text-3xl font-bold text-black text-center mb-4">
-                                    {getFormName()}
-                                </h2>
+                                <>
+                                    <h2 className="text-3xl font-bold text-black text-center mb-4">
+                                        {getFormName()}
+                                    </h2>
+                                    
+                                    {/* Afficher la description si disponible */}
+                                    {formInfo?.description && (
+                                        <p className="text-gray-600 text-center mb-8 max-w-2xl mx-auto">
+                                            {formInfo.description}
+                                        </p>
+                                    )}
+                                </>
                             )}
                         </div>
                     )}
@@ -340,6 +454,101 @@ const Page = ({
                     ))}
                 </div>
             </div>
+            
+            {/* Modal de confirmation de suppression */}
+            {showDeleteModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]">
+                    <div className="bg-white rounded-lg shadow-xl w-[500px] p-6 animate-slideUp">
+                        <h2 className="text-xl font-semibold text-red-600 mb-4">Confirmer la suppression</h2>
+                        
+                        <p className="mb-6 text-gray-700">
+                            Êtes-vous sûr de vouloir supprimer le formulaire "{getFormName()}" ? 
+                            Cette action est irréversible et supprimera toutes les données associées.
+                        </p>
+                        
+                        <div className="flex justify-end space-x-2">
+                            <button 
+                                onClick={() => setShowDeleteModal(false)}
+                                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+                                disabled={isSubmitting}
+                            >
+                                Annuler
+                            </button>
+                            <button 
+                                onClick={handleDeleteForm}
+                                className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 disabled:opacity-50 transition-colors flex items-center"
+                                disabled={isSubmitting}
+                            >
+                                {isSubmitting && <Loader className="animate-spin w-4 h-4 mr-2" />}
+                                Supprimer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            
+            {/* Modal d'édition des détails du formulaire */}
+            {showEditModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]">
+                    <div className="bg-white rounded-lg shadow-xl w-[600px] p-6 animate-slideUp">
+                        <h2 className="text-xl font-semibold text-blue-900 mb-4">Modifier les détails du formulaire</h2>
+                        
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Nom du formulaire</label>
+                            <input 
+                                type="text"
+                                placeholder="Saisissez le nom du formulaire"
+                                value={editFormName}
+                                onChange={(e) => setEditFormName(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required
+                            />
+                        </div>
+                        
+                        <div className="mb-6">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Description (optionnel)</label>
+                            <textarea 
+                                placeholder="Saisissez une description"
+                                value={editFormDescription}
+                                onChange={(e) => setEditFormDescription(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md h-24 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+                        
+                        <div className="flex justify-between items-center mt-8">
+                            <button 
+                                onClick={() => {
+                                    setShowEditModal(false);
+                                    setShowDeleteModal(true);
+                                }}
+                                className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
+                                disabled={isSubmitting}
+                            >
+                                <Trash2 className="w-4 h-4" />
+                                <span>Supprimer</span>
+                            </button>
+                            
+                            <div className="flex gap-2">
+                                <button 
+                                    onClick={() => setShowEditModal(false)}
+                                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+                                    disabled={isSubmitting}
+                                >
+                                    Annuler
+                                </button>
+                                <button 
+                                    onClick={handleUpdateForm}
+                                    disabled={!editFormName || isSubmitting}
+                                    className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50 transition-colors flex items-center"
+                                >
+                                    {isSubmitting && <Loader className="animate-spin w-4 h-4 mr-2" />}
+                                    Mettre à jour
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

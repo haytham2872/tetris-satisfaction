@@ -8,6 +8,7 @@ import EditFormPage from './components/EditFormPage';
 import CommentsAnalysis from './components/CommentsAnalysis';
 import ContactDetailsView from './components/ContactDetailsView';
 import ComparatifForms from './components/ComparatifForms';
+import { Settings } from 'lucide-react';
 
 function AdminApp() {
   const [selectedFormId, setSelectedFormId] = useState(null);
@@ -16,8 +17,10 @@ function AdminApp() {
   const [isCreatingForm, setIsCreatingForm] = useState(false);
   const [newFormName, setNewFormName] = useState('');
   const [newFormDescription, setNewFormDescription] = useState('');
-  // NEW: Add state to store feedback data
+  // État pour stocker les données de feedback
   const [feedbackData, setFeedbackData] = useState([]);
+  // Nouvel état pour la modale d'édition
+  const [showEditModal, setShowEditModal] = useState(false);
 
   const {
     showAnalytics,
@@ -60,14 +63,14 @@ function AdminApp() {
     fetchForms();
   }, [selectedFormId]);
 
-  // NEW: Add effect to fetch feedback data when form changes
+  // Effet pour récupérer les données de feedback quand le formulaire change
   useEffect(() => {
     if (selectedFormId) {
       fetchFeedbackData(selectedFormId);
     }
   }, [selectedFormId]);
 
-  // NEW: Function to fetch feedback data
+  // Fonction pour récupérer les données de feedback
   const fetchFeedbackData = async (formId) => {
     try {
       const feedbackUrl = `${process.env.REACT_APP_API_URL}/api/feedback/analysis?form_id=${formId}`;
@@ -79,7 +82,7 @@ function AdminApp() {
       
       const data = await response.json();
       
-      // Process the feedback data to ensure analysis is properly parsed
+      // Traiter les données de feedback pour s'assurer que l'analyse est correctement parsée
       const processedData = data.map(feedback => {
         if (typeof feedback.analysis === 'string') {
           try {
@@ -98,7 +101,7 @@ function AdminApp() {
     }
   };
 
-  // NEW: Function to handle feedback data from FeedbackAnalysisPage
+  // Gestion des données de feedback depuis FeedbackAnalysisPage
   const handleFeedbackDataLoaded = (data) => {
     setFeedbackData(data);
   };
@@ -108,7 +111,7 @@ function AdminApp() {
       console.log('Creating form with:', { name: newFormName, description: newFormDescription });
       console.log('API URL:', process.env.REACT_APP_API_URL);
       
-      // First check if backend is responding
+      // Vérifier d'abord si le backend répond
       const healthCheck = await fetch(`${process.env.REACT_APP_API_URL}/health`);
       if (!healthCheck.ok) {
         throw new Error(`Health check failed with status: ${healthCheck.status}`);
@@ -164,6 +167,25 @@ function AdminApp() {
     handleBackToDashboard();
   };
 
+  // Nouvelle fonction pour gérer la suppression d'un formulaire
+  const handleFormDeleted = (deletedFormId) => {
+    // Filtrer le formulaire supprimé de la liste
+    const updatedForms = availableForms.filter(form => form.id !== deletedFormId);
+    setAvailableForms(updatedForms);
+    
+    // Si le formulaire supprimé était sélectionné, sélectionner le premier formulaire disponible
+    if (selectedFormId === deletedFormId) {
+      if (updatedForms.length > 0) {
+        setSelectedFormId(updatedForms[0].id);
+      } else {
+        setSelectedFormId(null);
+      }
+    }
+    
+    // Revenir au tableau de bord principal
+    handleBackToDashboard();
+  };
+
   if (isLoadingForms) {
     return (
       <div className="min-h-screen bg-tetris-blue flex items-center justify-center">
@@ -192,6 +214,17 @@ function AdminApp() {
                   </option>
                 ))}
               </select>
+              
+              {/* Bouton d'édition à côté du dropdown */}
+              {selectedFormId && (
+                <button 
+                  onClick={() => setShowEditModal(true)}
+                  className="bg-white/90 backdrop-blur-sm rounded-lg p-2 shadow-lg text-blue-600 hover:text-blue-800"
+                  title="Modifier les détails"
+                >
+                  <Settings className="w-5 h-5" />
+                </button>
+              )}
               
               <button 
                 onClick={() => setIsCreatingForm(true)}
@@ -261,6 +294,9 @@ function AdminApp() {
           setShowComments={setShowComments}
           setShowContacts={setShowContacts}
           onBack={handleBackToDashboard}
+          onFormDeleted={handleFormDeleted}
+          showEditModal={showEditModal}
+          setShowEditModal={setShowEditModal}
         >
           {showAnalytics && analyticsView === 'main' && (
             <DynamicSurveyAnalytics
@@ -270,14 +306,14 @@ function AdminApp() {
               onShowComments={() => setShowComments(true)}
               onShowFeedback={() => setShowFeedbackAnalysis(true)}
               onShowEditForm={() => setShowEditForm(true)}
-              externalFeedbackData={feedbackData} /* NEW: Pass feedback data */
+              externalFeedbackData={feedbackData}
             />
           )}
           {showFeedbackAnalysis && (
             <FeedbackAnalysisPage 
               formId={selectedFormId}
               onBack={handleBackToDashboard} 
-              onFeedbackDataLoaded={handleFeedbackDataLoaded} /* NEW: Add callback */
+              onFeedbackDataLoaded={handleFeedbackDataLoaded}
             />
           )}
           {showEditForm && (
@@ -309,7 +345,7 @@ function AdminApp() {
               onShowFeedback={() => setShowFeedbackAnalysis(true)}
               onShowContacts={() => setShowContacts(true)}
               isAdditionalView={true}
-              externalFeedbackData={feedbackData} /* NEW: Pass feedback data here too */
+              externalFeedbackData={feedbackData}
             />
           )}
           {showComparatif && (
@@ -323,5 +359,4 @@ function AdminApp() {
     </>
   );
 }
-
 export default AdminApp;
