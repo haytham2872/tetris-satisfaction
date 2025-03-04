@@ -1141,7 +1141,7 @@ const processResponseData = (questionId) => {
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             {formName ? `Statistiques - ${formName}` : 'Statistiques détaillées'}
           </h1>
@@ -1149,36 +1149,36 @@ const processResponseData = (questionId) => {
         </div>
 
         {/* Statistics Summary Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-12">
-        <StatCard
-          icon={CheckCircle2}
-          title="Formulaires soumis"
-          value={stats.totalFormSubmissions}
-          description="Nombre de soumissions complètes"
-          colorClass="bg-blue-600"
-        />
-        <StatCard
-          icon={AlertTriangle}
-          title="Utilisateurs insatisfaits"
-          value={stats.unsatisfiedUsers}
-          description="Nécessitant une attention particulière"
-          colorClass="bg-red-500"
-        />
-        <StatCard
-          icon={ThumbsUp}
-          title="Réponses textuelles positives"
-          value={`${positiveRate}%`}
-          description={`${stats.positiveResponses} sur ${stats.totalAnalyzed} analysées`}
-          colorClass="bg-green-500"
-        />
-        <StatCard
-          icon={MessageSquare}
-          title="Taux de satisfaction"
-          value={`${satisfactionRate}%`}
-          description="Basé sur les retours clients"
-          colorClass="bg-indigo-500"
-        />
-      </div>
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12 mx-auto max-w-4xl">
+  <StatCard
+    icon={CheckCircle2}
+    title="Formulaires soumis"
+    value={stats.totalFormSubmissions}
+    description="Nombre de soumissions complètes"
+    colorClass="bg-blue-600"
+  />
+  <StatCard
+    icon={AlertTriangle}
+    title="Utilisateurs insatisfaits"
+    value={stats.unsatisfiedUsers}
+    description="Nécessitant une attention particulière"
+    colorClass="bg-red-500"
+  />
+  <StatCard
+    icon={ThumbsUp}
+    title="Réponses textuelles positives"
+    value={`${positiveRate}%`}
+    description={`${stats.positiveResponses} sur ${stats.totalAnalyzed} analysées`}
+    colorClass="bg-green-500"
+  />
+  <StatCard
+    icon={MessageSquare}
+    title="Taux de satisfaction"
+    value={`${satisfactionRate}%`}
+    description="Basé sur les retours clients"
+    colorClass="bg-indigo-500"
+  />
+</div>
         {/* Survey Completion Analysis Section */}
         {surveyCompletionData && (
           <AbandonmentAnalysisSection 
