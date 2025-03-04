@@ -43,6 +43,28 @@ const ComparatifForms = ({ onBack, availableForms }) => {
             const feedbackResponse = await fetch(`${API_URL}/api/feedback/analysis?form_id=${form.id}`);
             const feedbackData = feedbackResponse.ok ? await feedbackResponse.json() : [];
             
+            // 5. NOUVEAU: Récupérer les données de complétion et d'abandon
+            const surveyCompletionResponse = await fetch(`${API_URL}/api/analytics/survey-completion?form_id=${form.id}`);
+            const surveyCompletionData = surveyCompletionResponse.ok ? await surveyCompletionResponse.json() : null;
+            
+            // Extraire les statistiques de complétion et d'abandon
+            let completedCount = 0;
+            let abandonedCount = 0;
+            let completionRate = 0;
+            
+            if (surveyCompletionData && surveyCompletionData.status_breakdown) {
+              const statusBreakdown = surveyCompletionData.status_breakdown;
+              const completedItem = statusBreakdown.find(item => item.status === 'completed');
+              const abandonedItem = statusBreakdown.find(item => item.status === 'abandoned');
+              
+              completedCount = completedItem ? parseInt(completedItem.count) : 0;
+              abandonedCount = abandonedItem ? parseInt(abandonedItem.count) : 0;
+              
+              // Calculer le taux de complétion
+              const totalAttempts = statusBreakdown.reduce((sum, item) => sum + parseInt(item.count || 0), 0);
+              completionRate = totalAttempts > 0 ? (completedCount / totalAttempts * 100) : 0;
+            }
+            
             // Calculer les statistiques
             const totalResponses = responses.length;
             const unsatisfiedCount = Array.isArray(unsatisfied) ? unsatisfied.length : 0;
@@ -106,6 +128,10 @@ const ComparatifForms = ({ onBack, availableForms }) => {
               averageSentiment: averageSentiment.toFixed(2),
               // Nouveau: ajouter le displayPercentage moyen
               averageDisplayPercentage: averageDisplayPercentage.toFixed(1),
+              // NOUVEAU: Ajouter les données de complétion et d'abandon
+              completedCount: completedCount,
+              abandonedCount: abandonedCount,
+              completionRate: completionRate.toFixed(1),
               lastUpdated: form.updated_at || form.created_at || new Date()
             };
           } catch (error) {
@@ -125,6 +151,9 @@ const ComparatifForms = ({ onBack, availableForms }) => {
               satisfactionRate: '0.0',
               averageSentiment: '0.00',
               averageDisplayPercentage: '0.0',
+              completedCount: 0,
+              abandonedCount: 0,
+              completionRate: '0.0',
               lastUpdated: form.updated_at || form.created_at || new Date()
             };
           }
@@ -157,6 +186,9 @@ const ComparatifForms = ({ onBack, availableForms }) => {
           satisfactionRate: '93.6',
           averageSentiment: '0.82',
           averageDisplayPercentage: '78.0',
+          completedCount: 65,
+          abandonedCount: 13,
+          completionRate: '83.3',
           lastUpdated: new Date() 
         },
         { 
@@ -172,6 +204,9 @@ const ComparatifForms = ({ onBack, availableForms }) => {
           satisfactionRate: '82.2',
           averageSentiment: '0.65',
           averageDisplayPercentage: '65.0',
+          completedCount: 37,
+          abandonedCount: 15,
+          completionRate: '71.2',
           lastUpdated: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000) 
         },
         { 
@@ -187,6 +222,9 @@ const ComparatifForms = ({ onBack, availableForms }) => {
           satisfactionRate: '90.0',
           averageSentiment: '0.78',
           averageDisplayPercentage: '73.0',
+          completedCount: 108,
+          abandonedCount: 22,
+          completionRate: '83.1',
           lastUpdated: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000) 
         }
       ];
@@ -230,7 +268,7 @@ const ComparatifForms = ({ onBack, availableForms }) => {
       return sortDirection === 'asc' 
         ? dateA - dateB
         : dateB - dateA;
-    } else if (['positiveRate', 'satisfactionRate', 'averageSentiment', 'averageDisplayPercentage'].includes(sortField)) {
+    } else if (['positiveRate', 'satisfactionRate', 'averageSentiment', 'averageDisplayPercentage', 'completionRate'].includes(sortField)) {
       const valA = parseFloat(a[sortField] || 0);
       const valB = parseFloat(b[sortField] || 0);
       return sortDirection === 'asc'
@@ -258,6 +296,9 @@ const ComparatifForms = ({ onBack, availableForms }) => {
       'Taux de réponses positives (%)',
       'Taux de satisfaction (%)',
       'Sentiment moyen (%)',
+      'Formulaires complétés',
+      'Formulaires abandonnés',
+      'Taux de complétion (%)',
       'Dernière mise à jour'
     ];
     
@@ -270,10 +311,12 @@ const ComparatifForms = ({ onBack, availableForms }) => {
         form.submissions,
         form.unsatisfiedCount,
         form.positiveResponses,
-        parseFloat(form.positiveRate.replace(',', '.')), // Assurer que les nombres sont bien des nombres
+        parseFloat(form.positiveRate.replace(',', '.')),
         parseFloat(form.satisfactionRate.replace(',', '.')),
-        // Utiliser averageDisplayPercentage au lieu de averageSentiment
         parseFloat(form.averageDisplayPercentage.replace(',', '.')),
+        form.completedCount,
+        form.abandonedCount,
+        parseFloat(form.completionRate.replace(',', '.')),
         formatDate(form.lastUpdated)
       ])
     ];
@@ -291,13 +334,12 @@ const ComparatifForms = ({ onBack, availableForms }) => {
       { wch: 15 }, // Taux de réponses positives
       { wch: 15 }, // Taux de satisfaction
       { wch: 15 }, // Sentiment moyen (%)
+      { wch: 15 }, // Formulaires complétés
+      { wch: 15 }, // Formulaires abandonnés
+      { wch: 15 }, // Taux de complétion (%)
       { wch: 15 }  // Dernière mise à jour
     ];
     worksheet['!cols'] = columnWidths;
-    
-    // Appliquer un style pour les en-têtes (gras et centré)
-    // SheetJS community edition ne prend pas en charge le style directement, 
-    // mais nous pouvons définir des propriétés de base
     
     // Créer un nouveau classeur
     const workbook = XLSX.utils.book_new();
@@ -395,6 +437,37 @@ const ComparatifForms = ({ onBack, availableForms }) => {
                       <ArrowUpDown className="h-4 w-4" />
                     </div>
                   </th>
+                  {/* NOUVEAU: Colonnes pour les abandons et complétions */}
+                  <th 
+                    scope="col" 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                    onClick={() => handleSort('completedCount')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Complétés
+                      <ArrowUpDown className="h-4 w-4" />
+                    </div>
+                  </th>
+                  <th 
+                    scope="col" 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                    onClick={() => handleSort('abandonedCount')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Abandonnés
+                      <ArrowUpDown className="h-4 w-4" />
+                    </div>
+                  </th>
+                  <th 
+                    scope="col" 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                    onClick={() => handleSort('completionRate')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Taux Complétion
+                      <ArrowUpDown className="h-4 w-4" />
+                    </div>
+                  </th>
                   <th 
                     scope="col" 
                     className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
@@ -453,6 +526,22 @@ const ComparatifForms = ({ onBack, availableForms }) => {
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         <div className="text-sm text-gray-500">{form.unsatisfiedCount}</div>
                       </td>
+                      {/* NOUVEAU: Cellules pour les complétés et abandonnés */}
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <div className="text-sm text-green-600 font-medium">{form.completedCount}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <div className="text-sm text-red-600 font-medium">{form.abandonedCount}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="w-full bg-gray-200 rounded-full h-2.5">
+                          <div 
+                            className="bg-purple-600 h-2.5 rounded-full" 
+                            style={{ width: `${form.completionRate}%` }}
+                          ></div>
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">{form.completionRate}%</div>
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         <div className="text-sm text-gray-500">{form.positiveRate}%</div>
                       </td>
@@ -480,7 +569,7 @@ const ComparatifForms = ({ onBack, availableForms }) => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="8" className="px-6 py-4 text-center text-sm text-gray-500">
+                    <td colSpan="12" className="px-6 py-4 text-center text-sm text-gray-500">
                       Aucun formulaire ne correspond à votre recherche.
                     </td>
                   </tr>
