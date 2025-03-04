@@ -51,7 +51,8 @@ function ClientApp() {
     questions.length,
     responses,
     lastResponse,
-    optionClicked
+    optionClicked,
+    questions // Pass the questions array directly to useChat
   );
 
   const {
@@ -215,13 +216,12 @@ function ClientApp() {
   return (
     <>
       <div className="min-h-screen bg-tetris-blue">
-        {messageHistory.length > 0 && (
-          <ChatConversation
-            messages={messageHistory}
-            currentStep={currentStep}
-            isNextClicked={isNextClicked}
-          />
-        )}
+        {/* Always render ChatConversation to keep mascot visible */}
+        <ChatConversation
+          messages={messageHistory}
+          currentStep={currentStep}
+          isNextClicked={isNextClicked}
+        />
 
         <Header
           currentStep={currentStep}
