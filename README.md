@@ -13,3 +13,4 @@ Concevoir une base de données structurée qui facilite l'exploitation des résu
 
 ### 3. Visualisation des données
 Développer un tableau de bord interactif pour représenter de manière claire et dynamique les données collectées et analyser les résultats obtenus.
+https://docs.google.com/document/d/1bU6hj9xZa4o-GTlfOMSF-n9QEmY0jQzCDFY47FFhCnU/edit?tab=t.0
