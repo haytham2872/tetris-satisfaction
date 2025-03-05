@@ -1,4 +1,4 @@
-
+const API_URL = process.env.REACT_APP_API_URL;
 // Function to transform database questions to the format needed by components
 const transformDatabaseQuestion = (dbQuestion) => ({
   id: dbQuestion.id,

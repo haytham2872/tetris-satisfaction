@@ -11,9 +11,9 @@ export const useChat = (currentStep, totalSteps, responses, lastResponse, option
       try {
         // If we already have the questions array passed from ClientApp, use that
         if (questions && questions.length > 0) {
-          setQuestionsData({ 
-            count: questions.length, 
-            questions: questions 
+          setQuestionsData({
+            count: questions.length,
+            questions: questions
           });
         } else {
           // Otherwise fetch questions (fallback)
@@ -39,11 +39,7 @@ export const useChat = (currentStep, totalSteps, responses, lastResponse, option
 
     // Show feedback message when option is clicked
     if (optionClicked && lastResponse && questionsData.questions.length > 0) {
-      const questionsRemaining = questionsData.count - currentStep;
-      
-      // Get the current question object
-      const currentQuestion = questionsData.questions.find(q => q.id === lastResponse.questionId);
-      
+
       const feedbackMessage = getFeedbackMessage(
         lastResponse.questionId,
         lastResponse.answer,
@@ -51,7 +47,7 @@ export const useChat = (currentStep, totalSteps, responses, lastResponse, option
         questionsData.count,
         questionsData.questions
       );
-      
+
       if (feedbackMessage) {
         setMessageHistory([feedbackMessage]);
         return;

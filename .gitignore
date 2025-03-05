@@ -35,3 +35,5 @@ yarn-error.log*
 *.map
 remapping.mjs
 remapping.umd.js
+
+/frontend/package-lock.json

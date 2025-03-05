@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, 
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell
 } from 'recharts';
-import { 
-   AlertTriangle, ThumbsUp, MessageSquare, BarChart2,
-   FileText, CheckCircle2,
+import {
+  AlertTriangle, ThumbsUp, MessageSquare,
+  FileText, CheckCircle2,
   ChevronDown, ChevronRight,
 } from 'lucide-react';
 
@@ -17,7 +17,7 @@ const API_URL = process.env.REACT_APP_API_URL;
 // Custom pie chart label component
 const CustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, value }) => {
   if (value === 0) return null;
-  
+
   const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
   const y = cy + radius * Math.sin(-midAngle * RADIAN);
@@ -40,22 +40,22 @@ const CustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, valu
 // Improved Text Question Card with more nuanced sentiment display
 const TextQuestionCard = ({ data }) => {
   const [expanded, setExpanded] = useState(false);
-  
+
   if (!data) return null;
-  
+
   // Ensure sentiment value exists and is a valid number
-  const sentimentValue = data.sentiment !== undefined && !isNaN(Number(data.sentiment)) 
-    ? Number(data.sentiment) 
+  const sentimentValue = data.sentiment !== undefined && !isNaN(Number(data.sentiment))
+    ? Number(data.sentiment)
     : 0;
-  
+
   // Use displayPercentage if available, otherwise calculate from raw score
   const displayPercentage = data.displayPercentage !== undefined && data.displayPercentage !== null
     ? data.displayPercentage
     : Math.abs(sentimentValue) * 100;
-  
+
   // Check if we have sentiment details
   const sentimentDetails = data.sentimentDetails || {};
-  
+
   // Function to get sentiment color
   const getSentimentColor = (score) => {
     if (score >= 0.5) return 'text-green-600';
@@ -64,7 +64,7 @@ const TextQuestionCard = ({ data }) => {
     if (score <= -0.2) return 'text-red-500';
     return 'text-yellow-500';
   };
-  
+
   // Function to get sentiment icon
   const getSentimentIcon = (score) => {
     if (score >= 0.2) return '😊';
@@ -83,14 +83,14 @@ const TextQuestionCard = ({ data }) => {
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-      <div 
+      <div
         className="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50"
         onClick={() => setExpanded(!expanded)}
       >
         <div className="flex-1">
           <h3 className="font-medium text-gray-900 truncate" title={data.text}>
-            {data.text.length > 60 
-              ? data.text.substring(0, 60) + '...' 
+            {data.text.length > 60
+              ? data.text.substring(0, 60) + '...'
               : data.text}
           </h3>
           <div className="flex items-center mt-1 text-sm">
@@ -110,7 +110,7 @@ const TextQuestionCard = ({ data }) => {
           <ChevronRight className={`h-5 w-5 text-gray-400 transition-transform ${expanded ? 'rotate-90' : ''}`} />
         </div>
       </div>
-      
+
       {expanded && (
         <div className="p-4 pt-0 border-t border-gray-100 bg-gray-50">
           <div className="mt-4">
@@ -118,12 +118,12 @@ const TextQuestionCard = ({ data }) => {
               <span>Statistiques</span>
               <span>{data.responseCount} réponses</span>
             </div>
-            
+
             <div className="grid grid-cols-1 gap-4 mt-2">
               {/* Sentiment Analysis */}
               <div className="bg-white p-3 rounded-lg shadow-sm">
                 <p className="text-sm font-medium text-gray-700 mb-2">Analyse de sentiment</p>
-                
+
                 {data.sentimentCount > 0 ? (
                   <>
                     {/* Sentiment Score Display */}
@@ -133,7 +133,7 @@ const TextQuestionCard = ({ data }) => {
                         {formatSentimentDisplay(sentimentValue, displayPercentage)} {getSentimentIcon(sentimentValue)}
                       </p>
                     </div>
-                    
+
                     {/* Sentiment Bar */}
                     <div className="w-full h-2 bg-gray-200 rounded-full mb-4">
                       <div
@@ -143,7 +143,7 @@ const TextQuestionCard = ({ data }) => {
                         }}
                       />
                     </div>
-                    
+
                     {/* Sentiment Breakdown */}
                     {sentimentDetails.rawScores && sentimentDetails.rawScores.length > 1 && (
                       <div className="mt-3">
@@ -152,7 +152,7 @@ const TextQuestionCard = ({ data }) => {
                           <div className="bg-green-50 p-2 rounded">
                             <p className="text-xs text-gray-500">Positif</p>
                             <p className="font-medium text-green-600">
-                              {sentimentDetails.positiveCount} 
+                              {sentimentDetails.positiveCount}
                               <span className="text-xs text-gray-500 ml-1">
                                 ({Math.round(sentimentDetails.positiveCount / sentimentDetails.rawScores.length * 100)}%)
                               </span>
@@ -179,7 +179,7 @@ const TextQuestionCard = ({ data }) => {
                         </div>
                       </div>
                     )}
-                    
+
                     <p className="text-xs text-gray-500 mt-3">
                       Basé sur {data.sentimentCount} analyse{data.sentimentCount !== 1 ? 's' : ''}
                     </p>
@@ -188,7 +188,7 @@ const TextQuestionCard = ({ data }) => {
                   <p className="text-gray-400">Aucune analyse de sentiment disponible</p>
                 )}
               </div>
-              
+
               {/* Words Analysis */}
               <div className="bg-white p-3 rounded-lg shadow-sm">
                 <p className="text-sm font-medium text-gray-700 mb-1">Analyse textuelle</p>
@@ -212,16 +212,16 @@ const TextQuestionCard = ({ data }) => {
 // Improved Text Analysis Section with more nuanced sentiment display
 const SimpleTextAnalysisSection = ({ textQuestions, stats }) => {
   const [expanded, setExpanded] = useState(false);
-  
+
   if (!textQuestions || textQuestions.length === 0) return null;
-  
+
   // Helper functions for sentiment display
   const getSentimentIcon = (score) => {
     if (score >= 0.2) return '😊';
     if (score <= -0.2) return '😞';
     return '😐';
   };
-  
+
   // Format sentiment as percentage if applicable
   const formatSentiment = (value) => {
     if (Math.abs(value) <= 1) {
@@ -230,15 +230,15 @@ const SimpleTextAnalysisSection = ({ textQuestions, stats }) => {
       return `${Math.round(value)}%`;
     }
   };
-  
+
   // Calculate positive vs negative counts
   const positiveQuestions = textQuestions.filter(q => q.sentiment >= 0.2).length;
   const negativeQuestions = textQuestions.filter(q => q.sentiment <= -0.2).length;
   const neutralQuestions = textQuestions.length - positiveQuestions - negativeQuestions;
-  
+
   return (
     <div className="mb-12">
-      <div 
+      <div
         className="flex items-center justify-between cursor-pointer"
         onClick={() => setExpanded(!expanded)}
       >
@@ -255,7 +255,7 @@ const SimpleTextAnalysisSection = ({ textQuestions, stats }) => {
           <ChevronDown className={`h-5 w-5 text-gray-500 transition-transform ${expanded ? 'rotate-180' : ''}`} />
         </div>
       </div>
-      
+
       {/* Summary bar always visible */}
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mt-4 mb-4">
         <div className="grid grid-cols-3 gap-4">
@@ -271,7 +271,7 @@ const SimpleTextAnalysisSection = ({ textQuestions, stats }) => {
               </p>
             </div>
           </div>
-          
+
           {/* Average Sentiment */}
           <div className="flex items-center">
             <div className="p-2 rounded-lg bg-purple-100 mr-3">
@@ -285,13 +285,13 @@ const SimpleTextAnalysisSection = ({ textQuestions, stats }) => {
               </p>
               {textQuestions.length > 1 && (
                 <p className="text-xs text-gray-500">
-                  {positiveQuestions} positif{positiveQuestions !== 1 ? 's' : ''}, 
+                  {positiveQuestions} positif{positiveQuestions !== 1 ? 's' : ''},
                   {negativeQuestions} négatif{negativeQuestions !== 1 ? 's' : ''}
                 </p>
               )}
             </div>
           </div>
-          
+
           {/* Average Words */}
           <div className="flex items-center">
             <div className="p-2 rounded-lg bg-green-100 mr-3">
@@ -308,7 +308,7 @@ const SimpleTextAnalysisSection = ({ textQuestions, stats }) => {
             </div>
           </div>
         </div>
-        
+
         {/* Add sentiment distribution bar */}
         {textQuestions.length > 0 && (
           <div className="mt-4 px-2">
@@ -327,7 +327,7 @@ const SimpleTextAnalysisSection = ({ textQuestions, stats }) => {
           </div>
         )}
       </div>
-      
+
       {/* Expandable detailed section */}
       {expanded && (
         <div className="grid grid-cols-1 gap-4 mt-2">
@@ -343,12 +343,12 @@ const SimpleTextAnalysisSection = ({ textQuestions, stats }) => {
 // Rating histogram component
 const RatingHistogram = ({ question, data, colorScale = ['#8884d8', '#4169E1', '#0B3D91'] }) => {
   if (!data || !data.histogramData) return null;
-  
+
   const getBarColor = (rating, maxRating) => {
     const index = Math.floor((rating - 1) / maxRating * colorScale.length);
     return colorScale[Math.min(index, colorScale.length - 1)];
   };
-  
+
   return (
     <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
       <div className="mb-6">
@@ -367,23 +367,23 @@ const RatingHistogram = ({ question, data, colorScale = ['#8884d8', '#4169E1', '
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={data.histogramData}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} />
-          <XAxis 
-            dataKey="rating" 
-            label={{ 
-              value: question.question_type === 'stars' ? 'Étoiles' : 'Note', 
-              position: 'insideBottom', 
-              offset: -10 
+          <XAxis
+            dataKey="rating"
+            label={{
+              value: question.question_type === 'stars' ? 'Étoiles' : 'Note',
+              position: 'insideBottom',
+              offset: -10
             }}
           />
-          <YAxis 
-            label={{ 
-              value: 'Nombre de réponses', 
-              angle: -90, 
+          <YAxis
+            label={{
+              value: 'Nombre de réponses',
+              angle: -90,
               position: 'insideLeft',
               style: { textAnchor: 'middle' }
             }}
           />
-          <Tooltip 
+          <Tooltip
             formatter={(value, name, props) => [
               `${value} réponses (${props.payload.percentage}%)`,
               question.question_type === 'stars' ? 'Étoiles' : 'Note'
@@ -391,9 +391,9 @@ const RatingHistogram = ({ question, data, colorScale = ['#8884d8', '#4169E1', '
           />
           <Bar dataKey="count">
             {data.histogramData.map((entry, index) => (
-              <Cell 
-                key={`cell-${index}`} 
-                fill={getBarColor(entry.rating, Math.max(...data.histogramData.map(d => d.rating)))} 
+              <Cell
+                key={`cell-${index}`}
+                fill={getBarColor(entry.rating, Math.max(...data.histogramData.map(d => d.rating)))}
               />
             ))}
           </Bar>
@@ -429,10 +429,10 @@ const AbandonmentAnalysisSection = ({ completionData, formQuestions }) => {
 
   const statusData = completionData.status_breakdown || [];
   const abandonmentByStep = completionData.abandonment_by_question || [];
-  
+
   // Sort questions by ID (assuming lower IDs come first in the survey)
   const sortedQuestions = [...formQuestions].sort((a, b) => a.id - b.id);
-  
+
   // Create a mapping from step number to question
   const stepToQuestionMap = {};
   sortedQuestions.forEach((question, index) => {
@@ -440,7 +440,7 @@ const AbandonmentAnalysisSection = ({ completionData, formQuestions }) => {
     const stepNumber = index + 1;
     stepToQuestionMap[stepNumber] = question;
   });
-  
+
   // Map abandonment data to include question information
   const abandonmentWithQuestions = abandonmentByStep.map(item => {
     const stepNumber = parseInt(item.step_number);
@@ -453,21 +453,21 @@ const AbandonmentAnalysisSection = ({ completionData, formQuestions }) => {
       abandonment_count: parseInt(item.abandonment_count)
     };
   });
-  
+
   // Sort data by step number
   const sortedAbandonmentData = [...abandonmentWithQuestions]
     .sort((a, b) => a.question_number - b.question_number);
-    
+
   // Map sequence numbers (1, 2, 3...) to question database IDs
   const questionNumberMap = {};
   sortedQuestions.forEach((q, index) => {
     questionNumberMap[q.id] = index + 1; // 1-based numbering
   });
-  
+
   // Prepare data for status pie chart
   const statusChartData = statusData.map(item => ({
-    name: item.status === 'completed' ? 'Complétés' : 
-          item.status === 'abandoned' ? 'Abandonnés' : 'En cours',
+    name: item.status === 'completed' ? 'Complétés' :
+      item.status === 'abandoned' ? 'Abandonnés' : 'En cours',
     value: parseInt(item.count),
     percentage: parseFloat(item.percentage),
     originalStatus: item.status
@@ -475,7 +475,7 @@ const AbandonmentAnalysisSection = ({ completionData, formQuestions }) => {
 
   return (
     <div className="mb-12">
-      <div 
+      <div
         className="flex items-center justify-between cursor-pointer"
         onClick={() => setExpanded(!expanded)}
       >
@@ -513,14 +513,14 @@ const AbandonmentAnalysisSection = ({ completionData, formQuestions }) => {
                       labelLine={false}
                     >
                       {statusChartData.map((entry, index) => (
-                        <Cell 
-                          key={`cell-${index}`} 
-                          fill={entry.originalStatus === 'completed' ? '#4CAF50' : 
-                               entry.originalStatus === 'abandoned' ? '#F44336' : '#FFC107'} 
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={entry.originalStatus === 'completed' ? '#4CAF50' :
+                            entry.originalStatus === 'abandoned' ? '#F44336' : '#FFC107'}
                         />
                       ))}
                     </Pie>
-                    <Tooltip 
+                    <Tooltip
                       formatter={(value, name, props) => [
                         `${value} formulaires (${props.payload.percentage.toFixed(1)}%)`,
                         props.payload.name
@@ -535,7 +535,7 @@ const AbandonmentAnalysisSection = ({ completionData, formQuestions }) => {
                 </div>
               )}
             </div>
-            
+
             {/* Abandonment by question bar chart */}
             <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
               <h3 className="text-lg font-semibold mb-4">Abandons par question</h3>
@@ -543,21 +543,21 @@ const AbandonmentAnalysisSection = ({ completionData, formQuestions }) => {
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={sortedAbandonmentData}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis 
-                      dataKey="question_number" 
+                    <XAxis
+                      dataKey="question_number"
                       label={{ value: 'Numéro de question', position: 'insideBottom', offset: -10 }}
                     />
-                    <YAxis 
+                    <YAxis
                       label={{ value: 'Nombre d\'abandons', angle: -90, position: 'insideLeft' }}
                     />
-                    <Tooltip 
+                    <Tooltip
                       formatter={(value) => [`${value} abandons`]}
                       labelFormatter={(label) => `Question ${label}`}
                     />
-                    <Bar 
-                      dataKey="abandonment_count" 
-                      name="Abandons" 
-                      fill="#F44336" 
+                    <Bar
+                      dataKey="abandonment_count"
+                      name="Abandons"
+                      fill="#F44336"
                     />
                   </BarChart>
                 </ResponsiveContainer>
@@ -568,7 +568,7 @@ const AbandonmentAnalysisSection = ({ completionData, formQuestions }) => {
               )}
             </div>
           </div>
-          
+
           {/* Detailed table of abandonment by question */}
           {sortedAbandonmentData.length > 0 && (
             <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 mt-6">
@@ -607,7 +607,7 @@ const AbandonmentAnalysisSection = ({ completionData, formQuestions }) => {
               </div>
             </div>
           )}
-          
+
           {sortedAbandonmentData.length === 0 && (
             <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 mt-6 text-center text-gray-500">
               Aucune donnée d'abandon n'est disponible pour ce formulaire.
@@ -648,28 +648,28 @@ const EnhancedSurveyAnalytics = ({ formId, externalFeedbackData = [] }) => {
       try {
         setLoading(true);
         setError(null);
-  
+
         const questionsUrl = `${API_URL}/api/forms/${formId}/questions`;
         const responsesUrl = `${API_URL}/api/analytics/responses?form_id=${formId}`;
         const formUrl = `${API_URL}/api/forms/${formId}`;
         const lowSatisfactionUrl = `${API_URL}/api/low-satisfaction?form_id=${formId}`;
-        
+
         const fetchOptions = {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' }
         };
-        
+
         const [questionsRes, responsesRes, formRes, lowSatisfactionRes] = await Promise.all([
           fetch(questionsUrl, fetchOptions),
           fetch(responsesUrl, fetchOptions),
           fetch(formUrl, fetchOptions),
           fetch(lowSatisfactionUrl, fetchOptions)
         ]);
-  
+
         if (!questionsRes.ok || !responsesRes.ok || !formRes.ok) {
           throw new Error('Failed to fetch data');
         }
-  
+
         const questionsData = await questionsRes.json();
         const responsesData = await responsesRes.json();
         const formData = await formRes.json();
@@ -679,9 +679,9 @@ const EnhancedSurveyAnalytics = ({ formId, externalFeedbackData = [] }) => {
           const surveyCompletionRes = await fetch(surveyCompletionUrl, fetchOptions);
           if (surveyCompletionRes.ok) {
             const completionData = await surveyCompletionRes.json();
-            
+
             console.log('Raw survey completion data:', completionData);
-            
+
             // If the backend is still using the old format, we need to rename the fields
             if (completionData.abandonment_by_question) {
               completionData.abandonment_by_question = completionData.abandonment_by_question.map(item => {
@@ -696,39 +696,39 @@ const EnhancedSurveyAnalytics = ({ formId, externalFeedbackData = [] }) => {
                 return item;
               });
             }
-            
+
             setSurveyCompletionData(completionData);
           }
         } catch (err) {
           console.error('Error fetching survey completion data:', err);
         }
-  
+
         const processedQuestions = questionsData.map(q => ({
           ...q,
-          options: Array.isArray(q.options) 
-            ? q.options 
-            : (typeof q.options === 'string' 
-              ? JSON.parse(q.options || '[]') 
+          options: Array.isArray(q.options)
+            ? q.options
+            : (typeof q.options === 'string'
+              ? JSON.parse(q.options || '[]')
               : [])
         }));
-  
+
         // Using externalFeedbackData instead of making a separate API call
         const feedbackAnalysisData = externalFeedbackData;
-  
+
         // Calculate sentiment statistics
         let totalSentimentScore = 0;
         let totalSentimentResponses = 0;
         let positiveResponses = 0;
         let totalFormSubmissions = responsesData.length;
-        
+
         // NEW: Track display percentages for averaging
         let totalDisplayPercentage = 0;
         let displayPercentageCount = 0;
-        
+
         // Count unique survey_ids to get actual form submissions
         const uniqueSurveyIds = new Set(responsesData.map(response => response.survey_id));
         const actualFormSubmissions = uniqueSurveyIds.size;
-  
+
         // Process feedback data from external source
         feedbackAnalysisData.forEach(feedback => {
           try {
@@ -736,28 +736,28 @@ const EnhancedSurveyAnalytics = ({ formId, externalFeedbackData = [] }) => {
             if (formId && String(feedback.form_id) !== String(formId)) {
               return;
             }
-            
+
             // Extract sentiment data
             const analysis = feedback.analysis;
             if (analysis && analysis.overall && analysis.overall.sentiment) {
               // Process raw sentiment score
               if (analysis.overall.sentiment.score !== undefined) {
                 const score = Number(analysis.overall.sentiment.score);
-                
+
                 if (!isNaN(score)) {
                   totalSentimentScore += score;
                   totalSentimentResponses++;
-                  
+
                   if (score >= 0.2) {
                     positiveResponses++;
                   }
                 }
               }
-              
+
               // NEW: Process display percentage if available
               if (analysis.overall.sentiment.displayPercentage !== undefined) {
                 const displayPercentage = Number(analysis.overall.sentiment.displayPercentage);
-                
+
                 if (!isNaN(displayPercentage)) {
                   totalDisplayPercentage += displayPercentage;
                   displayPercentageCount++;
@@ -768,29 +768,29 @@ const EnhancedSurveyAnalytics = ({ formId, externalFeedbackData = [] }) => {
             console.error('Error processing feedback analysis:', e);
           }
         });
-  
+
         setQuestions(processedQuestions);
         setResponses(responsesData);
         setFormName(formData.name || 'Formulaire sans nom');
-        
+
         // Process text questions
         const textQuestions = processedQuestions.filter(q => q.question_type === 'text');
-        
+
         // Use new method that uses external feedback data
         const textQuestionsStats = processTextQuestionsFromFeedback(
-          textQuestions, 
-          responsesData, 
-          feedbackAnalysisData, 
+          textQuestions,
+          responsesData,
+          feedbackAnalysisData,
           formId
         );
-        
+
         setTextQuestionsData(textQuestionsStats.questions);
-        
+
         // NEW: Calculate average display percentage
-        const avgDisplayPercentage = displayPercentageCount > 0 
-          ? totalDisplayPercentage / displayPercentageCount 
+        const avgDisplayPercentage = displayPercentageCount > 0
+          ? totalDisplayPercentage / displayPercentageCount
           : 0;
-        
+
         setStats({
           totalFormSubmissions: actualFormSubmissions || totalFormSubmissions,
           totalResponses: responsesData.length,
@@ -811,7 +811,7 @@ const EnhancedSurveyAnalytics = ({ formId, externalFeedbackData = [] }) => {
         setLoading(false);
       }
     };
-  
+
     if (formId) {
       fetchData();
     }
@@ -823,10 +823,10 @@ const EnhancedSurveyAnalytics = ({ formId, externalFeedbackData = [] }) => {
     console.log("Number of text questions:", textQuestions.length);
     console.log("Number of responses:", responsesData.length);
     console.log("Number of feedback items:", feedbackData.length);
-    
+
     // Create a map of question IDs to feedback data
     const questionFeedbackMap = new Map();
-    
+
     // Group feedback by question ID
     feedbackData.forEach(feedback => {
       if (String(feedback.form_id) === String(formId) && feedback.questionId) {
@@ -836,33 +836,33 @@ const EnhancedSurveyAnalytics = ({ formId, externalFeedbackData = [] }) => {
         questionFeedbackMap.get(String(feedback.questionId)).push(feedback);
       }
     });
-    
+
     console.log("Question feedback map size:", questionFeedbackMap.size);
-    
+
     let totalResponses = 0;
     let totalWords = 0;
     let totalSentiment = 0;
     let analyzedCount = 0;
-    
+
     const processedQuestions = textQuestions.map(question => {
       console.log(`Processing question ${question.id}: ${question.question_text}`);
-      
+
       let questionResponses = 0;
       let questionWords = 0;
       let questionSentiment = 0;
       let questionSentimentCount = 0;
-      
+
       // First count regular responses
       responsesData.forEach(survey => {
         if (String(survey.form_id) === String(formId) && Array.isArray(survey.responses)) {
           survey.responses.forEach(response => {
-            if (String(response.question_id) === String(question.id) && 
-                response.answer && 
-                response.answer.trim()) {
-              
+            if (String(response.question_id) === String(question.id) &&
+              response.answer &&
+              response.answer.trim()) {
+
               // Count this as a valid response
               questionResponses++;
-              
+
               // Count words
               const words = response.answer.trim().split(/\s+/).length;
               questionWords += words;
@@ -870,24 +870,24 @@ const EnhancedSurveyAnalytics = ({ formId, externalFeedbackData = [] }) => {
           });
         }
       });
-      
+
       // Now process sentiment from feedback data
       const questionFeedback = questionFeedbackMap.get(String(question.id)) || [];
       console.log(`Found ${questionFeedback.length} feedback items for question ${question.id}`);
-      
+
       // Track raw scores and display percentages separately
       const sentimentScores = [];
       const displayPercentages = [];
-      
+
       questionFeedback.forEach(feedback => {
-        if (feedback.analysis && 
-            feedback.analysis.overall && 
-            feedback.analysis.overall.sentiment) {
-          
+        if (feedback.analysis &&
+          feedback.analysis.overall &&
+          feedback.analysis.overall.sentiment) {
+
           // Process raw sentiment score
           if (feedback.analysis.overall.sentiment.score !== undefined) {
             const score = Number(feedback.analysis.overall.sentiment.score);
-            
+
             if (!isNaN(score)) {
               console.log(`Found valid sentiment score: ${score}`);
               questionSentiment += score;
@@ -895,17 +895,17 @@ const EnhancedSurveyAnalytics = ({ formId, externalFeedbackData = [] }) => {
               questionSentimentCount++;
             }
           }
-          
+
           // Also capture display percentage if available
           if (feedback.analysis.overall.sentiment.displayPercentage !== undefined) {
             const percentage = Number(feedback.analysis.overall.sentiment.displayPercentage);
-            
+
             if (!isNaN(percentage)) {
               console.log(`Found display percentage: ${percentage}%`);
               displayPercentages.push(percentage);
             }
           }
-          
+
           // Count words if we have the original text
           if (feedback.originalText) {
             const feedbackWords = feedback.originalText.trim().split(/\s+/).length;
@@ -916,26 +916,26 @@ const EnhancedSurveyAnalytics = ({ formId, externalFeedbackData = [] }) => {
           }
         }
       });
-      
+
       // If we have feedback but no responses counted yet, use feedback count
       if (questionResponses === 0 && questionFeedback.length > 0) {
         questionResponses = questionFeedback.length;
       }
-      
+
       // Calculate averages for this question
       const avgWords = questionResponses > 0 ? Math.round(questionWords / questionResponses) : 0;
-      
+
       // Calculate more precise sentiment averages
       const avgSentiment = questionSentimentCount > 0 ? (questionSentiment / questionSentimentCount) : 0;
-      
+
       // Calculate average display percentage (if available)
-      const avgDisplayPercentage = displayPercentages.length > 0 
-        ? displayPercentages.reduce((sum, pct) => sum + pct, 0) / displayPercentages.length 
+      const avgDisplayPercentage = displayPercentages.length > 0
+        ? displayPercentages.reduce((sum, pct) => sum + pct, 0) / displayPercentages.length
         : null;
-      
+
       // Determine if the average sentiment is positive or negative
       const isPositive = avgSentiment >= 0;
-      
+
       // Create a more detailed sentiment object
       const sentimentDetails = {
         score: avgSentiment,
@@ -947,7 +947,7 @@ const EnhancedSurveyAnalytics = ({ formId, externalFeedbackData = [] }) => {
         negativeCount: sentimentScores.filter(score => score <= -0.2).length,
         neutralCount: sentimentScores.filter(score => score > -0.2 && score < 0.2).length
       };
-      
+
       // Log results for this question with more detail
       console.log(`Question ${question.id} final stats:`, {
         responses: questionResponses,
@@ -959,13 +959,13 @@ const EnhancedSurveyAnalytics = ({ formId, externalFeedbackData = [] }) => {
         displayPercentage: avgDisplayPercentage,
         sentimentDetails
       });
-      
+
       // Update totals
       totalResponses += questionResponses;
       totalWords += questionWords;
       totalSentiment += questionSentiment;
       analyzedCount += questionSentimentCount;
-      
+
       return {
         id: question.id,
         text: question.question_text,
@@ -979,11 +979,11 @@ const EnhancedSurveyAnalytics = ({ formId, externalFeedbackData = [] }) => {
         displayPercentage: avgDisplayPercentage
       };
     }).filter(q => q.responseCount > 0); // Only include questions with responses
-    
+
     // Calculate overall averages
     const averageWords = totalResponses > 0 ? Math.round(totalWords / totalResponses) : 0;
     const averageSentiment = analyzedCount > 0 ? (totalSentiment / analyzedCount) : 0;
-    
+
     // Log overall results
     console.log("Overall text analysis results:", {
       processedQuestions: processedQuestions.length,
@@ -994,7 +994,7 @@ const EnhancedSurveyAnalytics = ({ formId, externalFeedbackData = [] }) => {
       analyzedCount,
       averageSentiment
     });
-    
+
     return {
       questions: processedQuestions,
       totalResponses,
@@ -1004,107 +1004,107 @@ const EnhancedSurveyAnalytics = ({ formId, externalFeedbackData = [] }) => {
     };
   };
 
-  
+
   // Process response data for visualization (charts)
-const processResponseData = (questionId) => {
-  const question = questions.find(q => q.id === questionId);
-  if (!question) return [];
+  const processResponseData = (questionId) => {
+    const question = questions.find(q => q.id === questionId);
+    if (!question) return [];
 
-  // For choice questions with options
-  if (question.question_type === 'choice' && Array.isArray(question.options)) {
-    const counts = {};
-    question.options.forEach(option => {
-      counts[option] = 0;
-    });
+    // For choice questions with options
+    if (question.question_type === 'choice' && Array.isArray(question.options)) {
+      const counts = {};
+      question.options.forEach(option => {
+        counts[option] = 0;
+      });
 
-    let totalResponses = 0;
-    responses.forEach(survey => {
-      if (!formId || survey.form_id === formId) {
-        const response = survey.responses.find(r => r.question_id === questionId);
-        if (response && response.answer && counts.hasOwnProperty(response.answer)) {
-          counts[response.answer]++;
-          totalResponses++;
-        }
-      }
-    });
-
-    return Object.entries(counts).map(([label, value]) => ({
-      label,
-      value,
-      percentage: totalResponses > 0 ? (value / totalResponses) : 0
-    }));
-  }
-  
-  // For rating questions (stars, numeric)
-  if (question.question_type === 'rating' || question.question_type === 'stars' || question.question_type === 'number') {
-    const maxValue = question.max_value || 5; // Default to 5 for stars if not specified
-    const counts = {};
-    
-    // Initialize counts for all possible values (1 to maxValue)
-    for (let i = 1; i <= maxValue; i++) {
-      counts[i] = 0;
-    }
-    
-    let totalResponses = 0;
-    let totalScore = 0;
-    
-    responses.forEach(survey => {
-      if (!formId || survey.form_id === formId) {
-        const response = survey.responses.find(r => r.question_id === questionId);
-        if (response && response.answer) {
-          const numericAnswer = parseInt(response.answer, 10);
-          if (!isNaN(numericAnswer) && numericAnswer >= 1 && numericAnswer <= maxValue) {
-            counts[numericAnswer]++;
+      let totalResponses = 0;
+      responses.forEach(survey => {
+        if (!formId || survey.form_id === formId) {
+          const response = survey.responses.find(r => r.question_id === questionId);
+          if (response && response.answer && counts.hasOwnProperty(response.answer)) {
+            counts[response.answer]++;
             totalResponses++;
-            totalScore += numericAnswer;
           }
         }
+      });
+
+      return Object.entries(counts).map(([label, value]) => ({
+        label,
+        value,
+        percentage: totalResponses > 0 ? (value / totalResponses) : 0
+      }));
+    }
+
+    // For rating questions (stars, numeric)
+    if (question.question_type === 'rating' || question.question_type === 'stars' || question.question_type === 'number') {
+      const maxValue = question.max_value || 5; // Default to 5 for stars if not specified
+      const counts = {};
+
+      // Initialize counts for all possible values (1 to maxValue)
+      for (let i = 1; i <= maxValue; i++) {
+        counts[i] = 0;
       }
-    });
-    
-    const averageScore = totalResponses > 0 ? (totalScore / totalResponses).toFixed(1) : 0;
-    
-    return {
-      histogramData: Object.entries(counts).map(([rating, count]) => ({
-        rating: parseInt(rating),
-        count,
-        percentage: totalResponses > 0 ? (count / totalResponses * 100).toFixed(1) : 0
-      })),
-      averageScore,
-      totalResponses
-    };
+
+      let totalResponses = 0;
+      let totalScore = 0;
+
+      responses.forEach(survey => {
+        if (!formId || survey.form_id === formId) {
+          const response = survey.responses.find(r => r.question_id === questionId);
+          if (response && response.answer) {
+            const numericAnswer = parseInt(response.answer, 10);
+            if (!isNaN(numericAnswer) && numericAnswer >= 1 && numericAnswer <= maxValue) {
+              counts[numericAnswer]++;
+              totalResponses++;
+              totalScore += numericAnswer;
+            }
+          }
+        }
+      });
+
+      const averageScore = totalResponses > 0 ? (totalScore / totalResponses).toFixed(1) : 0;
+
+      return {
+        histogramData: Object.entries(counts).map(([rating, count]) => ({
+          rating: parseInt(rating),
+          count,
+          percentage: totalResponses > 0 ? (count / totalResponses * 100).toFixed(1) : 0
+        })),
+        averageScore,
+        totalResponses
+      };
+    }
+
+    return [];
   }
-  
-  return [];
-}
 
   // Get chart data for a specific question
   const getChartData = (questionId) => {
     const question = questions.find(q => q.id === questionId);
     const data = processResponseData(questionId);
-    
+
     if (!question) return [];
-    
+
     // For choice questions
     if (question.question_type === 'choice' && Array.isArray(data)) {
       return data.filter(item => item.value > 0);
     }
-    
+
     // For rating questions, data already has the correct format
     return data;
   };
 
   // Filter questions by type for different visualizations
-  const choiceQuestions = questions.filter(q => 
-    q.question_type === 'choice' && 
-    Array.isArray(q.options) && 
+  const choiceQuestions = questions.filter(q =>
+    q.question_type === 'choice' &&
+    Array.isArray(q.options) &&
     q.options.length > 0
   );
-  
+
   // Filter rating questions (stars, numeric ratings)
-  const ratingQuestions = questions.filter(q => 
-    q.question_type === 'rating' || 
-    q.question_type === 'stars' || 
+  const ratingQuestions = questions.filter(q =>
+    q.question_type === 'rating' ||
+    q.question_type === 'stars' ||
     (q.question_type === 'number' && q.max_value > 0)
   );
 
@@ -1127,15 +1127,14 @@ const processResponseData = (questionId) => {
   }
 
   // Calculate statistics
-  const positiveRate = stats.totalAnalyzed > 0 
+  const positiveRate = stats.totalAnalyzed > 0
     ? ((stats.positiveResponses / stats.totalAnalyzed) * 100).toFixed(1)
     : '0.0';
 
-  const satisfactionRate = stats.totalResponses > 0 
+  const satisfactionRate = stats.totalResponses > 0
     ? ((stats.totalResponses - stats.unsatisfiedUsers) / stats.totalResponses * 100).toFixed(1)
     : '0.0';
 
-  const averageSentimentFormatted = stats.averageSentiment.toFixed(2);
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">
@@ -1149,51 +1148,51 @@ const processResponseData = (questionId) => {
         </div>
 
         {/* Statistics Summary Section */}
-<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12 mx-auto max-w-4xl">
-  <StatCard
-    icon={CheckCircle2}
-    title="Formulaires soumis"
-    value={stats.totalFormSubmissions}
-    description="Nombre de soumissions complètes"
-    colorClass="bg-blue-600"
-  />
-  <StatCard
-    icon={AlertTriangle}
-    title="Utilisateurs insatisfaits"
-    value={stats.unsatisfiedUsers}
-    description="Nécessitant une attention particulière"
-    colorClass="bg-red-500"
-  />
-  <StatCard
-    icon={ThumbsUp}
-    title="Réponses textuelles positives"
-    value={`${positiveRate}%`}
-    description={`${stats.positiveResponses} sur ${stats.totalAnalyzed} analysées`}
-    colorClass="bg-green-500"
-  />
-  <StatCard
-    icon={MessageSquare}
-    title="Taux de satisfaction"
-    value={`${satisfactionRate}%`}
-    description="Basé sur les retours clients"
-    colorClass="bg-indigo-500"
-  />
-</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12 mx-auto max-w-4xl">
+          <StatCard
+            icon={CheckCircle2}
+            title="Formulaires soumis"
+            value={stats.totalFormSubmissions}
+            description="Nombre de soumissions complètes"
+            colorClass="bg-blue-600"
+          />
+          <StatCard
+            icon={AlertTriangle}
+            title="Utilisateurs insatisfaits"
+            value={stats.unsatisfiedUsers}
+            description="Nécessitant une attention particulière"
+            colorClass="bg-red-500"
+          />
+          <StatCard
+            icon={ThumbsUp}
+            title="Réponses textuelles positives"
+            value={`${positiveRate}%`}
+            description={`${stats.positiveResponses} sur ${stats.totalAnalyzed} analysées`}
+            colorClass="bg-green-500"
+          />
+          <StatCard
+            icon={MessageSquare}
+            title="Taux de satisfaction"
+            value={`${satisfactionRate}%`}
+            description="Basé sur les retours clients"
+            colorClass="bg-indigo-500"
+          />
+        </div>
         {/* Survey Completion Analysis Section */}
         {surveyCompletionData && (
-          <AbandonmentAnalysisSection 
+          <AbandonmentAnalysisSection
             completionData={surveyCompletionData}
-            formQuestions={questions} 
+            formQuestions={questions}
           />
         )}
         {/* Simplified Text Analysis Section */}
-        <SimpleTextAnalysisSection 
-          textQuestions={textQuestionsData} 
-          stats={{ 
+        <SimpleTextAnalysisSection
+          textQuestions={textQuestionsData}
+          stats={{
             totalTextResponses: stats.totalTextResponses,
             averageSentiment: stats.averageDisplayPercentage,
             averageWords: stats.averageWords
-          }} 
+          }}
         />
 
         {/* Pie Charts for Choice Questions */}
@@ -1204,10 +1203,10 @@ const processResponseData = (questionId) => {
               {choiceQuestions.map(question => {
                 const chartData = getChartData(question.id);
                 if (!chartData || chartData.length === 0) return null;
-                
+
                 return (
-                  <div key={question.id} 
-                      className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+                  <div key={question.id}
+                    className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
                     <h2 className="text-xl font-semibold mb-6">
                       {question.question_text}
                     </h2>
@@ -1225,20 +1224,20 @@ const processResponseData = (questionId) => {
                           minAngle={10}
                         >
                           {chartData.map((entry, index) => (
-                            <Cell 
-                              key={`cell-${index}`} 
-                              fill={COLORS[index % COLORS.length]} 
+                            <Cell
+                              key={`cell-${index}`}
+                              fill={COLORS[index % COLORS.length]}
                             />
                           ))}
                         </Pie>
-                        <Tooltip 
+                        <Tooltip
                           formatter={(value, name, props) => [
                             `${value} réponses (${(props.payload.percentage * 100).toFixed(1)}%)`,
                             props.payload.label
                           ]}
                         />
-                        <Legend 
-                          verticalAlign="bottom" 
+                        <Legend
+                          verticalAlign="bottom"
                           height={36}
                           formatter={(value, entry) => entry.payload.label}
                         />
@@ -1259,15 +1258,15 @@ const processResponseData = (questionId) => {
               {ratingQuestions.map(question => {
                 const data = getChartData(question.id);
                 if (!data || !data.histogramData) return null;
-                
+
                 return (
-                  <RatingHistogram 
-                    key={question.id} 
-                    question={question} 
-                    data={data} 
-                    colorScale={question.question_type === 'stars' ? 
-                      ['#FFD700', '#FFC107', '#FF9800', '#1E88E5', '#0D47A1'] : 
-                      ['#82ca9d', '#4169E1', '#0B3D91']} 
+                  <RatingHistogram
+                    key={question.id}
+                    question={question}
+                    data={data}
+                    colorScale={question.question_type === 'stars' ?
+                      ['#FFD700', '#FFC107', '#FF9800', '#1E88E5', '#0D47A1'] :
+                      ['#82ca9d', '#4169E1', '#0B3D91']}
                   />
                 );
               })}

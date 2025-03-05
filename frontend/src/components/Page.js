@@ -7,8 +7,7 @@ import {
     Users,
     ArrowLeft,
     Loader,
-    Trash2,
-    Settings
+    Trash2
 } from 'lucide-react';
 import logo from '../assets/logo.png'; // Import the logo
 
@@ -55,8 +54,8 @@ const Page = ({
     const [formInfo, setFormInfo] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [availableForms, setAvailableForms] = useState(propAvailableForms || []);
-    
+    const [availableForms] = useState(propAvailableForms || []);
+
     // État pour les modales - on garde showDeleteModal local mais pas showEditModal qui vient des props
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [editFormName, setEditFormName] = useState('');
@@ -160,7 +159,7 @@ const Page = ({
             setEditFormDescription(formInfo.description || '');
         }
     }, [formInfo]);
-    
+
     // Initialiser les champs lors de l'ouverture de la modale
     useEffect(() => {
         if (showEditModal && formInfo) {
@@ -189,9 +188,9 @@ const Page = ({
     // Fonction pour supprimer un formulaire
     const handleDeleteForm = async () => {
         if (!selectedFormId) return;
-        
+
         setIsSubmitting(true);
-        
+
         try {
             const response = await fetch(`${API_URL || 'http://localhost:5000'}/api/forms/${selectedFormId}`, {
                 method: 'DELETE',
@@ -206,7 +205,7 @@ const Page = ({
 
             // Fermer la modale et rediriger vers la liste des formulaires
             setShowDeleteModal(false);
-            
+
             // Informer l'application parente qu'un formulaire a été supprimé
             if (typeof onFormDeleted === 'function') {
                 onFormDeleted(selectedFormId);
@@ -225,9 +224,9 @@ const Page = ({
     // Fonction pour mettre à jour un formulaire
     const handleUpdateForm = async () => {
         if (!selectedFormId) return;
-        
+
         setIsSubmitting(true);
-        
+
         try {
             const response = await fetch(`${API_URL || 'http://localhost:5000'}/api/forms/${selectedFormId}`, {
                 method: 'PUT',
@@ -251,10 +250,10 @@ const Page = ({
                 name: editFormName,
                 description: editFormDescription
             });
-            
+
             // Fermer la modale
             setShowEditModal(false);
-            
+
 
         } catch (error) {
             console.error('Erreur lors de la mise à jour du formulaire:', error);
@@ -426,7 +425,7 @@ const Page = ({
                                     <h2 className="text-3xl font-bold text-black text-center mb-4">
                                         {getFormName()}
                                     </h2>
-                                    
+
                                     {/* Afficher la description si disponible */}
                                     {formInfo?.description && (
                                         <p className="text-gray-600 text-center mb-8 max-w-2xl mx-auto">
@@ -454,27 +453,27 @@ const Page = ({
                     ))}
                 </div>
             </div>
-            
+
             {/* Modal de confirmation de suppression */}
             {showDeleteModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]">
                     <div className="bg-white rounded-lg shadow-xl w-[500px] p-6 animate-slideUp">
                         <h2 className="text-xl font-semibold text-red-600 mb-4">Confirmer la suppression</h2>
-                        
+
                         <p className="mb-6 text-gray-700">
-                            Êtes-vous sûr de vouloir supprimer le formulaire "{getFormName()}" ? 
+                            Êtes-vous sûr de vouloir supprimer le formulaire "{getFormName()}" ?
                             Cette action est irréversible et supprimera toutes les données associées.
                         </p>
-                        
+
                         <div className="flex justify-end space-x-2">
-                            <button 
+                            <button
                                 onClick={() => setShowDeleteModal(false)}
                                 className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
                                 disabled={isSubmitting}
                             >
                                 Annuler
                             </button>
-                            <button 
+                            <button
                                 onClick={handleDeleteForm}
                                 className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 disabled:opacity-50 transition-colors flex items-center"
                                 disabled={isSubmitting}
@@ -486,16 +485,16 @@ const Page = ({
                     </div>
                 </div>
             )}
-            
+
             {/* Modal d'édition des détails du formulaire */}
             {showEditModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]">
                     <div className="bg-white rounded-lg shadow-xl w-[600px] p-6 animate-slideUp">
                         <h2 className="text-xl font-semibold text-blue-900 mb-4">Modifier les détails du formulaire</h2>
-                        
+
                         <div className="mb-4">
                             <label className="block text-sm font-medium text-gray-700 mb-2">Nom du formulaire</label>
-                            <input 
+                            <input
                                 type="text"
                                 placeholder="Saisissez le nom du formulaire"
                                 value={editFormName}
@@ -504,19 +503,19 @@ const Page = ({
                                 required
                             />
                         </div>
-                        
+
                         <div className="mb-6">
                             <label className="block text-sm font-medium text-gray-700 mb-2">Description (optionnel)</label>
-                            <textarea 
+                            <textarea
                                 placeholder="Saisissez une description"
                                 value={editFormDescription}
                                 onChange={(e) => setEditFormDescription(e.target.value)}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md h-24 focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                         </div>
-                        
+
                         <div className="flex justify-between items-center mt-8">
-                            <button 
+                            <button
                                 onClick={() => {
                                     setShowEditModal(false);
                                     setShowDeleteModal(true);
@@ -527,16 +526,16 @@ const Page = ({
                                 <Trash2 className="w-4 h-4" />
                                 <span>Supprimer</span>
                             </button>
-                            
+
                             <div className="flex gap-2">
-                                <button 
+                                <button
                                     onClick={() => setShowEditModal(false)}
                                     className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
                                     disabled={isSubmitting}
                                 >
                                     Annuler
                                 </button>
-                                <button 
+                                <button
                                     onClick={handleUpdateForm}
                                     disabled={!editFormName || isSubmitting}
                                     className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50 transition-colors flex items-center"
