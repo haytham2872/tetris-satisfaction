@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import './index.css';
 import { useSurvey } from './components/hooks/useSurvey';
 import { useChat } from './components/hooks/usechat';
@@ -22,8 +22,6 @@ function ClientApp() {
   const [showContactScreen, setShowContactScreen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [formError, setFormError] = useState(null);
-  const navigate = useNavigate();
-  const location = useLocation();
 
   const {
     currentStep,
@@ -44,7 +42,7 @@ function ClientApp() {
     contactFormSkipped,
     setContactFormSkipped,
     saveCurrentResponse
-  } = useSurvey(formId); 
+  } = useSurvey(formId);
 
   const { messageHistory } = useChat(
     currentStep,
@@ -93,7 +91,7 @@ function ClientApp() {
       if (surveyId && !showThankYou && questions.length > 0) {
         // Use the human-friendly step number (1-based)
         const stepNumber = currentStep + 1;
-        
+
         console.log(`[ClientApp] Marking survey ${surveyId} as abandoned at step ${stepNumber}`);
         updateSurveyStatus(surveyId, 'abandoned', stepNumber);
       }
@@ -106,9 +104,9 @@ function ClientApp() {
       if (surveyId && !showThankYou) {
         // Use the human-friendly step number (1-based)
         const stepNumber = currentStep + 1;
-        
+
         console.log(`[ClientApp] Marking survey ${surveyId} as abandoned at step ${stepNumber}`);
-        
+
         // Use synchronous XHR for beforeunload
         const xhr = new XMLHttpRequest();
         xhr.open('PUT', `${process.env.REACT_APP_API_URL}/api/surveys/${surveyId}/status`, false);
@@ -117,14 +115,14 @@ function ClientApp() {
           status: 'abandoned',
           last_question_id: stepNumber  // Use step number instead of question ID
         }));
-        
+
         event.preventDefault();
         event.returnValue = '';
       }
     };
-  
+
     window.addEventListener('beforeunload', handleBeforeUnload);
-    
+
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };

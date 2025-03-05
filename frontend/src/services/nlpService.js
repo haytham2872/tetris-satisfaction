@@ -19,7 +19,7 @@ const POSITIVE_LEXICON = {
   'merveilleux': 3.5,
   'impressionnant': 3,
   'ravi': 3,
-  
+
   // Moderate positive (score 2-2.9)
   'très satisfait': 2.8,
   'très content': 2.8,
@@ -40,7 +40,7 @@ const POSITIVE_LEXICON = {
   'pratique': 2,
   'compétent': 2,
   'professionnel': 2,
-  
+
   // Mild positive (score 0.5-1.9)
   'plutôt bien': 1.8,
   'assez bien': 1.7,
@@ -76,7 +76,7 @@ const NEGATIVE_LEXICON = {
   'très déçu': 3.2,
   'très mécontent': 3.2,
   'extrêmement frustrant': 3,
-  
+
   // Moderate negative (score 2-2.9)
   'mauvais': 2.8,
   'pénible': 2.7,
@@ -97,7 +97,7 @@ const NEGATIVE_LEXICON = {
   'erreur': 2,
   'bug': 2,
   'lent': 2,
-  
+
   // Mild negative (score 0.5-1.9)
   'pas idéal': 1.8,
   'pas parfait': 1.7,
@@ -154,7 +154,7 @@ function splitIntoSentences(text) {
  */
 function findSentimentPhrases(text, dictionary) {
   const results = [];
-  
+
   for (const entry of dictionary) {
     if (entry.pattern.test(text)) {
       results.push({
@@ -164,7 +164,7 @@ function findSentimentPhrases(text, dictionary) {
       });
     }
   }
-  
+
   return results;
 }
 
@@ -186,7 +186,7 @@ function isNegated(text) {
 function extractSentiment(text, lexicon) {
   const words = text.toLowerCase().split(/\s+/);
   const results = [];
-  
+
   // Check for multi-word terms first (up to 3 words)
   for (let i = 0; i < words.length; i++) {
     for (let wordCount = 3; wordCount > 0; wordCount--) {
@@ -203,7 +203,7 @@ function extractSentiment(text, lexicon) {
       }
     }
   }
-  
+
   // Get single word terms we didn't capture above
   for (let i = 0; i < words.length; i++) {
     const word = words[i];
@@ -215,7 +215,7 @@ function extractSentiment(text, lexicon) {
       });
     }
   }
-  
+
   return results;
 }
 
@@ -227,49 +227,49 @@ function analyzeSentiment(text) {
     // Normalize the text
     const normalizedText = text.toLowerCase();
     const sentences = splitIntoSentences(normalizedText);
-    
+
     // Analyze at the sentence level
     const sentenceSentiments = [];
     let totalPosScore = 0;
     let totalNegScore = 0;
     let posHits = 0;
     let negHits = 0;
-    
+
     // First check for direct sentiment phrases
     const positivePhrases = findSentimentPhrases(normalizedText, SENTIMENT_PHRASES.positive);
     const negativePhrases = findSentimentPhrases(normalizedText, SENTIMENT_PHRASES.negative);
-    
+
     // Extract key phrases that influence the category
     const hasStrongPositive = positivePhrases.some(p => p.level === "strong");
     const hasModeratePositive = positivePhrases.some(p => p.level === "moderate");
     const hasMildPositive = positivePhrases.some(p => p.level === "mild");
-    
+
     const hasStrongNegative = negativePhrases.some(p => p.level === "strong");
     const hasModerateNegative = negativePhrases.some(p => p.level === "moderate");
     const hasMildNegative = negativePhrases.some(p => p.level === "mild");
-    
+
     // Add phrase scores to totals
     for (const phrase of positivePhrases) {
       totalPosScore += phrase.score;
       posHits++;
     }
-    
+
     for (const phrase of negativePhrases) {
       totalNegScore += phrase.score;
       negHits++;
     }
-    
+
     // Sentiment at sentence level (to handle negation properly)
     for (const sentence of sentences) {
       const positiveTerms = extractSentiment(sentence, POSITIVE_LEXICON);
       const negativeTerms = extractSentiment(sentence, NEGATIVE_LEXICON);
-      
+
       // Check for negation (whole sentence)
       const isNegatedSentence = isNegated(sentence);
-      
+
       let sentencePosScore = 0;
       let sentenceNegScore = 0;
-      
+
       // Process positive terms
       for (const term of positiveTerms) {
         // Check if this specific term is negated
@@ -277,7 +277,7 @@ function analyzeSentiment(text) {
           Math.max(0, sentence.indexOf(term.term) - 10),
           sentence.indexOf(term.term) + term.term.length + 2
         );
-        
+
         if (isNegatedSentence || isNegated(termContext)) {
           // If negated, convert to negative sentiment (but dampen it a bit)
           sentenceNegScore += term.score * 0.8;
@@ -287,7 +287,7 @@ function analyzeSentiment(text) {
           posHits++;
         }
       }
-      
+
       // Process negative terms
       for (const term of negativeTerms) {
         // Check if this specific term is negated
@@ -295,7 +295,7 @@ function analyzeSentiment(text) {
           Math.max(0, sentence.indexOf(term.term) - 10),
           sentence.indexOf(term.term) + term.term.length + 2
         );
-        
+
         if (isNegatedSentence || isNegated(termContext)) {
           // If negated, convert to positive sentiment (but dampen it a bit)
           sentencePosScore += term.score * 0.7;
@@ -305,7 +305,7 @@ function analyzeSentiment(text) {
           negHits++;
         }
       }
-      
+
       // Apply intensifiers if present
       for (const intensifier of INTENSIFIERS) {
         if (sentence.includes(intensifier)) {
@@ -314,36 +314,36 @@ function analyzeSentiment(text) {
           break;
         }
       }
-      
+
       totalPosScore += sentencePosScore;
       totalNegScore += sentenceNegScore;
-      
+
       sentenceSentiments.push({
         text: sentence,
         positive: sentencePosScore,
         negative: sentenceNegScore
       });
     }
-    
+
     // Look for contrast (buts, howevers)
     const hasContrastMarkers = CONTRAST_MARKERS.some(marker => normalizedText.includes(marker));
-    
+
     // Calculate net score, but give more weight to stronger signals
     let netScore = 0;
-    
+
     // Balance calculation based on hits to prevent bias with few words
     if (posHits > 0 || negHits > 0) {
       // Use a weighted approach with normalization
       const totalScore = totalPosScore - totalNegScore;
       const totalHits = Math.max(1, posHits + negHits);
-      
+
       netScore = totalScore / (totalHits * 2); // Normalize to roughly -1...1 range
     }
-    
+
     // Force categorization based on key patterns
     // This ensures appropriate distribution and prevents clustering
     let forcedCategory = null;
-    
+
     if (hasStrongNegative) {
       // Strong negative: -1.0 to -0.7 range
       netScore = Math.min(netScore, -0.7);
@@ -359,7 +359,7 @@ function analyzeSentiment(text) {
     } else if (hasModerateNegative) {
       // Moderate negative: -0.7 to -0.4 range
       netScore = Math.max(Math.min(netScore, -0.4), -0.7);
-      
+
       // Different scores for different moderate negative patterns
       if (/manque de fonctionnalités essentielles/.test(normalizedText)) {
         netScore = -0.65; // Strong moderate negative
@@ -372,7 +372,7 @@ function analyzeSentiment(text) {
     } else if (hasMildNegative) {
       // Mild negative: -0.4 to -0.1 range
       netScore = Math.max(Math.min(netScore, -0.1), -0.4);
-      
+
       // Different scores for mild negative patterns
       if (/pas idéal/.test(normalizedText)) {
         netScore = -0.35; // Higher mild negative
@@ -395,7 +395,7 @@ function analyzeSentiment(text) {
       netScore = Math.min(Math.max(netScore, 0.1), 0.4);
       forcedCategory = "MILD_POSITIVE";
     }
-    
+
     // Handle mixed sentiment
     if (hasContrastMarkers && !forcedCategory) {
       // If we have significant positive and negative (mixed with contrast)
@@ -404,28 +404,21 @@ function analyzeSentiment(text) {
         const contrastIndex = Math.max(
           ...CONTRAST_MARKERS.map(marker => normalizedText.indexOf(marker)).filter(idx => idx !== -1)
         );
-        
+
         if (contrastIndex >= 0) {
           // Evaluate sentiment before and after the contrast marker
-          const beforeContrast = normalizedText.substring(0, contrastIndex);
           const afterContrast = normalizedText.substring(contrastIndex);
-          
-          // Extract sentiment from each part
-          const beforePositive = extractSentiment(beforeContrast, POSITIVE_LEXICON)
-            .reduce((sum, term) => sum + term.score, 0);
-          const beforeNegative = extractSentiment(beforeContrast, NEGATIVE_LEXICON)
-            .reduce((sum, term) => sum + term.score, 0);
-          
+
           const afterPositive = extractSentiment(afterContrast, POSITIVE_LEXICON)
             .reduce((sum, term) => sum + term.score, 0);
           const afterNegative = extractSentiment(afterContrast, NEGATIVE_LEXICON)
             .reduce((sum, term) => sum + term.score, 0);
-          
+
           // Determine which sentiment is stronger in the after-contrast part
           // The after-contrast part typically carries more weight in the final impression
           if (afterPositive > afterNegative) {
             // More positive after the "but" - lean positive
-            netScore = Math.max(0.1, netScore); 
+            netScore = Math.max(0.1, netScore);
           } else if (afterNegative > afterPositive) {
             // More negative after the "but" - lean negative
             netScore = Math.min(-0.1, netScore);
@@ -433,10 +426,10 @@ function analyzeSentiment(text) {
         }
       }
     }
-    
+
     // Constrain within -1 to 1 range
     netScore = Math.max(-1, Math.min(1, netScore));
-    
+
     // Calculate displayPercentage with INVERTED scale for negative sentiments
     let displayPercentage;
 
@@ -450,7 +443,7 @@ function analyzeSentiment(text) {
       // Slightly negative (-0.1) = 10% negative
       displayPercentage = Math.round(Math.abs(netScore) * 100);
     }
-    
+
     return {
       score: netScore,
       displayPercentage
@@ -470,7 +463,7 @@ function analyzeSentiment(text) {
 function detectEmotions(text) {
   try {
     const lowercaseText = text.toLowerCase();
-    
+
     // Pattern-based emotion detection
     const emotionPatterns = {
       SATISFACTION: [
@@ -491,30 +484,30 @@ function detectEmotions(text) {
         /incertain/i, /doute/i, /méfiant/i, /risque/i, /dangereux/i
       ]
     };
-    
+
     // Track scores and determine dominant emotion
     const emotions = {};
     let dominantEmotion = null;
     let highestScore = 0;
-    
+
     // Process each emotion category
     for (const [emotion, patterns] of Object.entries(emotionPatterns)) {
       let score = 0;
-      
+
       // Count pattern matches
       for (const pattern of patterns) {
         const matches = (lowercaseText.match(pattern) || []).length;
         if (matches > 0) {
           // Different weights based on emotion type
-          const weight = (emotion === 'ENTHUSIASM') ? 2 : 
-                         (emotion === 'SATISFACTION') ? 1 :
-                         (emotion === 'FRUSTRATION') ? -1.5 : 
-                         -0.8; // CONCERN
-                         
+          const weight = (emotion === 'ENTHUSIASM') ? 2 :
+            (emotion === 'SATISFACTION') ? 1 :
+              (emotion === 'FRUSTRATION') ? -1.5 :
+                -0.8; // CONCERN
+
           score += matches * weight;
         }
       }
-      
+
       // Check for negation of emotions
       for (const pattern of patterns) {
         for (const negWord of NEGATION_WORDS) {
@@ -526,14 +519,14 @@ function detectEmotions(text) {
           }
         }
       }
-      
+
       // Only include significant emotion scores
       if (Math.abs(score) >= 0.5) {
         emotions[emotion] = {
           score,
           isNegated: score < 0
         };
-        
+
         // Track dominant emotion
         if (Math.abs(score) > Math.abs(highestScore)) {
           highestScore = score;
@@ -541,7 +534,7 @@ function detectEmotions(text) {
         }
       }
     }
-    
+
     // Special case handling for specific patterns
     if (/j'adore|c'est génial|formidable/.test(lowercaseText)) {
       emotions['ENTHUSIASM'] = { score: 3, isNegated: false };
@@ -553,7 +546,7 @@ function detectEmotions(text) {
       emotions['FRUSTRATION'] = { score: 2.5, isNegated: false };
       dominantEmotion = 'FRUSTRATION';
     }
-    
+
     return {
       emotions,
       dominant: dominantEmotion
@@ -573,7 +566,7 @@ function detectEmotions(text) {
 function detectUrgency(text) {
   try {
     const lowercaseText = text.toLowerCase();
-    
+
     // Check for urgency indicators
     const urgencyPatterns = {
       HIGH: [
@@ -592,18 +585,18 @@ function detectUrgency(text) {
         /ultérieurement/i, /plus tard/i
       ]
     };
-    
+
     // Check for negated urgency
-    const hasNegatedUrgency = NEGATION_WORDS.some(neg => 
-      urgencyPatterns.HIGH.some(pattern => 
+    const hasNegatedUrgency = NEGATION_WORDS.some(neg =>
+      urgencyPatterns.HIGH.some(pattern =>
         new RegExp(`${neg}\\s+\\w*\\s*${pattern.source}|${neg}\\s+${pattern.source}`, 'i').test(lowercaseText)
       )
     );
-    
+
     if (hasNegatedUrgency) {
       return { level: 'LOW' };
     }
-    
+
     // Check for explicit urgency levels
     for (const [level, patterns] of Object.entries(urgencyPatterns)) {
       for (const pattern of patterns) {
@@ -617,7 +610,7 @@ function detectUrgency(text) {
         }
       }
     }
-    
+
     // Default urgency
     return { level: 'NORMAL' };
   } catch (error) {
@@ -645,13 +638,13 @@ export const analyzeFeedback = async (text) => {
   try {
     // Perform sentiment analysis
     const sentimentResult = analyzeSentiment(text);
-    
+
     // Detect emotions
     const emotionsAnalysis = detectEmotions(text);
-    
+
     // Detect urgency
     const urgencyAnalysis = detectUrgency(text);
-    
+
     // Prepare final result
     return {
       overall: {
@@ -671,7 +664,7 @@ export const analyzeFeedback = async (text) => {
     };
   } catch (error) {
     console.error("Error in analyzeFeedback:", error);
-    
+
     // Return default result on error
     return {
       overall: {
