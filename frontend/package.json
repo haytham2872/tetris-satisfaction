@@ -24,8 +24,9 @@
     "start:client": "set PORT=3000 && set REACT_APP_MODE=client && react-scripts start",
     "start:admin": "set PORT=3001 && set REACT_APP_MODE=admin && react-scripts start",
     "build": "react-scripts build",
-    "build:client": "set REACT_APP_MODE=client && react-scripts build",
-    "build:admin": "set REACT_APP_MODE=admin && react-scripts build",
+    "build:client": "set REACT_APP_MODE=client && cross-env BUILD_PATH=./build/client react-scripts build",
+    "build:admin": "set REACT_APP_MODE=admin && cross-env BUILD_PATH=./build/admin react-scripts build",
+    "build:all": "npm run build:client && npm run build:admin",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
