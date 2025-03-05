@@ -7,19 +7,20 @@ const transformDatabaseQuestion = (dbQuestion) => ({
   type: dbQuestion.question_type,
   max: dbQuestion.max_value,
   options: dbQuestion.options,
-  importance: dbQuestion.importance// Now coming directly from the database
+  importance: dbQuestion.importance
 });
 
 // Function to fetch and format questions
-export const fetchQuestions = async () => {
+export const fetchQuestions = async (formId) => {
   try {
-    const response = await fetch(`${API_URL}/api/questions`);
-    if (!response.ok) throw new Error('Failed to fetch questions');
+    // Utilisation de l'ID du formulaire dans l'URL
+    const response = await fetch(`${API_URL}/api/forms/${formId}/questions`);
+    if (!response.ok) throw new Error(`Failed to fetch questions for form ${formId}`);
     const data = await response.json();
     return data.map(transformDatabaseQuestion);
   } catch (error) {
     console.error('Error fetching questions:', error);
-
+    // Retourner un tableau vide en cas d'erreur pour éviter les erreurs undefined
+    return [];
   }
 };
-

@@ -1175,8 +1175,9 @@ app.get('/api/low-satisfaction', async (req, res) => {
 
         const [rows] = await pool.execute(query, params);
 
+        // Modification ici: retourner un tableau vide au lieu d'une erreur 404
         if (!rows || rows.length === 0) {
-            return res.status(404).json({ error: 'No responses found' });
+            return res.json([]); // Retourne un tableau vide au lieu d'une erreur
         }
 
         const formattedResults = rows.map(result => ({

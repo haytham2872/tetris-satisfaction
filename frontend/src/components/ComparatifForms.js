@@ -36,14 +36,25 @@ const ComparatifForms = ({ onBack, availableForms }) => {
             const responses = await responsesResponse.json();
             
             // 3. Récupérer les clients insatisfaits
-            const unsatisfiedResponse = await fetch(`${API_URL}/api/low-satisfaction?form_id=${form.id}`);
-            const unsatisfied = unsatisfiedResponse.ok ? await unsatisfiedResponse.json() : [];
-            
+            let unsatisfied = [];
+            try {
+              const unsatisfiedResponse = await fetch(`${API_URL}/api/low-satisfaction?form_id=${form.id}`);
+              if (unsatisfiedResponse.ok) {
+                unsatisfied = await unsatisfiedResponse.json();
+              } else if (unsatisfiedResponse.status === 404) {
+                // C'est normal si aucune réponse d'insatisfaction n'est trouvée
+                unsatisfied = []; // Tableau vide explicite
+              } else {
+                unsatisfied = [];
+              }
+            } catch (error) {
+              unsatisfied = [];
+            }
             // 4. Récupérer les analyses de feedback
             const feedbackResponse = await fetch(`${API_URL}/api/feedback/analysis?form_id=${form.id}`);
             const feedbackData = feedbackResponse.ok ? await feedbackResponse.json() : [];
             
-            // 5. NOUVEAU: Récupérer les données de complétion et d'abandon
+            // 5. Récupérer les données de complétion et d'abandon
             const surveyCompletionResponse = await fetch(`${API_URL}/api/analytics/survey-completion?form_id=${form.id}`);
             const surveyCompletionData = surveyCompletionResponse.ok ? await surveyCompletionResponse.json() : null;
             
@@ -74,7 +85,7 @@ const ComparatifForms = ({ onBack, availableForms }) => {
             let totalSentimentResponses = 0;
             let totalSentimentScore = 0;
             
-            // Nouveau: tracker les displayPercentages
+            // Tracker les displayPercentages
             let totalDisplayPercentage = 0;
             let displayPercentageCount = 0;
             
@@ -92,7 +103,7 @@ const ComparatifForms = ({ onBack, availableForms }) => {
                     }
                   }
                   
-                  // Nouveau: extraire le displayPercentage si disponible
+                  // Extraire le displayPercentage si disponible
                   if (analysis.overall.sentiment.displayPercentage !== undefined) {
                     const displayPercentage = Number(analysis.overall.sentiment.displayPercentage);
                     if (!isNaN(displayPercentage)) {
@@ -102,7 +113,7 @@ const ComparatifForms = ({ onBack, availableForms }) => {
                   }
                 }
               } catch (e) {
-                console.error('Error processing feedback analysis:', e);
+                // Ignorer les erreurs de traitement
               }
             });
             
@@ -110,7 +121,7 @@ const ComparatifForms = ({ onBack, availableForms }) => {
             const positiveRate = totalSentimentResponses > 0 ? ((positiveResponses / totalSentimentResponses) * 100) : 0;
             const satisfactionRate = totalResponses > 0 ? ((totalResponses - unsatisfiedCount) / totalResponses * 100) : 0;
             
-            // Nouveau: calculer le displayPercentage moyen
+            // Calculer le displayPercentage moyen
             const averageDisplayPercentage = displayPercentageCount > 0 ? 
               (totalDisplayPercentage / displayPercentageCount) : 0;
             
@@ -126,17 +137,13 @@ const ComparatifForms = ({ onBack, availableForms }) => {
               positiveRate: positiveRate.toFixed(1),
               satisfactionRate: satisfactionRate.toFixed(1),
               averageSentiment: averageSentiment.toFixed(2),
-              // Nouveau: ajouter le displayPercentage moyen
               averageDisplayPercentage: averageDisplayPercentage.toFixed(1),
-              // NOUVEAU: Ajouter les données de complétion et d'abandon
               completedCount: completedCount,
               abandonedCount: abandonedCount,
               completionRate: completionRate.toFixed(1),
               lastUpdated: form.updated_at || form.created_at || new Date()
             };
           } catch (error) {
-            console.error(`Erreur lors de la récupération des détails pour le formulaire ${form.id}:`, error);
-            
             // En cas d'erreur, retourner le formulaire avec des statistiques par défaut
             return {
               id: form.id,
@@ -163,7 +170,6 @@ const ComparatifForms = ({ onBack, availableForms }) => {
         const detailedForms = await Promise.all(formDetailsPromises);
         setFormData(detailedForms);
       } catch (error) {
-        console.error("❌ ERREUR:", error);
         setMockData();
       } finally {
         setIsLoading(false);
@@ -437,7 +443,6 @@ const ComparatifForms = ({ onBack, availableForms }) => {
                       <ArrowUpDown className="h-4 w-4" />
                     </div>
                   </th>
-                  {/* NOUVEAU: Colonnes pour les abandons et complétions */}
                   <th 
                     scope="col" 
                     className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
@@ -526,7 +531,6 @@ const ComparatifForms = ({ onBack, availableForms }) => {
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         <div className="text-sm text-gray-500">{form.unsatisfiedCount}</div>
                       </td>
-                      {/* NOUVEAU: Cellules pour les complétés et abandonnés */}
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         <div className="text-sm text-green-600 font-medium">{form.completedCount}</div>
                       </td>

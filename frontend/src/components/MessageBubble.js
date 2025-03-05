@@ -196,10 +196,21 @@ const getEngagementMessage = (step, totalSteps, responses, currentResponse) => {
 // New wrapper function to fetch questions and get total count
 const getQuestionCount = async (formId) => {
   try {
+    // Vérifier que formId est défini
+    if (!formId) {
+      console.error("Error: formId is required to fetch questions");
+      return {
+        count: 0,
+        questions: []
+      };
+    }
+    
     const questions = await fetchQuestions(formId);
+    
+    // Si questions est undefined, renvoyer un tableau vide
     return {
-      count: questions.length,
-      questions: questions
+      count: questions?.length || 0,
+      questions: questions || []
     };
   } catch (error) {
     console.error("Error fetching question count:", error);

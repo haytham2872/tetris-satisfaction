@@ -18,7 +18,7 @@ export const useSurvey = (formId) => {
   const [isAnimating, setIsAnimating] = useState(false);
   const [lastResponse, setLastResponse] = useState(null);
   const [contactFormSkipped, setContactFormSkipped] = useState(false);
-  const [setContactDetailsSubmitted] = useState(false);
+  const [contactDetailsSubmitted, setContactDetailsSubmitted] = useState(false); 
   const [contactVisibility, setContactVisibility] = useState(false);
   const surveyCreationRef = useRef(false);
 
@@ -501,7 +501,7 @@ export const useSurvey = (formId) => {
     showContactForm,
     showContactButton,
     isAnimating,
-    setIsAnimating,  // Add this
+    setIsAnimating,  
     lastResponse,
     contactVisibility,
     questionsLoading,
@@ -515,6 +515,8 @@ export const useSurvey = (formId) => {
     setShowContactForm,
     contactFormSkipped,
     setContactFormSkipped,
+    contactDetailsSubmitted,
+    setContactDetailsSubmitted, 
     saveCurrentResponse
   };
 };
